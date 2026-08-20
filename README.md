@@ -6,9 +6,11 @@ built on [Leaflet](https://leafletjs.com/), with a place list, filters, and a ni
 ## Deploying
 
 Every push to the site branch runs `.github/workflows/deploy-pages.yml`, which
-publishes the repository root to GitHub Pages. The workflow enables Pages on
-first run, so no manual setup is needed beyond allowing GitHub Actions as the
-Pages source.
+publishes the repository root to GitHub Pages.
+
+One-time setup: in **Settings → Pages**, set **Source** to **GitHub Actions**.
+The default `GITHUB_TOKEN` is not allowed to turn Pages on by itself, so the
+workflow fails until that switch is flipped.
 
 Live site: https://tacastillo.github.io/trip-db/
 
