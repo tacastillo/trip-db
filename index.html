@@ -536,7 +536,9 @@ const ROUTES = {
   "Jonggak": [ {line:"5", to:"Jongno 3-ga"}, {line:"1", to:"Jonggak"} ],
   "Jongno 5-ga": [ {line:"4", to:"Dongdaemun"}, {line:"1", to:"Jongno 5-ga"} ],
   "Myeongdong": [ {line:"4", to:"Myeongdong"} ],
-  "Hangangjin": [ {line:"4", to:"Samgakji"}, {line:"6", to:"Hangangjin"} ],
+  // Line 6 runs right past the hotel: Cheonggu is one stop out on Line 5, and
+  // riding west from there beats going out to Samgakji and doubling back.
+  "Hangangjin": [ {line:"5", to:"Cheonggu"}, {line:"6", to:"Hangangjin"} ],
   "Ttukseom": [ {line:"2", to:"Ttukseom"} ],
   "Seoul Forest": [ {line:"2", to:"Wangsimni"}, {line:"B", to:"Seoul Forest"} ],
   "Majang": [ {line:"5", to:"Majang"} ],
@@ -560,6 +562,7 @@ const STATION_COORDS = {
   "Anguk": [37.576828, 126.986171],
   "Apgujeong": [37.526185, 127.028499],
   "Apgujeong Rodeo": [37.527813, 127.040709],
+  "Cheonggu": [37.560062, 127.013861],
   "Chungmuro": [37.561202, 126.994109],
   "Dongdaemun": [37.571179, 127.010509],
   "Dongdaemun History & Culture Park": [37.565138, 127.007805],
