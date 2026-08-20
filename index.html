@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tim & Marisa · Korea — Seoul field map</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet" />
+
+<style>
+  *{box-sizing:border-box;}
+  :root{
+    --paper:#F6F2EA; --surface:#FFFFFF; --ink:#1C1A17; --muted:#7A7062;
+    --line:#E7E0D2; --line-2:#EFEAE0; --accent:#C8432A;
+  }
+
+  /* night mode */
+  body.night{
+    --paper:#15120D; --surface:#1E1A14; --ink:#F1EBDF; --muted:#9C9081;
+    --line:#342E25; --line-2:#2A241D; --accent:#E2604A;
+  }
+  body.night #map{background:#0d0b08;}
+  body.night .item:hover{background:#241f18;}
+  body.night .item.sel{background:#2c2118;}
+  body.night .leaflet-container{background:#0d0b08;}
+  body.night .leaflet-popup-content-wrapper,
+  body.night .leaflet-popup-tip{background:var(--surface); color:var(--ink);}
+  body.night .leaflet-popup-content-wrapper{box-shadow:0 10px 30px rgba(0,0,0,.5);}
+  body.night .leaflet-container a.leaflet-popup-close-button{color:var(--muted);}
+  body.night .pop-note{color:var(--ink);}
+  body.night .pop-hood{color:var(--muted);}
+  body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
+  body.night .soon-hi{background:#22304d; color:#9db4ea;}
+  body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
+
+  .toolbtns{display:flex; align-items:center; gap:10px;}
+  .nighttoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
+    background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
+    display:inline-flex; align-items:center; gap:6px; line-height:1;}
+  .nighttoggle:hover{border-color:#cdbfa6;}
+  body.night .nighttoggle:hover{border-color:#4a4234;}
+  html,body{height:100%;}
+  body{margin:0; font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--paper); -webkit-font-smoothing:antialiased;}
+  .disp{font-family:'Bricolage Grotesque',system-ui,sans-serif;}
+
+  .app{height:100vh; display:flex; flex-direction:column; overflow:hidden;}
+
+  /* header */
+  .head{padding:16px 22px 0; border-bottom:1px solid var(--line); flex:none;}
+  .eyebrow{font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); font-weight:600;}
+  .titlerow{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-top:3px;}
+  .title{font-size:27px; line-height:1.05; font-weight:700; letter-spacing:-.01em;}
+  .title .amp{color:var(--accent);}
+  .badge{font-family:'Bricolage Grotesque',sans-serif; font-weight:600; font-size:12.5px; color:var(--accent);
+    border:1.5px dashed var(--accent); border-radius:7px; padding:5px 11px; white-space:nowrap; background:rgba(200,67,42,.05);}
+  .tabs{display:flex; gap:26px; margin-top:14px;}
+  .tab{background:none; border:none; cursor:pointer; padding:0 0 12px; font-family:inherit; color:var(--muted); position:relative; text-align:left;}
+  .tab-l{font-size:15px; font-weight:600; color:inherit; display:flex; align-items:center; gap:7px;}
+  .tab-d{font-size:11.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums;}
+  .tab.active{color:var(--ink);}
+  .tab.active::after{content:''; position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--accent); border-radius:3px;}
+  .soon{font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:2px 7px;}
+
+  /* body */
+  .body{flex:1; min-height:0; display:flex;}
+  .side{width:340px; flex:none; border-right:1px solid var(--line); background:var(--surface); display:flex; flex-direction:column; min-height:0;}
+  .mapwrap{flex:1; min-height:0; position:relative;}
+  #map{position:absolute; inset:0; background:#e9e4da; z-index:0;}
+
+  .sum{padding:15px 18px 13px; border-bottom:1px solid var(--line-2);}
+  .sum-n{font-family:'Bricolage Grotesque',sans-serif; font-size:13px; font-weight:600;}
+  .sum-n b{color:var(--accent);}
+  .sum-sub{font-size:11.5px; color:var(--muted); margin-top:2px;}
+
+  .legend{padding:12px 14px 13px; border-bottom:1px solid var(--line-2); display:flex; flex-wrap:wrap; gap:6px;}
+  .chip{display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none; border:1px solid var(--line);
+    background:var(--surface); border-radius:20px; padding:4px 10px 4px 7px; font-size:11.5px; font-weight:500; color:var(--ink); transition:.12s; line-height:1;}
+  .chip:hover{border-color:#d9d0bf;}
+  .chip.off{opacity:.4;}
+  .dot{width:11px; height:11px; border-radius:50%; flex:none; box-shadow:0 0 0 2px #fff inset;}
+  .chip .ct{color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  .list{overflow-y:auto; flex:1; min-height:0; padding:4px 0 14px;}
+  .cluster{padding:14px 18px 4px;}
+  .cluster-h{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px;}
+  .cluster-h::after{content:''; flex:1; height:1px; background:var(--line-2);}
+  .item{width:100%; text-align:left; background:none; border:none; cursor:pointer; color:var(--ink); font-family:inherit; display:flex; gap:10px; padding:8px 18px; border-left:3px solid transparent; align-items:flex-start;}
+  .item:hover{background:#faf7f1;}
+  .item.sel{background:#fbf1ed; border-left-color:var(--accent);}
+  .pindot{width:20px; height:20px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:11px; margin-top:1px; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+  .it-body{min-width:0; flex:1;}
+  .it-name{font-size:13.5px; font-weight:600; line-height:1.2; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .it-note{font-size:11.5px; color:var(--muted); line-height:1.35; margin-top:2px;}
+  .it-meta{font-size:10.5px; color:var(--accent); font-weight:600; margin-top:3px;}
+  .tag{font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:1px 4px; line-height:1.3;}
+
+  /* pins */
+  .pin{width:30px; height:30px;}
+  .pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid #fff; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.32);}
+  .pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
+  .pin.star .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 4.5px var(--pin), 0 2px 5px rgba(0,0,0,.32);}
+
+  .leaflet-popup-content-wrapper{border-radius:11px; box-shadow:0 10px 30px rgba(28,26,23,.2); padding:2px;}
+  .leaflet-popup-content{margin:12px 14px; font-family:'Inter',sans-serif; line-height:1.4;}
+  .pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px;}
+  .pop-hood{font-size:11px; color:#7A7062; margin-bottom:6px;}
+  .pop-note{font-size:12.5px; color:#3a352e;}
+  .pop-meta{font-size:11.5px; font-weight:600; color:#C8432A; margin-top:6px;}
+
+  /* tile fallback banner */
+  .tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
+    background:rgba(28,26,23,.86); color:#F6F2EA; font-size:12px; line-height:1.4; padding:9px 14px; border-radius:9px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25); display:none; text-align:center;}
+
+  /* coming soon */
+  .soonpane{flex:1; display:none; align-items:center; justify-content:center; padding:30px;}
+  .soonpane.show{display:flex;}
+  .soon-card{max-width:420px; text-align:center;}
+  .soon-k{font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); font-weight:600;}
+  .soon-t{font-family:'Bricolage Grotesque',sans-serif; font-size:30px; font-weight:700; margin:6px 0 2px;}
+  .soon-dt{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .soon-hotel{margin-top:22px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:16px 18px; display:inline-flex; align-items:center; gap:12px; text-align:left;}
+  .soon-hi{width:38px; height:38px; border-radius:9px; background:#eef0fb; color:#3949AB; display:flex; align-items:center; justify-content:center; font-size:18px; flex:none;}
+  .soon-hk{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600;}
+  .soon-hn{font-size:15px; font-weight:600;}
+  .soon-note{font-size:12.5px; color:var(--muted); margin-top:20px; line-height:1.5;}
+
+  .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
+    background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
+    display:inline-flex; align-items:center; gap:6px; line-height:1;}
+  .railtoggle:hover{border-color:#cdbfa6;}
+  .railtoggle.on{background:var(--accent); color:#fff; border-color:var(--accent);}
+  body.night .railtoggle:hover{border-color:#4a4234;}
+  .raillegend{position:absolute; left:14px; bottom:14px; z-index:500; background:rgba(255,255,255,.94);
+    border:1px solid var(--line); border-radius:10px; padding:9px 12px 10px; box-shadow:0 4px 16px rgba(0,0,0,.13);
+    max-width:210px; display:flex; flex-wrap:wrap; gap:5px 13px;}
+  .raillegend .rl-h{flex-basis:100%; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:2px;}
+  .rl-item{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--ink); white-space:nowrap;}
+  .rl-bar{width:15px; height:4px; border-radius:2px; flex:none;}
+  body.night .raillegend{background:rgba(30,26,20,.93);}
+
+  .pop-route{margin-top:8px; padding-top:7px; border-top:1px solid var(--line-2); font-size:11.5px; line-height:1.75;}
+  .pr-k{font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-right:5px;}
+  .pr-line{display:inline-block; color:#fff; font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap; vertical-align:middle;}
+  .pr-to{color:var(--muted); font-weight:500;}
+  .pr-off{font-weight:700; color:var(--ink);}
+  .pr-arr{color:var(--muted);}
+  .leaflet-tooltip.rs-tip{background:rgba(255,255,255,.94); border:none; box-shadow:0 1px 5px rgba(0,0,0,.22); font-size:10.5px; font-weight:600; color:#1C1A17; padding:1px 7px; border-radius:6px;}
+  .leaflet-tooltip.rs-tip.off{font-weight:800;}
+  .leaflet-tooltip.rs-tip::before{display:none;}
+  body.night .leaflet-tooltip.rs-tip{background:rgba(30,26,20,.95); color:#F1EBDF;}
+
+  @media (max-width:780px){
+    .app{height:auto; min-height:100vh; overflow:visible;}
+    .body{flex-direction:column;}
+    .side{width:100%; border-right:none; border-bottom:1px solid var(--line); order:2;}
+    .mapwrap{height:60vh; flex:none; order:1;}
+    .tabs{gap:18px;}
+  }
+</style>
+</head>
+
+<body class="night">
+<div class="app">
+  <header class="head">
+    <div class="eyebrow">Food-first field map</div>
+    <div class="titlerow">
+      <div class="title disp">Tim <span class="amp">&amp;</span> Marisa · Korea</div>
+      <div class="toolbtns">
+        <button class="railtoggle on" id="railToggle" title="Toggle subway lines">🚇 Rail</button>
+        <button class="nighttoggle" id="nightToggle" title="Toggle night mode">☀️ Day</button>
+        <div class="badge">AUG 29 — SEP 12 · 2026</div>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </header>
+
+  <div class="body">
+    <aside class="side" id="side">
+      <div class="sum">
+        <div class="sum-n"><b id="shownCount">40</b> spots · <span id="hoodCount">10</span> neighborhoods</div>
+        <div class="sum-sub"><span id="bookedCount">3</span> booked · ⭐ = reserved · tap to fly there</div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="list" id="list"></div>
+    </aside>
+
+    <div class="mapwrap" id="mapwrap">
+      <div id="map"></div>
+      <div class="tilebanner" id="tilebanner"></div>
+      <div class="raillegend" id="raillegend"></div>
+    </div>
+
+    <div class="soonpane" id="soonpane"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+/* ---------------- data ---------------- */
+const CATS = {"hotel": {"label": "Hotel", "emoji": "🏨", "color": "#3949AB"}, "food": {"label": "Food", "emoji": "🍖", "color": "#D64525"}, "cafe": {"label": "Cafe", "emoji": "☕", "color": "#7B4B27"}, "bakery": {"label": "Bakery", "emoji": "🥐", "color": "#D6477E"}, "dessert": {"label": "Dessert", "emoji": "🍰", "color": "#C77DBB"}, "bar": {"label": "Bar", "emoji": "🍸", "color": "#C99700"}, "shopping": {"label": "Shopping", "emoji": "🛍️", "color": "#2E8B57"}, "landmark": {"label": "Landmark", "emoji": "🏛️", "color": "#2D6CB5"}, "beauty": {"label": "Beauty", "emoji": "💅", "color": "#B0447A"}};
+
+const CAT_ORDER = ["hotel", "food", "cafe", "bakery", "dessert", "bar", "beauty", "shopping", "landmark"];
+
+const CLUSTERS = {"seoul": ["Dongdaemun · home base", "Jongno · palaces & Ikseon-dong", "Namsan", "Hannam · Itaewon", "Seongsu · Seoul Forest", "Cheongdam · Dosan · Apgujeong", "Sinsa · Garosugil", "Gangnam · Yeoksam", "Samseong · COEX", "Sinchon · Yeonnam", "Hongdae · Hapjeong · Mangwon", "Yeouido"], "busan": ["Haeundae · Marine City", "Gwangalli · Suyeong", "Seomyeon · Jeonpo", "Gamcheon · West"], "jeju": ["Jeju City · Dongmun", "Aewol · West coast", "Seogwipo · South", "Jungmun · Southwest", "Hallasan · Central", "East · Hamdeok & Seongsan"]};
+
+const PLACES = [
+  { id:"novotel", city:"seoul", cluster:"Dongdaemun · home base", cat:"hotel", lat:37.56643, lng:127.00457, name:"Novotel Ambassador Dongdaemun", note:"Home base, Aug 30–Sep 4 & Sep 10–12." },
+  { id:"euljidarak", city:"seoul", cluster:"Dongdaemun · home base", cat:"food", lat:37.56371, lng:126.99141, name:"Eulji Darak", note:"Hidden attic bistro — omurice, spicy cream pasta. Walkable from hotel.", meta:"Reserve or queue" },
+  { id:"gyeongbok", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"landmark", lat:37.57962, lng:126.97704, name:"Gyeongbokgung Palace", note:"Main palace. Go early before heat." },
+  { id:"changdeok", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"landmark", lat:37.57943, lng:126.99104, name:"Changdeokgung Palace", note:"Moonlight Tour venue (Sep 11 target)." },
+  { id:"bukchon", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"landmark", lat:37.58147, lng:126.98495, name:"Bukchon Hanok Village", note:"Historic hanok lanes; pairs with palaces." },
+  { id:"hanbok", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"shopping", lat:37.5765, lng:126.9858, name:"Hanbok rental (Anguk)", note:"Rent → free palace admission. Fall foliage." },
+  { id:"insadong", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"landmark", lat:37.57172, lng:126.98607, name:"Insadong", note:"Galleries, tea houses, craft shops." },
+  { id:"nakwon", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"shopping", lat:37.57336, lng:126.99007, name:"Nakwon Instrument Arcade", note:"Vintage music/instrument arcade." },
+  { id:"gwttukgam", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"food", lat:37.572, lng:126.97258, name:"Gwanghwamun Ttukgam", note:"Gamjatang + pork belly. Avoid weekday lunch rush." },
+  { id:"nuldam", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"cafe", lat:37.57805, lng:126.97983, name:"Nuldam Space", note:"Write a letter to your future self; vegan, rooftop. By Gyeongbokgung.", meta:"Card only" },
+  { id:"londonbagel", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57918, lng:126.98615, name:"London Bagel Museum", note:"Famous bagels + scallion cream cheese. Long wait — Catchtable.", meta:"Catchtable" },
+  { id:"cafelayered", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.5777, lng:126.98591, name:"Cafe Layered (Bukchon)", note:"British-style scones, carrot cake." },
+  { id:"onion", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57762, lng:126.98655, name:"Café Onion (Anguk)", note:"Hanok, floor seating; pastries + salt bread. Go early." },
+  { id:"dotori", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57807, lng:126.98627, name:"Dotori Garden", note:"Ghibli-themed, garden terrace. Opens 8am." },
+  { id:"cheongsudang", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57388, lng:126.98976, name:"Cheongsudang Bakery", note:"Vintage hanok bakery-cafe in Ikseon-dong." },
+  { id:"miltoast", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57312, lng:126.99034, name:"Mil Toast", note:"Soufflé French toast; bamboo-basket buns. Catchtable to skip queue.", meta:"Catchtable" },
+  { id:"soha", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.57307, lng:126.98969, name:"Soha Salt Pond", note:"Salt-mine hanok; truffle/mentaiko salt bread. Eat hot." },
+  { id:"jayeondo", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.5737, lng:126.9897, name:"Jayeondo Sogeumppang", note:"Salt bread perfected; baked 6×/day. Ikseon hanok." },
+  { id:"damsot-ik", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"food", lat:37.57303, lng:126.9897, name:"Damsot (Ikseon-dong)", note:"Eggplant pot rice. Lighter break from grilling.", meta:"Recommended" },
+  { id:"gwangjang", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"food", lat:37.57004, lng:126.9996, name:"Gwangjang Market", note:"Bindaetteok, mayak gimbap, yukhoe. Go hungry." },
+  { id:"garlicboy", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"food", lat:37.57032, lng:127.00016, name:"Garlic Boy", note:"Garlic-bomb spot in the Gwangjang area." },
+  { id:"hyoja", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong", cat:"bakery", lat:37.58091, lng:126.96866, name:"Hyoja Bakery (Seochon)", note:"Old-school; corn bread, garlic baguette. By Tongin Market." },
+  { id:"nseoul", city:"seoul", cluster:"Namsan", cat:"landmark", lat:37.55117, lng:126.98823, name:"N Seoul Tower", note:"Namsan cable car + love-lock wall. Sunset." },
+  { id:"mokmyeok", city:"seoul", cluster:"Namsan", cat:"food", lat:37.55809, lng:126.98688, name:"Mokmyeoksanbang", note:"Hanok restaurant on Namsan slope." },
+  { id:"milestone-hannam", city:"seoul", cluster:"Hannam · Itaewon", cat:"cafe", lat:37.53787, lng:127.00267, name:"Milestone Coffee (Hannam)", note:"Vienna coffee, cloud tiramisu. Waitlist." },
+  { id:"leeum", city:"seoul", cluster:"Hannam · Itaewon", cat:"landmark", lat:37.53794, lng:126.99927, name:"Leeum Museum of Art", note:"Samsung art museum; strong collection." },
+  { id:"seoulforest", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"landmark", lat:37.54439, lng:127.03744, name:"Seoul Forest Park", note:"Big park; lake and deer." },
+  { id:"milestone-seongsu", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"cafe", lat:37.54743, lng:127.04283, name:"Milestone Coffee (Seongsu)", note:"Best-vibe branch, backyard seating." },
+  { id:"bornbred", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"food", lat:37.56672, lng:127.04452, name:"Born and Bred", note:"Four-floor hanwoo by Majang Meat Market. Catchtable.", meta:"Closed Tue · Catchtable" },
+  { id:"nudake-ss", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"dessert", lat:37.54151, lng:127.05416, name:"Nudake Seongsu", note:"Gentle Monster dessert flagship #2; Burger Cake exclusive.", added:true },
+  { id:"beton", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"bakery", lat:37.54294, lng:127.05523, name:"Beton", note:"Cult salt-bread cafe; concrete-Euro vibe. Long fast-moving queue.", added:true },
+  { id:"standardbread", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"bakery", lat:37.54168, lng:127.06125, name:"Standard Bread", note:"Grand bread-factory cafe; crème brûlée French toast.", added:true },
+  { id:"hanjungsun", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"dessert", lat:37.54285, lng:127.05417, name:"Han Jung Sun", note:"Viral fruit mochi; thin skin. Strawberry sells out by ~2pm.", added:true },
+  { id:"mingles", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52534, lng:127.04415, name:"Mingles", note:"3 Michelin stars. Chef Mingoo Kang. Book well ahead.", booked:true, meta:"BOOKED · Catchtable" },
+  { id:"hanmiok", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52527, lng:127.04011, name:"Hanmiok (Cheongdam)", note:"Blowtorch brisket, wagyu-sushi start.", booked:true, meta:"BOOKED · Catchtable" },
+  { id:"wumok", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52661, lng:127.03542, name:"Wumok", note:"Dry-aged steak spot." },
+  { id:"damsot-ap", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52535, lng:127.03858, name:"Damsot (Apgujeong)", note:"Eggplant pot rice; Apgujeong branch." },
+  { id:"nudake", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"dessert", lat:37.52542, lng:127.03564, name:"Nudake Haus Dosan", note:"Sculptural pastries; 5-story Gentle Monster flagship." },
+  { id:"bunker", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"cafe", lat:37.52636, lng:127.0312, name:"Bunker Company", note:"Award-winning roaster; Juicy Long Black." },
+  { id:"lowide", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"bakery", lat:37.52507, lng:127.02488, name:"Lowide Coffee Bakery", note:"Milk salt bread; Wide Latte. Pet-friendly." },
+  { id:"apgujeongjejujip", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52151, lng:127.03111, name:"Apgujeong Jejujip", note:"Jeju black-pig KBBQ; Hallasan set.", added:true },
+  { id:"jikang", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52635, lng:127.02935, name:"Jikang", note:"Octopus stew + beef-tartare bibimbap. Waitlist.", added:true, meta:"Recommended" },
+  { id:"camel", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"cafe", lat:37.52345, lng:127.03599, name:"Camel Coffee Dosan", note:"Retro espresso bar; signature Camel Coffee.", added:true },
+  { id:"zest", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"bar", lat:37.52526, lng:127.04078, name:"Zest", note:"#2 Asia’s 50 Best Bars; zero-waste. Catchtable required.", added:true, meta:"Catchtable" },
+  { id:"hongbaksa", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.51921, lng:127.0279, name:"Hongbaksa BBQ (Dr. Hong)", note:"24h; pick your cut at the counter. Late-night option.", meta:"Open 24h" },
+  { id:"garosugil", city:"seoul", cluster:"Sinsa · Garosugil", cat:"landmark", lat:37.52106, lng:127.02287, name:"Garosugil", note:"Tree-lined boutique/cafe street." },
+  { id:"gebangsikdang", city:"seoul", cluster:"Sinsa · Garosugil", cat:"food", lat:37.5173, lng:127.03944, name:"Gebangsikdang", note:"Soy-marinated blue crab; crab-roe rice. Plan: Seongsu branch.", booked:true, meta:"BOOKED · Catchtable" },
+  { id:"etoile", city:"seoul", cluster:"Sinsa · Garosugil", cat:"bakery", lat:37.52128, lng:127.02221, name:"Etoile", note:"Tiny French patisserie; madeleines, financiers. Croissants sell out.", added:true },
+  { id:"sona", city:"seoul", cluster:"Sinsa · Garosugil", cat:"dessert", lat:37.52071, lng:127.02159, name:"Sona", note:"Plated-dessert tasting; Champagne Sugar Ball.", added:true, meta:"Closed Mon–Tue" },
+  { id:"pancakeshop", city:"seoul", cluster:"Sinsa · Garosugil", cat:"dessert", lat:37.52019, lng:127.02017, name:"Pancakeshop Garosugil", note:"Cozy pancake cafe; Oreo & Nutella.", added:true },
+  { id:"starfield", city:"seoul", cluster:"Samseong · COEX", cat:"landmark", lat:37.51006, lng:127.06012, name:"Starfield Library", note:"Two-story book wall in COEX (Kiaf/Frieze venue)." },
+  { id:"anthracite", city:"seoul", cluster:"Hongdae · Hapjeong · Mangwon", cat:"cafe", lat:37.54583, lng:126.91838, name:"Anthracite Coffee (Hapjeong)", note:"Dark, industrial converted warehouse." },
+  { id:"hummingbella", city:"seoul", cluster:"Hongdae · Hapjeong · Mangwon", cat:"bakery", lat:37.55032, lng:126.91996, name:"Humming Bella", note:"Real Choco Croissant; terrace. (The \"Bella Croissant\".)" },
+  { id:"milomil", city:"seoul", cluster:"Hongdae · Hapjeong · Mangwon", cat:"bakery", lat:37.55283, lng:126.90448, name:"Milomil", note:"Tiny Mangwon salt-butter bread. Sells out; closed Sun/Mon.", meta:"Closed Sun/Mon" },
+  { id:"mangwonmkt", city:"seoul", cluster:"Hongdae · Hapjeong · Mangwon", cat:"food", lat:37.5559, lng:126.90629, name:"Mangwon Market", note:"Lower-key local market; kimchi croquette, hand-pulled noodles.", added:true },
+  { id:"madeby", city:"seoul", cluster:"Hongdae · Hapjeong · Mangwon", cat:"shopping", lat:37.55973, lng:126.92638, name:"Made By", note:"Stationery / design shop." },
+  { id:"yeouido", city:"seoul", cluster:"Yeouido", cat:"landmark", lat:37.52671, lng:126.93471, name:"Yeouido Hangang Park", note:"Riverside park near Gimpo." },
+  { id:"parkhyatt", city:"busan", cluster:"Haeundae · Marine City", cat:"hotel", lat:35.15654, lng:129.1419, name:"Park Hyatt Busan", note:"Home base, Sep 7–10. Marine City, Gwangan Bridge views." },
+  { id:"haeundaebeach", city:"busan", cluster:"Haeundae · Marine City", cat:"landmark", lat:35.1587, lng:129.16038, name:"Haeundae Beach", note:"THE Busan beach; promenade + sand festival." },
+  { id:"skycapsule", city:"busan", cluster:"Haeundae · Marine City", cat:"landmark", lat:35.15828, lng:129.17277, name:"Sky Capsule (Blueline Park)", note:"Board at Mipo. Book 2–3 wks ahead; Sep 8 sunset target.", meta:"Klook/KKday" },
+  { id:"tide", city:"busan", cluster:"Haeundae · Marine City", cat:"cafe", lat:35.15762, lng:129.17292, name:"TIDE Coffee Roasters", note:"Ocean-view roaster on Dalmaji; vanilla-bean latte. Closed Tue.", meta:"Closed Tue" },
+  { id:"workingholiday", city:"busan", cluster:"Haeundae · Marine City", cat:"cafe", lat:35.15991, lng:129.16172, name:"Working Holiday", note:"Beachfront Aussie brunch; ice-cream-topped latte." },
+  { id:"legendaryribs", city:"busan", cluster:"Haeundae · Marine City", cat:"food", lat:35.15995, lng:129.16172, name:"Legendary Ribs (전설의 우대갈비)", note:"Beef-rib spot, sea view (same bldg, 3F). Go at sunset." },
+  { id:"haeundaemkt", city:"busan", cluster:"Haeundae · Marine City", cat:"food", lat:35.16145, lng:129.16225, name:"Haeundae Traditional Market", note:"Street food; hotteok, seafood pancakes." },
+  { id:"busanmuseumart", city:"busan", cluster:"Haeundae · Marine City", cat:"landmark", lat:35.16673, lng:129.13707, name:"Busan Museum of Art", note:"Free; closed Mon (open Sep 9). Near BEXCO.", meta:"Closed Mon" },
+  { id:"gwangallibeach", city:"busan", cluster:"Gwangalli · Suyeong", cat:"landmark", lat:35.15317, lng:129.11867, name:"Gwangalli Beach", note:"Golden-hour beach; Gwangan Bridge + drone shows." },
+  { id:"gwanganbridge", city:"busan", cluster:"Gwangalli · Suyeong", cat:"landmark", lat:35.14755, lng:129.13021, name:"Gwangan Bridge", note:"Lights up at night." },
+  { id:"warmcove", city:"busan", cluster:"Gwangalli · Suyeong", cat:"cafe", lat:35.15456, lng:129.11501, name:"Warm Cove (웜코브)", note:"Sourdough + orange coffee. Opens 7:30, closed Sun.", meta:"Closed Sun" },
+  { id:"werk", city:"busan", cluster:"Gwangalli · Suyeong", cat:"cafe", lat:35.15612, lng:129.11301, name:"WERK Roasters", note:"Berlin-vibe roaster near Gwangan; \"Baby\" blend." },
+  { id:"hyttegwangalli", city:"busan", cluster:"Gwangalli · Suyeong", cat:"cafe", lat:35.15065, lng:129.1145, name:"Hytte Roastery (Gwangalli)", note:"Their favorite — water views, mugwort drinks." },
+  { id:"eonyang", city:"busan", cluster:"Gwangalli · Suyeong", cat:"food", lat:35.14877, lng:129.11433, name:"Eonyang Bulgogi Busanjip", note:"Michelin; Eonyang-style pounded bulgogi + beef sashimi. Catchtable.", meta:"Catchtable" },
+  { id:"hyttejeonpo", city:"busan", cluster:"Seomyeon · Jeonpo", cat:"cafe", lat:35.15577, lng:129.06822, name:"Hytte Roastery (Jeonpo)", note:"Top Busan roaster; light roasts, milk roll." },
+  { id:"sanseong", city:"busan", cluster:"Seomyeon · Jeonpo", cat:"food", lat:35.15556, lng:129.06665, name:"Sanseong Sikyukjeom (산성육육점)", note:"Sleek Jeonpo meat spot; nuruk-aged pork." },
+  { id:"hwangnyeongsan", city:"busan", cluster:"Seomyeon · Jeonpo", cat:"landmark", lat:35.15725, lng:129.08168, name:"Hwangnyeongsan Observatory", note:"360° city panorama. Taxi up; arrive before sunset.", meta:"Taxi up" },
+  { id:"samgwangsa", city:"busan", cluster:"Seomyeon · Jeonpo", cat:"landmark", lat:35.17543, lng:129.04339, name:"Samgwangsa Temple", note:"Mountainside temple (lantern fest is May only)." },
+  { id:"gamcheon", city:"busan", cluster:"Gamcheon · West", cat:"landmark", lat:35.09739, lng:129.01059, name:"Gamcheon Culture Village", note:"Hillside art village; \"Stairs to See Stars\"." },
+  { id:"duf", city:"busan", cluster:"Gamcheon · West", cat:"cafe", lat:35.09628, lng:129.00924, name:"DUF Coffee (Gamcheon)", note:"Quirky maze cafe; feed the ducks. Below Gamcheon." },
+  { id:"mocabusan", city:"busan", cluster:"Gamcheon · West", cat:"landmark", lat:35.10928, lng:128.94275, name:"MOCA Busan", note:"Contemporary art on Eulsukdo; closed Mon.", meta:"Closed Mon" },
+  { id:"grandhyatt", city:"jeju", cluster:"Jeju City · Dongmun", cat:"hotel", lat:33.48537, lng:126.48157, name:"Grand Hyatt Jeju", note:"Home base, Sep 4–7. Jeju City." },
+  { id:"gozip", city:"jeju", cluster:"Jeju City · Dongmun", cat:"food", lat:33.51631, lng:126.52807, name:"Gozip Dol Wooluck (airport)", note:"Braised rockfish sets + tempura. Huge portions. Near airport.", meta:"Recommended" },
+  { id:"abebe", city:"jeju", cluster:"Jeju City · Dongmun", cat:"bakery", lat:33.51266, lng:126.5288, name:"Abebe Bakery", note:"Viral donuts/breads by Dongmun. Queue early." },
+  { id:"umu", city:"jeju", cluster:"Jeju City · Dongmun", cat:"dessert", lat:33.50983, lng:126.52339, name:"Umu (우무) — Dongmun", note:"Jeju-agar pudding; jelly-custard texture." },
+  { id:"cloudflower", city:"jeju", cluster:"Jeju City · Dongmun", cat:"dessert", lat:33.51259, lng:126.52715, name:"Cloud Flower Mochi (운화당)", note:"Jeju fruit mochi; eat same day. Closed Mon. At Dongmun.", meta:"Closed Mon" },
+  { id:"dongmun", city:"jeju", cluster:"Jeju City · Dongmun", cat:"food", lat:33.51151, lng:126.52626, name:"Dongmun Traditional Market", note:"Jeju’s main market; best after dark. Gate 8 for food." },
+  { id:"nonjitmul", city:"jeju", cluster:"Jeju City · Dongmun", cat:"food", lat:33.48865, lng:126.49225, name:"Nonjitmul (놋지물)", note:"Local galchi-jorim seafood house in Yeon-dong." },
+  { id:"moosang", city:"jeju", cluster:"Jeju City · Dongmun", cat:"cafe", lat:33.50098, lng:126.51444, name:"Moosang Tea House (무상찻집)", note:"Seasonal traditional desserts + matcha. Near airport; closed Tue/Wed.", meta:"Closed Tue/Wed" },
+  { id:"osulloc", city:"jeju", cluster:"Aewol · West coast", cat:"cafe", lat:33.30654, lng:126.29181, name:"O’sulloc Tea House", note:"Green-tea + hallabong sweets among the Seogwang tea fields." },
+  { id:"haehwatang", city:"jeju", cluster:"Aewol · West coast", cat:"cafe", lat:33.44339, lng:126.29159, name:"Haehwatang (해화탕)", note:"Seaside meditative cafe; floating-candle wish ritual." },
+  { id:"uyubudan", city:"jeju", cluster:"Aewol · West coast", cat:"dessert", lat:33.34759, lng:126.32807, name:"Uyubudan (우유부단)", note:"Milk soft-serve on Isidol Farm; horses grazing." },
+  { id:"hyeopjae", city:"jeju", cluster:"Aewol · West coast", cat:"landmark", lat:33.39429, lng:126.23988, name:"Hyeopjae Beach", note:"Turquoise water, Biyangdo views; cafes lining the sand." },
+  { id:"boreumsup", city:"jeju", cluster:"Seogwipo · South", cat:"food", lat:33.26928, lng:126.44695, name:"Boreumsup (보름숲)", note:"Forest-set BBQ; smoked black-pig (jamón-like).", meta:"Recommended" },
+  { id:"lavarr", city:"jeju", cluster:"Seogwipo · South", cat:"cafe", lat:33.24583, lng:126.5619, name:"lavarr (라바르)", note:"3 floors + rooftop garden, art gallery inside. Seogwipo." },
+  { id:"bagatelle", city:"jeju", cluster:"Seogwipo · South", cat:"bakery", lat:33.27343, lng:126.65443, name:"Bagatelle (바가텔)", note:"Jeju’s proper sourdough; olive fougasse. Thu–Sun only.", meta:"Thu–Sun only" },
+  { id:"hamdeok", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.54342, lng:126.66978, name:"Hamdeok Beach", note:"White sand, clear water; cafes across the road." },
+  { id:"seongsan", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.45806, lng:126.9425, name:"Seongsan Ilchulbong", note:"Sunrise Peak tuff cone; east tip. Haenyeo show." },
+  { id:"sancheong", city:"seoul", cluster:"Dongdaemun · home base", cat:"food", lat:37.5661, lng:126.9925, name:"Sancheong Sutbul Garden (산청숯불가든)", note:"Charcoal-grilled Jirisan black pork, from the Mongtan team. Euljiro 3-ga Exit 11.", meta:"3–4 hr peak waits" },
+  { id:"sosinisso", city:"seoul", cluster:"Sinchon · Yeonnam", cat:"food", lat:37.558, lng:126.938, name:"Sosin Isso (소신이쏘)", note:"Galbijjim two ways — spicy soy and the cream version it’s known for. Near Yonsei.", meta:"Queues at dinner" },
+  { id:"gyeonguipark", city:"seoul", cluster:"Sinchon · Yeonnam", cat:"landmark", lat:37.5605, lng:126.925, name:"Gyeongui Line Forest Park (경의선숲길)", note:"Linear park on a buried rail line. The Yeonnam stretch (“Yeontral Park”) is the lively one." },
+  { id:"yeongdongsl", city:"seoul", cluster:"Sinsa · Garosugil", cat:"food", lat:37.5165, lng:127.0195, name:"Yeongdong Seolleongtang (영동설렁탕)", note:"30+ yr ox-bone soup institution. One dish, served unseasoned — salt it yourself.", meta:"Confirm hours on Naver" },
+  { id:"zenzero-gn", city:"seoul", cluster:"Gangnam · Yeoksam", cat:"dessert", lat:37.5145, lng:127.0475, name:"Zenzero (젠제로) — Gangnam-gu Office", note:"The 2017 original, ~12 seats. Gujwa carrot sorbet, gamtae caramel, chestnut gorgonzola.", meta:"₩7,000 / two flavors" },
+  { id:"zenzero-dosan", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"dessert", lat:37.5243, lng:127.0348, name:"Zenzero (젠제로) — Dosan Park", note:"Basement branch, same rotating seasonal menu. Walkable to Nudake, Bunker, Mingles." },
+  { id:"commonground", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"shopping", lat:37.5406, lng:127.0684, name:"Common Ground (커먼그라운드)", note:"Blue shipping-container mall — indie Korean fashion, rooftop terrace, Market Hall.", meta:"Konkuk Univ., 1 stop past Seongsu" },
+  { id:"muwol", city:"seoul", cluster:"Gangnam · Yeoksam", cat:"food", lat:37.502574, lng:127.0272953, name:"Muwol Table (무월식탁)", note:"Hanjeongsik set for two, soy-marinated shrimp rice bowl, herb pork, flavored makgeolli.", meta:"Recommended" },
+  { id:"yugdaljib", city:"seoul", cluster:"Gangnam · Yeoksam", cat:"food", lat:37.5023944, lng:127.0274265, name:"Yugdaljib (육달집)", note:"Warm Korean home-style cooking near Gangnam Station. Lunch special." },
+  { id:"hyejin", city:"seoul", cluster:"Gangnam · Yeoksam", cat:"beauty", lat:37.497514, lng:127.0310602, name:"Colorful Hyejin — Personal Color", note:"Package 2: Premium Personal Color + Body Consulting. Makeup lesson add-on for Marisa.", meta:"⭐ Booked" },
+  { id:"cheonjiyeon", city:"jeju", cluster:"Seogwipo · South", cat:"landmark", lat:33.2469, lng:126.5544, name:"Cheonjiyeon Waterfall (천지연폭포)", note:"22m fall at the end of a flat forest boardwalk. Lit at night — 10 min walk from Olle Market.", meta:"9am–10pm" },
+  { id:"jeongbang", city:"jeju", cluster:"Seogwipo · South", cat:"landmark", lat:33.2448567, lng:126.5715794, name:"Jeongbang Waterfall (정방폭포)", note:"Falls straight into the sea — rare. Downtown Seogwipo.", meta:"₩2,000" },
+  { id:"ollemarket", city:"jeju", cluster:"Seogwipo · South", cat:"food", lat:33.2487163, lng:126.5640617, name:"Seogwipo Maeil Olle Market", note:"Black pork, street-food stalls, hallabong, traditional sweets.", meta:"7am–9pm" },
+  { id:"cheonjeyeon", city:"jeju", cluster:"Jungmun · Southwest", cat:"landmark", lat:33.2506778, lng:126.4167726, name:"Cheonjeyeon Waterfalls (천제연폭포)", note:"Three tiers; the top only flows after rain. Seonimgyo bridge. Next to Jusangjeolli.", meta:"₩2,500 · closes 5:10pm" },
+  { id:"jusangjeolli", city:"jeju", cluster:"Jungmun · Southwest", cat:"landmark", lat:33.2367938, lng:126.4254867, name:"Daepo Jusangjeolli Cliff (주상절리)", note:"Hexagonal volcanic columns above the sea.", meta:"₩2,000 + parking" },
+  { id:"songaksan", city:"jeju", cluster:"Jungmun · Southwest", cat:"landmark", lat:33.199, lng:126.287, name:"Songaksan Coastal Trail (송악산)", note:"2.8km cliff-top loop (~1 hr) with views to Sanbangsan, Marado and Gapado. WWII cave bunkers at the base.", meta:"Free · daylight" },
+  { id:"hallasan", city:"jeju", cluster:"Hallasan · Central", cat:"landmark", lat:33.3606281, lng:126.5358345, name:"Hallasan Mountain (한라산)", note:"Seongpanak is the standard route. Baengnokdam crater lake at the summit.", meta:"⚠ Summit needs advance booking + passport" },
+  { id:"boreum-note", city:"jeju", cluster:"Hallasan · Central", cat:"cafe", lat:33.30654, lng:126.29181, name:"O’sulloc Tea House — Seogwang fields", note:"Green tea + hallabong desserts; tea museum on site. (Flagship, not the Jeju City branch.)" },
+  { id:"manjanggul", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.5282463, lng:126.7702874, name:"Manjanggul Lava Tube (만장굴)", note:"1 km walk through a UNESCO lava tube; lava column at the far end.", meta:"₩4,000 · closes 5pm" },
+  { id:"bijarim", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.4886, lng:126.81, name:"Bijarim Forest (비자림)", note:"~2,800 nutmeg yew trees, 500–800 yrs old. Flat gravel loops. 10 min from Manjanggul.", meta:"₩3,000 · last entry 5pm" },
+  { id:"gwangchigi", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.4468, lng:126.9243, name:"Gwangchigi Beach (광치기해변)", note:"Green moss-covered lava flats at low tide; sunrise view back toward Ilchulbong.", meta:"Free · 5 min from Seongsan" },
+  { id:"seopjikoji", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.4242095, lng:126.931111, name:"Seopjikoji (섭지코지)", note:"Coastal cliff trail and lighthouse with Ilchulbong on the horizon. 15 min south of Seongsan." },
+  { id:"dakmeoreu", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"landmark", lat:33.541, lng:126.628, name:"Dakmeoreu Coast (닭머르)", note:"Short boardwalk over lava rock to a headland pavilion. Local sunset spot, rarely crowded.", meta:"Free · 20 min from Jeju City" },
+  { id:"seogwipean", city:"jeju", cluster:"East · Hamdeok & Seongsan", cat:"bakery", lat:33.4351951, lng:126.9222463, name:"Seogwipean Bakery", note:"Mille-feuille loaf, matcha croissant, ciabatta. Near Seongsan.", meta:"8am–8pm" },
+  { id:"handam", city:"jeju", cluster:"Aewol · West coast", cat:"food", lat:33.4618736, lng:126.3120501, name:"Handam Noodles (한담국수)", note:"Gogi-guksu (pork noodle soup), bibim guksu, sundae. Near Gwakji Beach." },
+  { id:"biennale", city:"busan", cluster:"Gamcheon · West", cat:"landmark", lat:35.0894, lng:129.0433, name:"Busan Biennale 2026 — Yeongdo", note:"Warehouse venue on Yeongdo Island. Approximate pin — confirm the exact address.", meta:"Through Nov 1" },
+];
+
+const LEGS = [
+  { id:"seoul", label:"Seoul", dates:"Aug 30 – Sep 4 · Sep 10–12" },
+  { id:"jeju",  label:"Jeju",  dates:"Sep 4 – 7" },
+  { id:"busan", label:"Busan", dates:"Sep 7 – 10" },
+];
+
+const SUBWAY = [{"ref":"1","label":"Line 1","color":"#004A85","paths":[[[37.59994,127.06636],[37.59951,127.06606],[37.59916,127.06583],[37.59883,127.06559],[37.59853,127.06537],[37.59837,127.06525],[37.59784,127.0649],[37.59744,127.06462],[37.59563,127.06337],[37.59524,127.0631],[37.59505,127.06296],[37.59449,127.06257],[37.59392,127.06217],[37.59275,127.06133],[37.59236,127.06107],[37.59198,127.06081],[37.59166,127.06057],[37.59152,127.06045],[37.59138,127.06034],[37.59124,127.06019],[37.591,127.05995],[37.59077,127.05969],[37.59062,127.05949],[37.59043,127.05922],[37.59025,127.05895],[37.59017,127.0588],[37.58936,127.05731],[37.58919,127.05699],[37.58909,127.0568],[37.58891,127.05643],[37.58871,127.05606],[37.58851,127.05568],[37.5883,127.0553],[37.58807,127.05489],[37.58782,127.05449],[37.58756,127.05408],[37.58732,127.05377],[37.58708,127.05345],[37.58683,127.05316],[37.58655,127.05286],[37.58628,127.05258],[37.58603,127.05235],[37.58584,127.05219],[37.58566,127.05205],[37.58529,127.05176],[37.5851,127.05157],[37.58497,127.05145],[37.58479,127.05128],[37.58465,127.05115],[37.58421,127.05076],[37.58398,127.05057],[37.58376,127.05037],[37.58354,127.05018],[37.58331,127.04997],[37.58316,127.04983],[37.58296,127.04963],[37.58281,127.04948],[37.58201,127.04864],[37.58162,127.04823],[37.58134,127.04784],[37.58115,127.04757],[37.58106,127.04741],[37.58095,127.04722],[37.58077,127.04686],[37.5806,127.04643],[37.5805,127.04621],[37.58034,127.04586],[37.58013,127.04536],[37.58,127.04499],[37.57982,127.04443],[37.57958,127.04362],[37.57949,127.04327],[37.57945,127.04307],[37.57936,127.04277],[37.57925,127.0424],[37.57823,127.03928],[37.57816,127.03905],[37.57806,127.03854],[37.57802,127.03828],[37.57799,127.03807],[37.57796,127.0377],[37.57797,127.03737],[37.57799,127.03706],[37.57803,127.03685],[37.57809,127.03652],[37.57814,127.03627],[37.5782,127.03592],[37.57825,127.0356],[37.5783,127.03528],[37.57833,127.03496],[37.57834,127.03468],[37.57835,127.03429],[37.57834,127.03402],[37.57833,127.03379],[37.57831,127.03355],[37.57824,127.03308],[37.57819,127.03275],[37.5781,127.03229],[37.57802,127.03192],[37.5779,127.03134],[37.57768,127.03044],[37.57649,127.02617],[37.57629,127.02552],[37.57583,127.024],[37.57565,127.02349],[37.57535,127.02273],[37.57504,127.02192],[37.57474,127.02117],[37.57382,127.01849],[37.57372,127.01817],[37.57352,127.01759],[37.57342,127.01727],[37.57333,127.01692],[37.57313,127.01615],[37.57288,127.01521],[37.57216,127.01277],[37.5721,127.01256],[37.57203,127.01228],[37.57178,127.01122],[37.57173,127.01099],[37.5715,127.00996],[37.57145,127.00974],[37.57116,127.00857],[37.57112,127.00831],[37.57109,127.00805],[37.57109,127.0078],[37.57099,127.0029],[37.57096,127.00191],[37.57093,127.00118],[37.57068,126.99744],[37.57064,126.99699],[37.57056,126.99572],[37.57052,126.99511],[37.57047,126.99333],[37.57043,126.99239],[37.57034,126.99083],[37.57032,126.9906],[37.57022,126.98837],[37.5702,126.98766],[37.57017,126.98617],[37.57016,126.98475],[37.57016,126.98424],[37.57014,126.98357],[37.57014,126.98298],[37.57012,126.98211],[37.57012,126.98171],[37.57012,126.98132],[37.5701,126.98075],[37.57009,126.9804],[37.57009,126.98004],[37.57009,126.97972],[37.5701,126.97942],[37.57012,126.9791],[37.5702,126.97867],[37.57022,126.97844],[37.5702,126.97808],[37.57013,126.97779],[37.57005,126.9776],[37.56993,126.97738],[37.56977,126.97717],[37.5696,126.97701],[37.56931,126.97685],[37.56911,126.9768],[37.56888,126.97679],[37.56867,126.97683],[37.56844,126.9769],[37.56823,126.97698],[37.56806,126.97705],[37.56788,126.97711],[37.56761,126.97718],[37.56732,126.97724],[37.56688,126.97726],[37.56643,126.97723],[37.56607,126.97718],[37.56582,126.97717],[37.56535,126.97716],[37.56478,126.97715],[37.56447,126.97708],[37.56424,126.977],[37.56375,126.97683],[37.563,126.97652],[37.56205,126.97614],[37.56181,126.97605],[37.56138,126.97585],[37.56121,126.97575],[37.56099,126.97562],[37.56075,126.97545],[37.56045,126.97521],[37.5601,126.9749],[37.5593,126.97432],[37.55823,126.97346],[37.55792,126.97321],[37.55761,126.97297],[37.55725,126.97278],[37.55683,126.97262],[37.5563,126.97248],[37.55586,126.97237],[37.55532,126.97228],[37.55482,126.97222],[37.55463,126.97219],[37.55397,126.97212],[37.55358,126.97207],[37.55317,126.97204],[37.55291,126.97204],[37.55264,126.97199],[37.55224,126.9719],[37.55197,126.97186],[37.55169,126.97179],[37.55143,126.97172],[37.551,126.97157],[37.55076,126.9715],[37.55054,126.97146],[37.55024,126.97141],[37.55,126.97138],[37.54972,126.97136],[37.54801,126.97136],[37.54751,126.97136],[37.54554,126.97137],[37.54517,126.97137],[37.54489,126.97138],[37.54424,126.97136],[37.544,126.97135],[37.54343,126.97133],[37.54307,126.97135],[37.54272,126.97136],[37.54228,126.97138],[37.54187,126.97137],[37.54165,126.97137],[37.53957,126.97141],[37.53899,126.9714],[37.53868,126.97138],[37.53823,126.97135],[37.53782,126.97131],[37.53742,126.97126],[37.53708,126.97123],[37.53669,126.97118],[37.53632,126.97113],[37.53591,126.97106],[37.53558,126.97099],[37.53536,126.97093],[37.5351,126.97084],[37.53487,126.97075],[37.53464,126.97063],[37.53435,126.97044],[37.53409,126.97025],[37.5339,126.9701],[37.5337,126.96991],[37.5335,126.9697],[37.53333,126.9695],[37.53275,126.9688],[37.53261,126.96862],[37.53206,126.96794],[37.53159,126.96729],[37.53113,126.96666],[37.53088,126.96632],[37.53079,126.96619],[37.52873,126.96335],[37.52863,126.96321],[37.52813,126.96253],[37.52797,126.96229],[37.52735,126.96138],[37.52708,126.96099],[37.52645,126.96009],[37.52565,126.95886],[37.52493,126.95787],[37.52429,126.9571],[37.52367,126.95643],[37.51616,126.94812],[37.51605,126.94798],[37.51556,126.94736],[37.51512,126.94665],[37.51496,126.94627],[37.51474,126.94567],[37.51456,126.94497],[37.51448,126.94451],[37.51438,126.94359],[37.51427,126.94248],[37.51415,126.9413],[37.51403,126.94019],[37.51401,126.93995],[37.51396,126.9395],[37.51384,126.93855],[37.51378,126.93795],[37.51371,126.93659],[37.51365,126.93389],[37.51357,126.93068],[37.51344,126.92768],[37.5134,126.92622],[37.5134,126.9258],[37.51341,126.92541],[37.51343,126.92504],[37.51349,126.92462],[37.5136,126.92417],[37.51375,126.9237],[37.51397,126.92323],[37.51419,126.92284],[37.51439,126.92255],[37.51469,126.92214],[37.51571,126.92084],[37.51594,126.92051],[37.5162,126.92011],[37.51644,126.91966],[37.51666,126.91914],[37.51682,126.91874],[37.51695,126.91826],[37.51704,126.91784],[37.51712,126.91748],[37.51718,126.91691],[37.5172,126.91645],[37.5172,126.9158],[37.51718,126.91523],[37.51711,126.91423],[37.51693,126.91185],[37.51685,126.91061],[37.51675,126.90999],[37.51661,126.90946],[37.51631,126.90871],[37.51546,126.9066],[37.51521,126.906],[37.51513,126.90581],[37.5146,126.90461],[37.51406,126.90346],[37.5133,126.90173],[37.51241,126.89965],[37.51187,126.8983],[37.51152,126.89741],[37.51106,126.89633],[37.51001,126.89387],[37.50945,126.89255],[37.50923,126.89202],[37.50893,126.89132],[37.50864,126.89069],[37.50845,126.89029],[37.50826,126.88996],[37.50777,126.88915],[37.50711,126.88809],[37.50679,126.88758],[37.50613,126.88651],[37.50579,126.88596],[37.50528,126.88503],[37.50504,126.8846],[37.50463,126.88383],[37.50443,126.88353],[37.50425,126.88328],[37.50391,126.88282],[37.5034,126.88226],[37.50267,126.88145],[37.50249,126.88125]]]},{"ref":"2","label":"Line 2","color":"#00A23F","paths":[[[37.56309,126.97396],[37.56298,126.9736],[37.56276,126.97275],[37.56168,126.96809],[37.56151,126.9674],[37.56129,126.96684],[37.55936,126.96367],[37.55791,126.96127],[37.55771,126.96087],[37.5574,126.95987],[37.55731,126.95925],[37.5573,126.95861],[37.55745,126.95613],[37.55701,126.9492],[37.55679,126.94584],[37.5566,126.94196],[37.55654,126.9414],[37.55645,126.94099],[37.55529,126.93744],[37.55518,126.93691],[37.55527,126.93646],[37.55562,126.93549],[37.5567,126.93251],[37.5586,126.92729],[37.55866,126.92707],[37.55871,126.92687],[37.55872,126.92653],[37.55869,126.92633],[37.55857,126.92602],[37.55848,126.92588],[37.55837,126.92573],[37.558,126.92524],[37.55668,126.92346],[37.55008,126.91464],[37.54948,126.91386],[37.54922,126.91351],[37.54897,126.91326],[37.54841,126.91286],[37.54794,126.91256],[37.54751,126.91233],[37.54691,126.91214],[37.54577,126.91173],[37.54534,126.91154],[37.54469,126.91109],[37.54414,126.91065],[37.54366,126.91024],[37.5376,126.90498],[37.53584,126.90341],[37.53569,126.9033],[37.53413,126.90207],[37.53391,126.9019],[37.52941,126.89834],[37.52924,126.8982],[37.52904,126.89805],[37.52861,126.8977],[37.52798,126.89725],[37.52779,126.89713],[37.52712,126.89699],[37.52648,126.89683],[37.52574,126.89664],[37.52532,126.89654],[37.52493,126.89645],[37.52423,126.89629],[37.52381,126.89618],[37.52361,126.89612],[37.52331,126.89606],[37.52284,126.89595],[37.5202,126.89534],[37.51898,126.89496],[37.51841,126.89484],[37.51729,126.89462],[37.51687,126.89452],[37.51652,126.89443],[37.51631,126.89435],[37.51607,126.89423],[37.5158,126.89408],[37.5156,126.89393],[37.51536,126.89373],[37.51489,126.89318],[37.51435,126.89248],[37.51404,126.89207],[37.51378,126.89172],[37.51344,126.8913],[37.51322,126.89097],[37.51284,126.89049],[37.51267,126.89026],[37.51252,126.8901],[37.51227,126.88989],[37.51202,126.88977],[37.51173,126.88968],[37.51144,126.88967],[37.51109,126.88973],[37.51089,126.88981],[37.51071,126.88994],[37.51056,126.89006],[37.51017,126.89037],[37.50982,126.89059],[37.50942,126.89088],[37.50895,126.89119],[37.50848,126.89149],[37.50814,126.89171],[37.50774,126.89191],[37.50679,126.89257],[37.50653,126.89268],[37.50628,126.89279],[37.50603,126.89286],[37.50576,126.89291],[37.50549,126.89292],[37.50522,126.89291],[37.50433,126.8928],[37.50259,126.89254],[37.5022,126.89249],[37.50193,126.89246],[37.50168,126.89245],[37.50132,126.89245],[37.5009,126.8925],[37.50066,126.89254],[37.50045,126.89259],[37.50018,126.89266],[37.49989,126.89276],[37.49959,126.89287],[37.49849,126.89337],[37.49815,126.89348],[37.49781,126.89354],[37.49724,126.89362],[37.4967,126.89373],[37.49633,126.89383],[37.49576,126.89403],[37.49495,126.89434],[37.49328,126.89496],[37.49199,126.89544]],[[37.49016,127.00481],[37.49044,127.00491],[37.49066,127.00507],[37.49081,127.00522],[37.49105,127.00551],[37.49117,127.00571],[37.49128,127.006],[37.49138,127.00632],[37.49158,127.00695],[37.49181,127.00764],[37.49245,127.00977],[37.49285,127.01112],[37.49353,127.01323],[37.49394,127.0146],[37.49427,127.01576],[37.49466,127.01697],[37.49492,127.01785],[37.49541,127.01943],[37.49579,127.02069],[37.49628,127.02226],[37.49675,127.02382],[37.4979,127.02761],[37.50079,127.03692],[37.50121,127.03836],[37.50302,127.04425],[37.50444,127.04891],[37.50673,127.05645],[37.50679,127.05664],[37.50706,127.05756],[37.50727,127.0582],[37.50764,127.05937],[37.50805,127.06081],[37.50838,127.06187],[37.50845,127.06211],[37.50878,127.06317],[37.50911,127.06425],[37.50919,127.06451],[37.5095,127.06542],[37.50979,127.06643],[37.50994,127.06703],[37.5107,127.07164],[37.51074,127.07192],[37.51084,127.07249],[37.51104,127.07372],[37.51128,127.07532],[37.51145,127.07628],[37.51177,127.07847]],[[37.53773,127.07869],[37.53813,127.07709],[37.53881,127.07438],[37.53916,127.07305],[37.53993,127.07074],[37.54028,127.0697],[37.54079,127.06817],[37.54134,127.06655],[37.54224,127.06391],[37.54236,127.0635],[37.54297,127.06149],[37.54377,127.05883],[37.54396,127.05823],[37.54404,127.05796],[37.54421,127.05738],[37.54427,127.05718],[37.5449,127.05506],[37.54504,127.0546],[37.5463,127.05044],[37.54683,127.04865],[37.54725,127.04742],[37.54759,127.0464],[37.54781,127.04584],[37.5479,127.04565],[37.54805,127.0454],[37.54817,127.04525],[37.54828,127.04513],[37.5485,127.04495],[37.54866,127.04482],[37.54891,127.04469],[37.5492,127.04456],[37.54992,127.04441],[37.55058,127.04433],[37.55187,127.04429],[37.55222,127.04426],[37.55421,127.04394],[37.55466,127.04385],[37.55573,127.04368],[37.55608,127.04363],[37.55668,127.04352],[37.55908,127.04325],[37.55976,127.04314],[37.5603,127.04282],[37.56079,127.0422],[37.56109,127.04155],[37.56119,127.04105],[37.56125,127.04076],[37.56128,127.03987],[37.56126,127.03851],[37.56125,127.03791],[37.56122,127.03714],[37.5612,127.03608],[37.56125,127.03563],[37.56144,127.03519],[37.56195,127.03439],[37.56268,127.03323],[37.56443,127.02921],[37.56489,127.02743],[37.56498,127.02679],[37.56506,127.02453],[37.56521,127.02344],[37.56545,127.02199],[37.56562,127.02099],[37.56565,127.01981],[37.5656,127.01865],[37.56548,127.01719],[37.56541,127.01631],[37.56521,127.01466],[37.56497,127.01268],[37.56491,127.01203],[37.56496,127.01131],[37.5651,127.01059],[37.5659,127.00818],[37.56603,127.00771],[37.56645,127.00547],[37.56664,127.00452],[37.5667,127.0042],[37.56679,127.00339],[37.56683,127.00275],[37.56682,127.00201],[37.56667,126.998],[37.56665,126.99767],[37.56662,126.9971],[37.56631,126.9912],[37.56598,126.98261],[37.56598,126.97914],[37.56595,126.97849],[37.56589,126.97821],[37.56579,126.97795],[37.56562,126.97771],[37.5654,126.97749],[37.56516,126.9773],[37.56474,126.97704],[37.56423,126.97666],[37.56402,126.97643],[37.56393,126.97625],[37.5634,126.97487],[37.56309,126.97396]]]},{"ref":"3","label":"Line 3","color":"#ED6C00","paths":[[[37.59977,126.93633],[37.59942,126.93658],[37.59775,126.93794],[37.5964,126.93905],[37.59601,126.93937],[37.59501,126.94029],[37.59449,126.94071],[37.59413,126.94087],[37.59374,126.94096],[37.59208,126.94111],[37.59173,126.94125],[37.59135,126.94145],[37.59066,126.94198],[37.58995,126.94265],[37.58867,126.9442],[37.58733,126.94577],[37.58516,126.94806],[37.58494,126.94823],[37.58376,126.94944],[37.58338,126.94972],[37.58231,126.95031],[37.58141,126.95068],[37.58123,126.95085],[37.58106,126.95105],[37.58,126.95235],[37.57771,126.95465],[37.57709,126.95524],[37.57588,126.95626],[37.57524,126.95699],[37.57451,126.95782],[37.57413,126.95825],[37.57303,126.95946],[37.57269,126.95987],[37.57256,126.96021],[37.5725,126.96046],[37.57249,126.96079],[37.57246,126.96183],[37.5725,126.96234],[37.57264,126.96293],[37.57329,126.96433],[37.57387,126.96548],[37.57397,126.96574],[37.57423,126.96669],[37.57435,126.96706],[37.57456,126.96744],[37.57552,126.96866],[37.57595,126.96943],[37.57603,126.96976],[37.57605,126.97042],[37.57597,126.97198],[37.57576,126.97357],[37.57569,126.9745],[37.57561,126.97551],[37.57557,126.97603],[37.57554,126.97646],[37.57551,126.97733],[37.57556,126.97879],[37.57559,126.97946],[37.57564,126.98014],[37.57565,126.98077],[37.57564,126.98139],[37.57564,126.98195],[37.57561,126.98244],[37.57561,126.9829],[37.57565,126.98333],[37.57581,126.98382],[37.57646,126.98547],[37.57683,126.98623],[37.57692,126.98642],[37.57712,126.98687],[37.57733,126.98746],[37.5774,126.98784],[37.57743,126.98832],[37.57744,126.98875],[37.57739,126.98913],[37.57731,126.98942],[37.5772,126.98968],[37.57706,126.98992],[37.57681,126.9901],[37.57655,126.99027],[37.57627,126.9904],[37.57451,126.99092],[37.57278,126.99143],[37.57202,126.99169],[37.57041,126.9922],[37.56931,126.99225],[37.56833,126.99236],[37.56636,126.99259],[37.56616,126.99261],[37.56404,126.99285],[37.56259,126.99304],[37.56228,126.99317],[37.56208,126.99328],[37.56178,126.99349],[37.56152,126.99372],[37.56137,126.99387],[37.56123,126.99401],[37.56109,126.99417],[37.56099,126.99431],[37.56065,126.99481],[37.56054,126.99499],[37.56033,126.99552],[37.56018,126.99615],[37.56006,126.997],[37.55997,126.99743],[37.55925,127.00104],[37.55906,127.0022],[37.55894,127.0032],[37.55893,127.00375],[37.55902,127.00518],[37.55902,127.00577],[37.55895,127.00618],[37.55879,127.00683],[37.55808,127.00802],[37.55789,127.00826],[37.55746,127.0087],[37.55722,127.00889],[37.55628,127.00951],[37.55483,127.01055],[37.5533,127.01179],[37.55301,127.01203],[37.55172,127.01311],[37.55037,127.01415],[37.54942,127.01489],[37.54875,127.01547],[37.54802,127.01586],[37.54703,127.01631],[37.54652,127.01647],[37.54597,127.01657],[37.54463,127.01667],[37.54342,127.01679],[37.54302,127.01685],[37.54256,127.01696],[37.54205,127.01716],[37.54156,127.0174],[37.54088,127.01785],[37.53177,127.02419],[37.53074,127.02487],[37.53062,127.025],[37.53015,127.02533],[37.52997,127.02547],[37.52983,127.02561],[37.52933,127.02616],[37.52766,127.02805],[37.52738,127.02826],[37.52705,127.02842],[37.52681,127.0285],[37.52658,127.02851],[37.52614,127.02847],[37.5259,127.02844],[37.5201,127.02805],[37.51975,127.02794],[37.51961,127.02781],[37.51948,127.02759],[37.51889,127.02622],[37.51848,127.02526],[37.51617,127.01963],[37.51499,127.0161],[37.51381,127.0133],[37.51275,127.01109],[37.51082,127.00714],[37.51009,127.00563],[37.50973,127.00505],[37.50942,127.00469],[37.50904,127.00439],[37.50854,127.00412],[37.50799,127.00401],[37.50754,127.00398],[37.50714,127.00399],[37.5067,127.00406],[37.50638,127.00421],[37.50504,127.0049],[37.5024,127.00609],[37.50179,127.00643],[37.50122,127.00699],[37.50076,127.00767],[37.50061,127.00795],[37.49967,127.01057],[37.49955,127.01091],[37.49931,127.01142],[37.49914,127.01168],[37.49885,127.01205],[37.49854,127.01235],[37.49828,127.01254],[37.49805,127.01265],[37.49785,127.01275],[37.49748,127.0128],[37.49463,127.01345],[37.49288,127.01381]],[[37.49088,127.05549],[37.49445,127.06322],[37.49648,127.06991],[37.49719,127.07305],[37.49725,127.07388],[37.4972,127.07467],[37.49706,127.07548],[37.49671,127.07681],[37.49648,127.07741],[37.49618,127.0779],[37.49564,127.07846],[37.4953,127.07872],[37.49499,127.07887],[37.49365,127.07951]]]},{"ref":"4","label":"Line 4","color":"#009BCE","paths":[[[37.59773,127.02188],[37.59667,127.0213],[37.59628,127.02101],[37.59522,127.01984],[37.59423,127.0187],[37.59387,127.0183],[37.59345,127.01782],[37.59315,127.01741],[37.5929,127.01694],[37.5928,127.01675],[37.59266,127.01641],[37.5925,127.01573],[37.59239,127.01482],[37.59225,127.01416],[37.5922,127.01396],[37.59212,127.01376],[37.59148,127.01247],[37.59035,127.01029],[37.58949,127.00833],[37.58914,127.00744],[37.5882,127.00532],[37.58811,127.00508],[37.58789,127.0045],[37.58769,127.00396],[37.58725,127.00296],[37.58708,127.00266],[37.5868,127.00226],[37.58646,127.00193],[37.58613,127.00166],[37.58594,127.00153],[37.5857,127.00137],[37.58538,127.0013],[37.58514,127.00131],[37.5848,127.00136],[37.58379,127.00157],[37.58249,127.0019],[37.58214,127.00193],[37.58089,127.00205],[37.57771,127.00219],[37.57731,127.00225],[37.5771,127.00232],[37.57685,127.00242],[37.57666,127.00253],[37.57646,127.00272],[37.57633,127.00293],[37.57613,127.00359],[37.57588,127.00446],[37.5756,127.00499],[37.57521,127.0054],[37.57449,127.00609],[37.57225,127.00817],[37.57138,127.00893],[37.57109,127.00914],[37.57076,127.00937],[37.57048,127.00955],[37.57019,127.00969],[37.56981,127.00982],[37.56962,127.00987],[37.5691,127.00988],[37.56884,127.00985],[37.56855,127.00979],[37.56814,127.00973],[37.56787,127.00968],[37.56755,127.00957],[37.56737,127.00947],[37.56711,127.00935],[37.56674,127.00914],[37.56625,127.00887],[37.56586,127.0086],[37.56552,127.00832],[37.5652,127.00805],[37.56476,127.00768],[37.56453,127.00748],[37.56435,127.00732],[37.56424,127.00717],[37.56413,127.00695],[37.56399,127.00666],[37.56392,127.00639],[37.5639,127.00592],[37.56384,127.00548],[37.56354,127.00393],[37.56305,127.0019],[37.56298,127.00159],[37.56281,127.00085],[37.56217,126.99806],[37.56185,126.9967],[37.56176,126.99631],[37.56163,126.99575],[37.56131,126.99447],[37.56123,126.99415],[37.56111,126.99365],[37.56109,126.99344],[37.56105,126.99307],[37.56105,126.99283],[37.56107,126.9926],[37.56107,126.99127],[37.56116,126.99027],[37.56121,126.98985],[37.56122,126.98935],[37.5612,126.98904],[37.56117,126.98877],[37.56092,126.98629],[37.56063,126.98305],[37.56055,126.98251],[37.56038,126.98203],[37.55981,126.98095],[37.55945,126.97986],[37.5594,126.97967],[37.55927,126.97924],[37.55911,126.9789],[37.55893,126.97863],[37.55876,126.97844],[37.55855,126.97823],[37.55834,126.97803],[37.55815,126.97782],[37.55797,126.97758],[37.55785,126.97736],[37.55707,126.97534],[37.55677,126.97447],[37.55647,126.97373],[37.55637,126.97344],[37.55629,126.97328],[37.55617,126.97313],[37.55603,126.97299],[37.55587,126.97289],[37.55568,126.9728],[37.5555,126.97271],[37.55531,126.97266],[37.55507,126.97262],[37.55463,126.97263],[37.55426,126.97269],[37.55387,126.97271],[37.55358,126.97269],[37.55333,126.97264],[37.55258,126.97245],[37.55237,126.97239],[37.55099,126.97207],[37.5493,126.97174],[37.54725,126.97177],[37.54514,126.97192],[37.54426,126.97215],[37.54386,126.97226],[37.53666,126.97419],[37.53642,126.97423],[37.53602,126.97418],[37.53573,126.97405],[37.53446,126.9729],[37.53389,126.97238],[37.53158,126.97015],[37.53107,126.96966],[37.52993,126.96858],[37.52952,126.96816],[37.52916,126.96781],[37.52811,126.96673],[37.52798,126.96661],[37.52784,126.96652],[37.52764,126.96641],[37.52742,126.96631],[37.52717,126.96625],[37.52696,126.96623],[37.52673,126.96622],[37.52631,126.96628],[37.52608,126.96637],[37.52583,126.96649],[37.52561,126.96662],[37.52539,126.96679],[37.5252,126.96698],[37.52503,126.96722],[37.52358,126.96984],[37.52337,126.97029],[37.5233,126.97063],[37.52319,126.97135],[37.52306,126.97208],[37.52262,126.97361],[37.52006,126.98177],[37.51982,126.98238],[37.51961,126.98273],[37.5194,126.98292],[37.51917,126.98305],[37.51892,126.98316],[37.51839,126.98326],[37.51694,126.98325],[37.5165,126.98324],[37.51621,126.98323],[37.51601,126.98321],[37.51581,126.98319],[37.51525,126.98306],[37.50662,126.98076],[37.50514,126.9803],[37.50451,126.98017],[37.50423,126.98015],[37.50383,126.98019],[37.50362,126.98021],[37.50332,126.98027],[37.50296,126.98038],[37.5025,126.9806],[37.50212,126.98083],[37.50194,126.98095],[37.50172,126.98114],[37.50139,126.98146],[37.50119,126.98173],[37.50088,126.98211],[37.50065,126.98239],[37.50043,126.98258],[37.50002,126.98288],[37.49979,126.98302],[37.4995,126.98314],[37.49918,126.98324],[37.49874,126.98323],[37.49854,126.98321],[37.49828,126.98316],[37.49807,126.98309],[37.49661,126.98258],[37.49641,126.98254],[37.4962,126.98251],[37.49087,126.98262],[37.49012,126.9826]]]},{"ref":"5","label":"Line 5","color":"#794698","paths":[[[37.55717,127.07957],[37.56006,127.07231],[37.56066,127.07056],[37.56151,127.0646],[37.56207,127.06089],[37.56241,127.05888],[37.5626,127.0585],[37.56337,127.05741],[37.56685,127.05271],[37.56741,127.05192],[37.56899,127.04978],[37.56913,127.04949],[37.56923,127.04922],[37.5693,127.04895],[37.56932,127.04865],[37.56927,127.04838],[37.56918,127.04809],[37.56883,127.04733],[37.56849,127.04675],[37.56612,127.04289],[37.56541,127.04167],[37.56393,127.0397],[37.56134,127.03623],[37.56106,127.03576],[37.55902,127.03232],[37.55802,127.03064],[37.5576,127.02995],[37.55591,127.02629],[37.55481,127.0241],[37.55457,127.02348],[37.55449,127.02316],[37.55442,127.02282],[37.55436,127.02222],[37.55431,127.02176],[37.55429,127.02137],[37.55431,127.02104],[37.55446,127.02027],[37.55463,127.01937],[37.55507,127.01849],[37.55538,127.01808],[37.5557,127.01772],[37.55639,127.0173],[37.55685,127.01719],[37.55787,127.01683],[37.55874,127.01636],[37.55942,127.01562],[37.55983,127.01494],[37.5603,127.01371],[37.56098,127.01206],[37.56119,127.01169],[37.56145,127.01124],[37.56177,127.01084],[37.56201,127.01055],[37.56265,127.00989],[37.56308,127.00944],[37.56327,127.00918],[37.56359,127.00868],[37.56411,127.00771],[37.56418,127.00753],[37.56426,127.00729],[37.56452,127.00642],[37.5647,127.00553],[37.5648,127.00461],[37.56457,127.00111],[37.56452,127.00048],[37.56455,127.00026],[37.56462,126.99995],[37.56475,126.99956],[37.56504,126.99907],[37.56518,126.99883],[37.56577,126.9983],[37.56613,126.9982],[37.56694,126.99813],[37.5685,126.99803],[37.56929,126.99788],[37.56954,126.99786],[37.57005,126.99779],[37.57025,126.99771],[37.57042,126.99762],[37.57055,126.99751],[37.5707,126.99737],[37.57087,126.99714],[37.57099,126.99695],[37.57113,126.99672],[37.57143,126.99612],[37.57153,126.99585],[37.57166,126.99554],[37.57185,126.99491],[37.5721,126.99413],[37.57236,126.99324],[37.57243,126.99295],[37.57249,126.99268],[37.57254,126.99218],[37.57258,126.99122],[37.57258,126.9908],[37.57257,126.98873],[37.57261,126.98756],[37.57261,126.9864],[37.57222,126.9841],[37.57204,126.98302],[37.57163,126.98091],[37.57163,126.97691],[37.57163,126.97454],[37.57151,126.97411],[37.57134,126.97364],[37.57123,126.97342],[37.57107,126.97315],[37.57088,126.97285],[37.56893,126.97008],[37.56834,126.96919],[37.5682,126.96904],[37.56732,126.96809],[37.56617,126.96696],[37.56581,126.96661],[37.56416,126.96538],[37.56215,126.96401],[37.56005,126.9627],[37.55982,126.96249],[37.5595,126.96212],[37.55927,126.96184],[37.55632,126.9583],[37.55598,126.95795],[37.55345,126.95667],[37.54903,126.95443],[37.54725,126.95341],[37.547,126.95327],[37.54496,126.95179],[37.54367,126.95078],[37.54243,126.94977],[37.54214,126.94944],[37.53964,126.94596],[37.53838,126.94425],[37.53772,126.94352],[37.53709,126.94289],[37.53353,126.93939],[37.52807,126.93402],[37.52765,126.93356],[37.52722,126.93306],[37.52687,126.93251],[37.52433,126.92847],[37.52127,126.92352],[37.51951,126.92078],[37.51829,126.91878],[37.51813,126.91848],[37.51786,126.91788],[37.51773,126.91752],[37.51765,126.91717],[37.51758,126.9168],[37.51756,126.91638],[37.51757,126.91596],[37.51762,126.91545],[37.51768,126.915],[37.51774,126.91456],[37.51782,126.91424],[37.51791,126.91376],[37.51802,126.91338],[37.51823,126.91292],[37.51836,126.91266],[37.51856,126.91239],[37.51866,126.91223],[37.51913,126.91162],[37.52032,126.91037],[37.52118,126.90945],[37.52158,126.90912],[37.5217,126.90898],[37.52181,126.90884],[37.52191,126.90869],[37.52201,126.90852],[37.52209,126.90835],[37.52216,126.90817],[37.52223,126.90798],[37.52229,126.9078],[37.52234,126.9076],[37.52241,126.90724],[37.52272,126.90513],[37.52391,126.89737],[37.52405,126.89642],[37.52565,126.88613],[37.52601,126.8838],[37.52604,126.88342],[37.52601,126.88306],[37.52593,126.88274]]]},{"ref":"6","label":"Line 6","color":"#7C4932","paths":[[[37.59877,126.9157],[37.59901,126.91581],[37.59919,126.91598],[37.59941,126.91628],[37.59959,126.91671],[37.59985,126.91743]],[[37.59844,126.91547],[37.5981,126.91539],[37.5979,126.91534],[37.5934,126.91413],[37.59262,126.91387],[37.59228,126.91378],[37.59109,126.91348],[37.59078,126.91341],[37.58968,126.9132],[37.589,126.91306],[37.58742,126.91274],[37.58673,126.9124],[37.58627,126.91208],[37.58563,126.91148],[37.58413,126.90986],[37.58137,126.90694],[37.57622,126.90144],[37.57551,126.9007],[37.57376,126.89974],[37.5727,126.89951],[37.57021,126.8993],[37.56776,126.89942],[37.56682,126.89969],[37.56609,126.90037],[37.56533,126.90154],[37.56492,126.90203],[37.56352,126.90337],[37.55598,126.91012],[37.55422,126.91167],[37.54953,126.91321],[37.54921,126.91346],[37.54902,126.91363],[37.54887,126.91388],[37.54876,126.91418],[37.54791,126.91834],[37.54774,126.92292],[37.54746,126.93167],[37.54745,126.932],[37.54739,126.93413],[37.5474,126.93494],[37.54741,126.93523],[37.54743,126.93552],[37.54746,126.93573],[37.54751,126.93592],[37.54765,126.93633],[37.54803,126.93745],[37.54825,126.93806],[37.54844,126.93863],[37.54852,126.93891],[37.54858,126.93927],[37.54861,126.9396],[37.5486,126.93993],[37.54857,126.94024],[37.54851,126.94042],[37.54843,126.94062],[37.54799,126.94163],[37.54769,126.94232],[37.54364,126.95152],[37.54174,126.95576],[37.54063,126.95814],[37.53931,126.96135],[37.53852,126.9642],[37.53798,126.9664],[37.53658,126.97098],[37.53575,126.97355],[37.53559,126.9739],[37.53528,126.97451],[37.53468,126.97544],[37.53462,126.97564],[37.53456,126.97598],[37.53479,126.9817],[37.53492,126.98566],[37.53473,126.9865],[37.53453,126.98709],[37.53429,126.98759],[37.5341,126.98822],[37.53415,126.98927],[37.53448,126.99439],[37.53456,126.99591],[37.53464,126.99716],[37.53469,126.99768],[37.53477,126.99795],[37.53489,126.99822],[37.53545,126.99902],[37.53601,126.99971],[37.53657,127.0003],[37.53682,127.00055],[37.53744,127.00106],[37.53777,127.0013],[37.53801,127.00147],[37.53868,127.0017],[37.53982,127.00176],[37.54207,127.00206],[37.54257,127.00202],[37.54303,127.00198],[37.54342,127.00193],[37.54374,127.00195],[37.54411,127.00201],[37.54438,127.00208],[37.54462,127.00214],[37.54499,127.00228],[37.54532,127.00242],[37.54571,127.00269],[37.546,127.00296],[37.54629,127.00328],[37.54662,127.00362],[37.54691,127.00403],[37.54713,127.00441],[37.54728,127.00471],[37.54747,127.0051],[37.54761,127.00544],[37.54776,127.00577],[37.54789,127.0061],[37.54802,127.00634],[37.54823,127.00668],[37.54842,127.00692],[37.54865,127.00714],[37.549,127.00736],[37.54953,127.00766],[37.55054,127.00826],[37.55124,127.00871],[37.55232,127.00931],[37.553,127.00974],[37.55347,127.01001],[37.55416,127.0104],[37.55502,127.01078],[37.56029,127.01385],[37.56315,127.01549],[37.5641,127.01601],[37.56533,127.01624],[37.5664,127.01622],[37.56712,127.01613],[37.56803,127.01602],[37.57023,127.01587],[37.57141,127.0158],[37.57313,127.01565],[37.57337,127.01564],[37.57484,127.01573],[37.57589,127.01563],[37.57681,127.01551],[37.57785,127.01542],[37.57868,127.01538],[37.57979,127.01527],[37.58042,127.01519],[37.5812,127.01521],[37.58282,127.01559],[37.58319,127.01581],[37.58357,127.01625],[37.58438,127.01733],[37.58478,127.018],[37.58507,127.01881],[37.58526,127.01933],[37.58572,127.0206],[37.58592,127.02108],[37.58604,127.02147],[37.58628,127.02244],[37.58644,127.02367],[37.58626,127.02482],[37.58621,127.02528],[37.5862,127.02746],[37.58628,127.02933],[37.5864,127.03271],[37.58647,127.03291],[37.58915,127.03561],[37.58927,127.03573],[37.58951,127.03586],[37.58975,127.03594],[37.59089,127.03615],[37.59178,127.03623],[37.59238,127.03637],[37.5934,127.03714],[37.59691,127.03902],[37.59823,127.03963],[37.59857,127.03978],[37.59986,127.04036]]]},{"ref":"7","label":"Line 7","color":"#6E7E31","paths":[[[37.55722,127.07952],[37.55702,127.07941],[37.55652,127.07911],[37.55552,127.07856],[37.55536,127.07848],[37.55382,127.07767],[37.55356,127.07752],[37.55179,127.07666],[37.55043,127.07608],[37.54898,127.07524],[37.54763,127.07439],[37.54639,127.07364],[37.54014,127.07071],[37.53985,127.07057],[37.53969,127.07049],[37.53935,127.07032],[37.53895,127.07015],[37.53087,127.06641],[37.52363,127.0631],[37.52331,127.06295],[37.52301,127.06274],[37.52266,127.06248],[37.5225,127.06236],[37.52237,127.06225],[37.52221,127.06212],[37.52204,127.06197],[37.52186,127.06175],[37.52167,127.0615],[37.52158,127.06134],[37.52146,127.06113],[37.52103,127.05988],[37.52001,127.05689],[37.51968,127.05484],[37.51963,127.05457],[37.5194,127.05317],[37.51927,127.0523],[37.51905,127.05112],[37.51895,127.05053],[37.51886,127.05004],[37.51859,127.04862],[37.51842,127.0477],[37.51721,127.04137],[37.51541,127.03536],[37.51397,127.03073],[37.51113,127.02148],[37.50945,127.01589],[37.50819,127.01162],[37.50773,127.01016],[37.50759,127.00987],[37.50749,127.00972],[37.50734,127.00955],[37.50716,127.00939],[37.5051,127.00784],[37.50484,127.00759],[37.50471,127.0074],[37.50462,127.00723],[37.50446,127.0069],[37.50437,127.00671],[37.50383,127.00531],[37.50374,127.00497],[37.50363,127.00467],[37.50353,127.00446],[37.50328,127.00405],[37.50296,127.00364],[37.50245,127.00311],[37.50219,127.00291],[37.50176,127.0027],[37.50146,127.00258],[37.5012,127.00249],[37.50075,127.00239],[37.49546,127.0018],[37.49445,127.00138],[37.49355,127.0009],[37.49245,127.00013],[37.49214,126.9999],[37.49186,126.99972],[37.49162,126.99958],[37.4912,126.99934],[37.49075,126.99909],[37.49026,126.99878]],[[37.49244,126.95727],[37.49268,126.95687],[37.49284,126.95664],[37.49307,126.95636],[37.49319,126.95625],[37.4949,126.95483],[37.49566,126.95414],[37.49655,126.9534],[37.4983,126.95192],[37.49862,126.95165],[37.50321,126.94769],[37.50466,126.94645],[37.5048,126.94621],[37.50491,126.94589],[37.50514,126.94508],[37.50521,126.94474],[37.50523,126.9444],[37.50524,126.94408],[37.50522,126.94216],[37.50519,126.94158],[37.50512,126.94085],[37.5051,126.94056],[37.50509,126.94007],[37.50509,126.93968],[37.50507,126.93941],[37.50499,126.9392],[37.50052,126.93193],[37.50003,126.93114],[37.49993,126.93092],[37.49985,126.93073],[37.49981,126.93052],[37.49977,126.93024],[37.49975,126.92938],[37.49972,126.92821],[37.49996,126.92081],[37.49997,126.92033],[37.49998,126.91978],[37.5,126.91882],[37.50002,126.91727],[37.50006,126.91454],[37.50007,126.9143],[37.50009,126.91297],[37.50015,126.90894],[37.50022,126.90602],[37.50018,126.90577],[37.50003,126.90561],[37.49745,126.90386],[37.49731,126.90372],[37.49705,126.90339],[37.49252,126.89625],[37.49201,126.89546],[37.49019,126.8925]]]},{"ref":"9","label":"Line 9","color":"#A49D87","paths":[[[37.50663,127.07991],[37.50673,127.07977],[37.50692,127.07963],[37.50852,127.0792],[37.50941,127.07895],[37.50979,127.07878],[37.5101,127.07852],[37.5104,127.07818],[37.5107,127.07769],[37.51096,127.0772],[37.51116,127.07678],[37.51159,127.07588],[37.51189,127.07526],[37.51212,127.07482],[37.51264,127.07391],[37.5132,127.07294],[37.51395,127.07163],[37.51449,127.07069],[37.51502,127.06976],[37.51527,127.06933],[37.51541,127.06904],[37.51547,127.06882],[37.51551,127.0686],[37.51552,127.06838],[37.51528,127.06614],[37.51435,127.06103],[37.5142,127.06016],[37.51344,127.05551],[37.51334,127.05491],[37.51331,127.05468],[37.51328,127.05425],[37.51326,127.05403],[37.51321,127.05368],[37.51316,127.0534],[37.51309,127.05313],[37.51285,127.05233],[37.51274,127.05206],[37.51265,127.05181],[37.5122,127.05036],[37.5104,127.04423],[37.51016,127.04342],[37.50872,127.03852],[37.50864,127.03829],[37.50741,127.0341],[37.50727,127.03363],[37.50682,127.03215],[37.50662,127.03142],[37.50656,127.03122],[37.50619,127.03],[37.50613,127.02979],[37.50598,127.02936],[37.50582,127.02888],[37.50545,127.02768],[37.505,127.0262],[37.50488,127.02572],[37.50483,127.0254],[37.50477,127.02509],[37.50471,127.02478],[37.50461,127.02446],[37.50439,127.0237],[37.50429,127.02348],[37.50419,127.02329],[37.50406,127.02299],[37.50396,127.02273],[37.50388,127.02247],[37.50368,127.02181],[37.50356,127.02143],[37.50347,127.02112],[37.50333,127.0206],[37.5032,127.02011],[37.50313,127.01983],[37.50308,127.01953],[37.50305,127.01899],[37.50307,127.01809],[37.50313,127.01768],[37.50327,127.01722],[37.50341,127.01688],[37.50388,127.01601],[37.50403,127.0158],[37.50416,127.0156],[37.50449,127.0149],[37.50459,127.01467],[37.50466,127.01447],[37.50471,127.01427],[37.50478,127.01398],[37.50623,127.01],[37.5065,127.00932],[37.50659,127.00903],[37.50666,127.00873],[37.50671,127.00844],[37.50674,127.00817],[37.50677,127.00789],[37.50679,127.0076],[37.50679,127.00731],[37.50679,127.0071],[37.50675,127.00685],[37.5067,127.00664],[37.50632,127.0054],[37.50593,127.00412],[37.50559,127.00298],[37.50522,127.00174],[37.50509,127.00129],[37.50362,126.99641],[37.50236,126.99165],[37.5021,126.9905],[37.50131,126.98678],[37.50094,126.98487],[37.50086,126.98446],[37.50081,126.98407],[37.5008,126.98374],[37.50081,126.98342],[37.50084,126.98315],[37.50089,126.98287],[37.50102,126.98231],[37.50117,126.98184],[37.50163,126.98082],[37.50211,126.97991],[37.50264,126.9789],[37.50322,126.97773],[37.5038,126.97657],[37.50474,126.97468],[37.50541,126.97298],[37.50553,126.97256],[37.5056,126.97211],[37.5056,126.9715],[37.50559,126.97075],[37.50564,126.97029],[37.50575,126.96984],[37.50602,126.96899],[37.50671,126.96736],[37.50747,126.96543],[37.50778,126.96486],[37.5084,126.96397],[37.50904,126.96332],[37.51093,126.96175],[37.51139,126.9612],[37.51166,126.96071],[37.51194,126.96002],[37.51217,126.95901],[37.51246,126.95802],[37.51299,126.95681],[37.51311,126.95641],[37.51314,126.95619],[37.51315,126.95594],[37.51314,126.95526],[37.51299,126.95357],[37.51277,126.95103],[37.51274,126.95052],[37.51275,126.95002],[37.51281,126.94955],[37.51323,126.94774],[37.51335,126.94715],[37.51373,126.94536],[37.51379,126.94499],[37.5138,126.94456],[37.51377,126.94409],[37.51365,126.94187],[37.51356,126.94032],[37.51345,126.93837],[37.51344,126.93813],[37.5134,126.93724],[37.51341,126.93634],[37.51347,126.93571],[37.5138,126.93432],[37.51422,126.93297],[37.51465,126.93201],[37.51511,126.93115],[37.5161,126.92959],[37.51731,126.92845],[37.51797,126.92786],[37.51963,126.92626],[37.52157,126.92438],[37.5218,126.92415],[37.52191,126.92405],[37.5225,126.92346],[37.52478,126.92136],[37.52657,126.91954],[37.52734,126.91876],[37.52847,126.91764],[37.52939,126.91668],[37.52965,126.9164],[37.5299,126.91599],[37.53031,126.91504],[37.53047,126.91448],[37.53061,126.91383],[37.53092,126.91233],[37.53149,126.90919],[37.53191,126.90706],[37.53206,126.90632],[37.53231,126.90531],[37.53326,126.9033],[37.53379,126.90226],[37.53412,126.90157],[37.53442,126.90104],[37.53528,126.89931],[37.53584,126.8982],[37.53684,126.89619],[37.53772,126.89438],[37.53794,126.89394],[37.53828,126.89321],[37.53874,126.89225],[37.53943,126.89098],[37.53973,126.89047],[37.54018,126.88958],[37.5405,126.88875],[37.54127,126.88696],[37.54212,126.88505],[37.54269,126.88425],[37.54354,126.88368],[37.54425,126.88325],[37.54468,126.88299],[37.54523,126.88266],[37.54556,126.88237],[37.54602,126.88186],[37.54649,126.88116],[37.54671,126.88066]]]},{"ref":"SB","label":"Sinbundang","color":"#B81B30","paths":[[[37.51575,127.01966],[37.51546,127.01975],[37.51461,127.02001],[37.51299,127.02045],[37.50995,127.0219],[37.50724,127.02317],[37.50569,127.02388],[37.50496,127.02427],[37.50357,127.02492],[37.50104,127.02614],[37.49964,127.02679],[37.4985,127.02734],[37.49776,127.0277],[37.49749,127.02782],[37.49712,127.02799],[37.49632,127.02836],[37.49571,127.02864],[37.49485,127.02905],[37.49323,127.02984],[37.49207,127.03038],[37.4911,127.03083]]]},{"ref":"B","label":"Suin–Bundang","color":"#ECA300","paths":[[[37.58009,127.04732],[37.58058,127.0477],[37.58086,127.04792],[37.58009,127.04732],[37.57964,127.04699],[37.57929,127.04676],[37.57891,127.04652],[37.57769,127.04564],[37.57748,127.04552],[37.57664,127.04505],[37.57649,127.04494],[37.57632,127.04481],[37.57611,127.04468],[37.57589,127.04453],[37.57565,127.04435],[37.57422,127.04326],[37.57301,127.04234],[37.5725,127.04194],[37.57231,127.0418],[37.57199,127.04155],[37.57134,127.04105],[37.57106,127.04084],[37.57041,127.04033],[37.57008,127.04008],[37.56976,127.03984],[37.56896,127.03921],[37.56828,127.03869],[37.56791,127.0384],[37.56768,127.03824],[37.56748,127.0381],[37.56733,127.03801],[37.56719,127.03793],[37.56697,127.03784],[37.56666,127.03773],[37.56637,127.03767],[37.56616,127.03764],[37.56575,127.03762],[37.56524,127.03769],[37.56444,127.03784],[37.56356,127.03812],[37.56456,127.03789],[37.56493,127.03782],[37.56456,127.03789],[37.564,127.03807],[37.56363,127.03818],[37.56344,127.03824],[37.56277,127.03849],[37.56258,127.03853],[37.56199,127.03866],[37.56161,127.03874],[37.56075,127.03891],[37.56052,127.03894],[37.5602,127.03897],[37.55997,127.03898],[37.55974,127.039],[37.55935,127.03907],[37.55877,127.03919],[37.55788,127.03936],[37.55644,127.03967],[37.55584,127.03978],[37.55531,127.03989],[37.55471,127.04005],[37.55438,127.04017],[37.55401,127.04037],[37.55372,127.04059],[37.55351,127.04078],[37.55327,127.04108],[37.55302,127.04145],[37.55292,127.04164],[37.55212,127.0431],[37.55193,127.04339],[37.55169,127.04367],[37.55144,127.04389],[37.55121,127.04402],[37.55093,127.04411],[37.5503,127.04417],[37.54817,127.04453],[37.54843,127.04448],[37.54805,127.04453],[37.54562,127.04486],[37.54481,127.04494],[37.5443,127.0449],[37.54399,127.04485],[37.54361,127.04477],[37.54291,127.04456],[37.54223,127.04436],[37.54066,127.04395],[37.5401,127.04384],[37.5394,127.04376],[37.53837,127.0437],[37.53796,127.04359],[37.53677,127.04329],[37.53645,127.0432],[37.53409,127.0426],[37.53075,127.04175],[37.52901,127.04116],[37.52781,127.04073],[37.5233,127.03914],[37.52304,127.03915],[37.52272,127.03926],[37.51728,127.04129],[37.5171,127.04135],[37.51679,127.04146],[37.51068,127.04374],[37.5096,127.04415],[37.50917,127.04433],[37.5088,127.04454],[37.50864,127.04466],[37.50846,127.04481],[37.50822,127.04508],[37.50794,127.0455],[37.50688,127.04735],[37.50666,127.04772],[37.50641,127.04803],[37.50616,127.04824],[37.50598,127.04837],[37.50578,127.04846],[37.50546,127.04862],[37.50459,127.04901],[37.50439,127.04911],[37.50053,127.05089],[37.49629,127.05289],[37.49087,127.0554],[37.49062,127.0555]],[[37.49002,127.0703],[37.49044,127.07111],[37.49089,127.07185],[37.4912,127.07232],[37.49141,127.07274],[37.4916,127.07317],[37.49366,127.07953],[37.49368,127.07962]]]},{"ref":"GJ","label":"Gyeongui–Jungang","color":"#6AC2B3","paths":[[[37.59211,126.88076],[37.59099,126.88207],[37.58752,126.8861],[37.58678,126.88695],[37.58605,126.88782],[37.58528,126.88874],[37.58506,126.88903],[37.58486,126.88931],[37.58455,126.88977],[37.58408,126.89046],[37.58381,126.89086],[37.58172,126.89396],[37.581,126.89504],[37.58069,126.8955],[37.58013,126.89632],[37.57898,126.89803],[37.57861,126.89857],[37.57812,126.89931],[37.57708,126.90086],[37.5769,126.90112],[37.57673,126.90139],[37.57623,126.90214],[37.57593,126.90255],[37.57576,126.90279],[37.57556,126.90305],[37.57482,126.90403],[37.57399,126.90519],[37.57282,126.90677],[37.5717,126.90823],[37.57132,126.90882],[37.57102,126.90943],[37.57008,126.91149],[37.56853,126.915],[37.56828,126.91556],[37.56802,126.91614],[37.56718,126.91815],[37.56701,126.91854],[37.56684,126.91884],[37.56664,126.91912],[37.56642,126.91936],[37.5662,126.91957],[37.5641,126.92123],[37.56091,126.92377],[37.55938,126.92498],[37.55864,126.92556],[37.55822,126.92593],[37.55792,126.92625],[37.55774,126.92646],[37.55754,126.92675],[37.55731,126.92716],[37.55712,126.92755],[37.55698,126.92785],[37.55611,126.92972],[37.55592,126.9301],[37.55573,126.93045],[37.55553,126.93077],[37.55537,126.93103],[37.55517,126.93131],[37.55461,126.93208],[37.55431,126.93251],[37.55388,126.9331],[37.55351,126.93361],[37.55342,126.93374],[37.55198,126.93576],[37.55111,126.93698],[37.55093,126.93719],[37.55065,126.93752],[37.55036,126.93777],[37.54969,126.93824],[37.54857,126.93913],[37.54831,126.93936],[37.54806,126.93961],[37.54777,126.93993],[37.5475,126.94029],[37.54735,126.94051],[37.54726,126.94065],[37.54709,126.94097],[37.54695,126.94128],[37.54686,126.94151],[37.54667,126.942],[37.54658,126.94228],[37.54628,126.94334],[37.54604,126.94421],[37.54595,126.94448],[37.54585,126.94477],[37.54573,126.94508],[37.54561,126.94537],[37.5455,126.94566],[37.54537,126.94592],[37.54353,126.95002],[37.54198,126.95337],[37.54167,126.95404],[37.54143,126.95456],[37.5412,126.95503],[37.54095,126.95547],[37.54044,126.95631],[37.54026,126.95663],[37.54014,126.95686],[37.53999,126.9572],[37.53984,126.95762],[37.53966,126.9582],[37.53922,126.96007],[37.53836,126.96355],[37.53826,126.96394],[37.53802,126.96491],[37.53787,126.96548],[37.53763,126.96622],[37.53738,126.96674],[37.53714,126.96713],[37.53692,126.9674],[37.53589,126.96836],[37.53547,126.96868],[37.53526,126.96883],[37.535,126.969],[37.5348,126.9691],[37.53452,126.9692],[37.53421,126.96926],[37.53386,126.96929],[37.53362,126.96927],[37.53339,126.96923],[37.53313,126.96915],[37.53296,126.96909],[37.5327,126.96897],[37.5325,126.96883],[37.53225,126.96862],[37.53205,126.96844],[37.53189,126.96826],[37.53178,126.96812],[37.53165,126.96793],[37.53145,126.96764],[37.53121,126.96734],[37.53109,126.96722],[37.53054,126.96646],[37.52943,126.96491],[37.52851,126.96363],[37.5284,126.96348],[37.5283,126.9633],[37.5282,126.96312],[37.52811,126.96292],[37.52799,126.9627],[37.5278,126.96242],[37.5277,126.96228],[37.52759,126.96211],[37.52741,126.96186],[37.52725,126.96167],[37.52708,126.96148],[37.52688,126.96131],[37.52674,126.96121],[37.52649,126.96104],[37.5263,126.96095],[37.52601,126.96084],[37.52575,126.96078],[37.52551,126.96077],[37.52511,126.96078],[37.52476,126.96085],[37.52452,126.96092],[37.52424,126.96101],[37.52395,126.96114],[37.52368,126.96129],[37.5235,126.96144],[37.52334,126.96156],[37.52316,126.96175],[37.52289,126.96208],[37.52271,126.96235],[37.5226,126.96258],[37.52253,126.96276],[37.52243,126.96299],[37.52236,126.96318],[37.52226,126.96364],[37.52221,126.96392],[37.52216,126.96418],[37.52214,126.96444],[37.52212,126.96468],[37.52212,126.96543],[37.52215,126.96578],[37.52216,126.96602],[37.5222,126.96626],[37.52242,126.96753],[37.52268,126.96889],[37.52276,126.96938],[37.52282,126.96975],[37.52286,126.97012],[37.52289,126.97046],[37.5229,126.97083],[37.52289,126.97114],[37.52288,126.9714],[37.52283,126.97178],[37.52275,126.97226],[37.5227,126.97249],[37.52265,126.97272],[37.52259,126.97294],[37.52244,126.97344],[37.52226,126.97399],[37.52176,126.97556],[37.52159,126.97611],[37.52139,126.97671],[37.52124,126.97718],[37.52104,126.9778],[37.52029,126.98017],[37.51968,126.98222],[37.51963,126.9824],[37.51956,126.98274],[37.51952,126.98301],[37.51949,126.98329],[37.51947,126.98356],[37.51945,126.98397],[37.51946,126.98436],[37.51947,126.9847],[37.51949,126.9852],[37.51949,126.98555],[37.51954,126.98683],[37.51963,126.98924],[37.51966,126.98981],[37.51969,126.99069],[37.51972,126.99151],[37.51974,126.99218],[37.51975,126.9928],[37.51977,126.99312],[37.51979,126.99347],[37.51982,126.99376],[37.5199,126.99424],[37.52001,126.9947],[37.52008,126.99494],[37.52017,126.99519],[37.52188,126.9994],[37.52209,126.99988],[37.52225,127.00021],[37.52239,127.00046],[37.52251,127.00064],[37.52263,127.00081],[37.523,127.00124],[37.52314,127.00139],[37.5233,127.00154],[37.52344,127.00167],[37.52362,127.00179],[37.52466,127.00241],[37.5248,127.0025],[37.52525,127.00283],[37.52542,127.00296],[37.52562,127.00315],[37.52581,127.00334],[37.526,127.00355],[37.52622,127.00381],[37.5283,127.00669],[37.52848,127.00698],[37.52862,127.00723],[37.52875,127.00746],[37.5289,127.00776],[37.52902,127.00807],[37.52971,127.00991],[37.5298,127.01014],[37.52994,127.01043],[37.53005,127.01063],[37.53016,127.01081],[37.5303,127.01102],[37.53046,127.01121],[37.53061,127.01138],[37.53076,127.01153],[37.53096,127.01172],[37.53119,127.01192],[37.53147,127.01211],[37.53296,127.01301],[37.53421,127.01379],[37.53822,127.01626],[37.53859,127.0165],[37.53888,127.0167],[37.53914,127.0169],[37.53936,127.01711],[37.53954,127.01732],[37.53972,127.01754],[37.53988,127.01775],[37.54006,127.018],[37.54108,127.01961],[37.54117,127.01975],[37.54163,127.02048],[37.54202,127.02108],[37.54221,127.02135],[37.54238,127.0216],[37.54257,127.02187],[37.54399,127.02378],[37.54414,127.02399],[37.54431,127.02426],[37.54448,127.02457],[37.54464,127.02495],[37.54479,127.02537],[37.54492,127.02579],[37.54551,127.02773],[37.5457,127.02825],[37.54585,127.02862],[37.54595,127.02884],[37.54604,127.02905],[37.54631,127.0296],[37.54655,127.03008],[37.54733,127.03169],[37.5475,127.03203],[37.54771,127.0324],[37.54786,127.03264],[37.548,127.03284],[37.54814,127.03303],[37.54832,127.03323],[37.54849,127.0334],[37.54875,127.03364],[37.54896,127.0338],[37.54915,127.03393],[37.54941,127.03411],[37.55041,127.03479],[37.55055,127.0349],[37.55073,127.03506],[37.55091,127.03522],[37.55123,127.03554],[37.55146,127.03584],[37.55166,127.03614],[37.55241,127.03735],[37.55276,127.03789],[37.55295,127.03815],[37.55316,127.0384],[37.55336,127.03859],[37.55378,127.03894],[37.55403,127.0391],[37.55431,127.03926],[37.55447,127.03933],[37.55463,127.03939],[37.55484,127.03945],[37.55516,127.03951],[37.55548,127.03954],[37.55579,127.03953],[37.55602,127.03951],[37.55658,127.03941],[37.55733,127.03925],[37.55791,127.03913],[37.5585,127.03902],[37.55874,127.03897],[37.55905,127.03891],[37.55931,127.03886],[37.55954,127.03881],[37.55976,127.03877],[37.55995,127.03872],[37.56015,127.03868],[37.56135,127.03843],[37.56271,127.03816],[37.56313,127.03809],[37.56337,127.03805],[37.56403,127.03791],[37.56444,127.03784],[37.56524,127.03769],[37.56557,127.03764],[37.56611,127.03763],[37.56637,127.03767],[37.56666,127.03773],[37.56697,127.03784],[37.56719,127.03793],[37.56733,127.03801],[37.56748,127.0381],[37.56768,127.03824],[37.56791,127.0384],[37.56817,127.0386],[37.56896,127.03921],[37.56965,127.03975],[37.56998,127.04],[37.57041,127.04033],[37.57106,127.04084],[37.57134,127.04105],[37.57199,127.04155],[37.57222,127.04173],[37.5725,127.04194],[37.57291,127.04226],[37.57422,127.04326],[37.57565,127.04435],[37.57581,127.04447],[37.57635,127.04489],[37.57648,127.04499],[37.57795,127.04611],[37.57918,127.04705],[37.57953,127.04731],[37.57997,127.04764],[37.58058,127.0481],[37.58196,127.04916],[37.58227,127.04943],[37.58261,127.04971],[37.58279,127.04986],[37.58296,127.04999],[37.58312,127.05011],[37.58337,127.05031],[37.58351,127.05042],[37.58383,127.05068],[37.584,127.0508],[37.5843,127.05104],[37.58447,127.05117],[37.58459,127.05127],[37.58473,127.05138],[37.58493,127.05153],[37.58507,127.05164],[37.58525,127.05177],[37.58563,127.05208],[37.586,127.05239],[37.58625,127.05262],[37.58652,127.05289],[37.58679,127.05319],[37.58705,127.05348],[37.5873,127.0538],[37.58753,127.05412],[37.58775,127.05445],[37.588,127.05487],[37.58827,127.05532],[37.58848,127.05571],[37.58867,127.05608],[37.58887,127.05646],[37.58916,127.05702],[37.58932,127.05734],[37.58989,127.0584],[37.59009,127.05874],[37.59021,127.05898],[37.59042,127.05937],[37.59062,127.05975],[37.59084,127.06017],[37.59108,127.06063],[37.59131,127.06103],[37.5915,127.06144],[37.59166,127.0618],[37.59184,127.06223],[37.59196,127.0626],[37.59208,127.06297],[37.59219,127.06342],[37.5923,127.06392],[37.59241,127.0644],[37.59252,127.06489],[37.59263,127.06541],[37.59273,127.06588],[37.59284,127.0664],[37.59296,127.06691],[37.59307,127.06742],[37.59318,127.06792],[37.59329,127.06842],[37.59339,127.06889],[37.59351,127.06941],[37.59359,127.06982],[37.59367,127.07021],[37.59376,127.07061],[37.59387,127.07112],[37.59398,127.07162],[37.59409,127.07213],[37.59421,127.07265],[37.59429,127.07307],[37.59439,127.07351],[37.59449,127.07395],[37.59454,127.0742],[37.59462,127.07449],[37.59473,127.07489],[37.59522,127.07712],[37.59527,127.07738],[37.59537,127.07785],[37.59546,127.07835],[37.59553,127.07884],[37.59564,127.07938],[37.59568,127.07962]]]}];
+
+/* ===========================================================
+   SUBWAY ROUTING  —  easy to edit
+   • Wrong line or transfer?      edit ROUTES["<off station>"]
+   • A pin gets off at wrong stop? edit PLACE_OFF["<pin id>"]
+   Each leg is { line, to }. The LAST to = where you get off;
+   an earlier to = the station you transfer at.
+   Line refs: 1-7, 9, B=Suin–Bundang, SB=Sinbundang, GJ=Gyeongui–Jungang
+   =========================================================== */
+const HOTEL_STATION = "Dongdaemun History & Culture Park";
+const PLACE_OFF = {
+  "sancheong": "Euljiro 3-ga",
+  "sosinisso": "Sinchon",
+  "gyeonguipark": "Hongik Univ.",
+  "yeongdongsl": "Sinsa",
+  "zenzero-gn": "Gangnam-gu Office",
+  "zenzero-dosan": "Apgujeong Rodeo",
+  "commonground": "Konkuk Univ.",
+  "muwol": "Gangnam",
+  "yugdaljib": "Gangnam",
+  "hyejin": "Yeoksam",
+  "nudake-ss": "Seongsu",
+  "gyeongbok": "Gyeongbokgung",
+  "changdeok": "Anguk",
+  "bukchon": "Anguk",
+  "hanbok": "Anguk",
+  "insadong": "Jonggak",
+  "gwangjang": "Jongno 5-ga",
+  "garlicboy": "Jongno 5-ga",
+  "gwttukgam": "Gwanghwamun",
+  "onion": "Anguk",
+  "dotori": "Anguk",
+  "cheongsudang": "Jongno 3-ga",
+  "miltoast": "Jongno 3-ga",
+  "nakwon": "Jongno 3-ga",
+  "soha": "Jongno 3-ga",
+  "jayeondo": "Jongno 3-ga",
+  "damsot-ik": "Jongno 3-ga",
+  "nseoul": "Myeongdong",
+  "mokmyeok": "Myeongdong",
+  "milestone-hannam": "Hangangjin",
+  "leeum": "Hangangjin",
+  "milestone-seongsu": "Ttukseom",
+  "seoulforest": "Seoul Forest",
+  "bornbred": "Majang",
+  "mingles": "Apgujeong Rodeo",
+  "hanmiok": "Apgujeong Rodeo",
+  "wumok": "Apgujeong Rodeo",
+  "damsot-ap": "Apgujeong Rodeo",
+  "nudake": "Apgujeong Rodeo",
+  "hongbaksa": "Hak-dong",
+  "bunker": "Apgujeong",
+  "lowide": "Apgujeong",
+  "gebangsikdang": "Gangnam-gu Office",
+  "garosugil": "Sinsa",
+  "starfield": "Samseong",
+  "anthracite": "Sangsu",
+  "hummingbella": "Sangsu",
+  "milomil": "Mangwon",
+  "madeby": "Hongik Univ.",
+  "yeouido": "Yeouinaru",
+};
+const ROUTES = {
+  "Euljiro 3-ga": [{"line": "2", "to": "Euljiro 3-ga"}],
+  "Sinchon": [{"line": "2", "to": "Sinchon"}],
+  "Konkuk Univ.": [{"line": "2", "to": "Konkuk Univ."}],
+  "Gangnam": [{"line": "2", "to": "Gangnam"}],
+  "Yeoksam": [{"line": "2", "to": "Yeoksam"}],
+  "Seongsu": [ {line:"2", to:"Seongsu"} ],
+  "Jongno 3-ga": [ {line:"5", to:"Jongno 3-ga"} ],
+  "Gwanghwamun": [ {line:"5", to:"Gwanghwamun"} ],
+  "Anguk": [ {line:"5", to:"Jongno 3-ga"}, {line:"3", to:"Anguk"} ],
+  "Gyeongbokgung": [ {line:"5", to:"Jongno 3-ga"}, {line:"3", to:"Gyeongbokgung"} ],
+  "Jonggak": [ {line:"5", to:"Jongno 3-ga"}, {line:"1", to:"Jonggak"} ],
+  "Jongno 5-ga": [ {line:"4", to:"Dongdaemun"}, {line:"1", to:"Jongno 5-ga"} ],
+  "Myeongdong": [ {line:"4", to:"Myeongdong"} ],
+  "Hangangjin": [ {line:"4", to:"Samgakji"}, {line:"6", to:"Hangangjin"} ],
+  "Ttukseom": [ {line:"2", to:"Ttukseom"} ],
+  "Seoul Forest": [ {line:"2", to:"Wangsimni"}, {line:"B", to:"Seoul Forest"} ],
+  "Majang": [ {line:"5", to:"Majang"} ],
+  "Apgujeong Rodeo": [ {line:"2", to:"Wangsimni"}, {line:"B", to:"Apgujeong Rodeo"} ],
+  "Apgujeong": [ {line:"4", to:"Chungmuro"}, {line:"3", to:"Apgujeong"} ],
+  "Hak-dong": [ {line:"2", to:"Konkuk Univ."}, {line:"7", to:"Hak-dong"} ],
+  "Sinsa": [ {line:"4", to:"Chungmuro"}, {line:"3", to:"Sinsa"} ],
+  "Gangnam-gu Office": [ {line:"2", to:"Wangsimni"}, {line:"B", to:"Gangnam-gu Office"} ],
+  "Samseong": [ {line:"2", to:"Samseong"} ],
+  "Hongik Univ.": [ {line:"2", to:"Hongik Univ."} ],
+  "Sangsu": [ {line:"4", to:"Samgakji"}, {line:"6", to:"Sangsu"} ],
+  "Mangwon": [ {line:"4", to:"Samgakji"}, {line:"6", to:"Mangwon"} ],
+  "Yeouinaru": [ {line:"5", to:"Yeouinaru"} ],
+};
+const STATION_COORDS = {
+  "Euljiro 3-ga": [37.566295, 126.991806],
+  "Sinchon": [37.555134, 126.936893],
+  "Gangnam": [37.497942, 127.027621],
+  "Yeoksam": [37.500622, 127.036456],
+  "Seongsu": [37.544569, 127.056102],
+  "Anguk": [37.576828, 126.986171],
+  "Apgujeong": [37.526185, 127.028499],
+  "Apgujeong Rodeo": [37.527813, 127.040709],
+  "Chungmuro": [37.561202, 126.994109],
+  "Dongdaemun": [37.571179, 127.010509],
+  "Dongdaemun History & Culture Park": [37.565138, 127.007805],
+  "Gangnam-gu Office": [37.516994, 127.041355],
+  "Gwanghwamun": [37.571616, 126.976903],
+  "Gyeongbokgung": [37.575787, 126.973526],
+  "Hak-dong": [37.513957, 127.03075],
+  "Hangangjin": [37.539796, 127.001751],
+  "Hongik Univ.": [37.556987, 126.925178],
+  "Jonggak": [37.570175, 126.983183],
+  "Jongno 3-ga": [37.571493, 126.9915],
+  "Jongno 5-ga": [37.570987, 127.002022],
+  "Konkuk Univ.": [37.540403, 127.070124],
+  "Majang": [37.566098, 127.042881],
+  "Mangwon": [37.556025, 126.910128],
+  "Myeongdong": [37.560898, 126.986376],
+  "Samgakji": [37.535478, 126.973889],
+  "Samseong": [37.50884, 127.063143],
+  "Sangsu": [37.547758, 126.922892],
+  "Seoul Forest": [37.543592, 127.04474],
+  "Sinsa": [37.516109, 127.019516],
+  "Ttukseom": [37.547235, 127.04741],
+  "Wangsimni": [37.561229, 127.037147],
+  "Yeouinaru": [37.526853, 126.932529],
+};
+
+/* ---------------- state ---------------- */
+const active = {}; CAT_ORDER.forEach(k => active[k] = true);
+let selectedId = null;
+const SUBWAY_BUSAN = [{"ref":"1","label":"Line 1","color":"#F06A00","paths":[[[35.05036,128.97048],[35.05216,128.97115],[35.05291,128.97112],[35.05343,128.97101],[35.05553,128.97067],[35.05642,128.97081],[35.05761,128.97137],[35.05786,128.97152],[35.05875,128.97206],[35.05916,128.97256],[35.05966,128.97385],[35.05997,128.97431],[35.0607,128.97493],[35.06114,128.97563],[35.06188,128.97725],[35.06272,128.97836],[35.06289,128.9788],[35.06307,128.97945],[35.06349,128.97969],[35.06405,128.97969],[35.06466,128.97968],[35.06542,128.9799],[35.06598,128.98006],[35.06675,128.98002],[35.06745,128.9796],[35.06873,128.97835],[35.06945,128.97787],[35.07196,128.97703],[35.07282,128.9767],[35.0732,128.97671],[35.07425,128.97685],[35.07463,128.97692],[35.07604,128.97721],[35.0781,128.97757],[35.07928,128.97759],[35.08086,128.97747],[35.08193,128.9775],[35.08253,128.97751],[35.08397,128.9776],[35.08781,128.9778],[35.08936,128.97792],[35.08957,128.97779],[35.08967,128.9774],[35.08985,128.97508],[35.0899,128.97345],[35.08996,128.97111],[35.09012,128.96675],[35.09009,128.9635],[35.0901,128.96247],[35.09036,128.96176],[35.09051,128.96151],[35.09086,128.96114],[35.09128,128.96087],[35.0916,128.96083],[35.09192,128.9608],[35.09252,128.96076],[35.09302,128.96075],[35.09355,128.96074],[35.0938,128.96074],[35.09405,128.96074],[35.09448,128.96071],[35.09549,128.96069],[35.09597,128.96069],[35.09675,128.96067],[35.09759,128.96069],[35.09831,128.96072],[35.09883,128.96074],[35.09943,128.96075],[35.10068,128.96075],[35.10157,128.96079],[35.10223,128.9608],[35.1027,128.96088],[35.10332,128.96097],[35.10389,128.96107],[35.10441,128.96118],[35.10485,128.96138],[35.10515,128.96162],[35.10548,128.96185],[35.10582,128.96218],[35.10594,128.96231],[35.10603,128.96252],[35.10615,128.96296],[35.10623,128.96328],[35.10623,128.96401],[35.10624,128.96441],[35.10623,128.96562],[35.10624,128.96679],[35.10624,128.9677],[35.10621,128.96822],[35.10613,128.96837],[35.10576,128.96871],[35.10553,128.96891],[35.10516,128.96929],[35.10497,128.96956],[35.10472,128.97002],[35.10423,128.97145],[35.10345,128.97382],[35.10266,128.97612],[35.10247,128.97665],[35.10232,128.97694],[35.10176,128.97787],[35.10076,128.97949],[35.10056,128.97988],[35.10035,128.98049],[35.10011,128.98151],[35.0998,128.98309],[35.09957,128.98424],[35.09914,128.9863],[35.09905,128.98683],[35.09905,128.98725],[35.09911,128.98814],[35.09919,128.98931],[35.09924,128.98998],[35.09928,128.99041],[35.09977,128.99207],[35.1,128.99284],[35.1001,128.99318],[35.10032,128.99423],[35.10054,128.99481],[35.10097,128.99574],[35.10214,128.99815],[35.10293,128.99956],[35.10316,128.99999],[35.10358,129.00074],[35.10427,129.00197],[35.10832,129.00879],[35.10885,129.00938],[35.10915,129.00968],[35.10965,129.01015],[35.11009,129.01066],[35.1104,129.01112],[35.11062,129.01154],[35.11085,129.01205],[35.11098,129.01234],[35.1111,129.01268],[35.11177,129.01458],[35.11185,129.01531],[35.11183,129.01574],[35.11176,129.01614],[35.11159,129.01657],[35.11136,129.01695],[35.11102,129.01732],[35.11032,129.01776],[35.11008,129.0179],[35.10985,129.01801],[35.10943,129.01823],[35.10925,129.01837],[35.10874,129.01895],[35.10823,129.01958],[35.10787,129.02],[35.10774,129.02011],[35.10753,129.02019],[35.10726,129.02021],[35.10692,129.02019],[35.10583,129.02012],[35.10538,129.02009],[35.10359,129.02],[35.10239,129.01994],[35.10076,129.01979],[35.1004,129.01976],[35.0995,129.0197],[35.0992,129.01976],[35.09888,129.01992],[35.09874,129.02001],[35.0985,129.02016],[35.09817,129.02041],[35.09687,129.02184],[35.09669,129.02211],[35.09659,129.02235],[35.09654,129.02317],[35.09647,129.02405],[35.0966,129.02463],[35.09697,129.02549],[35.09728,129.02671],[35.09818,129.03016],[35.09825,129.03051],[35.09825,129.03083],[35.09784,129.03236],[35.09765,129.03321],[35.09761,129.03373],[35.09767,129.03407],[35.09789,129.0349],[35.09799,129.03528],[35.0981,129.03555],[35.09839,129.03587],[35.09918,129.03657],[35.09936,129.03662],[35.10124,129.03653],[35.10169,129.0365],[35.1031,129.03641],[35.10384,129.03637],[35.10472,129.03632],[35.10499,129.03631],[35.10656,129.03625],[35.10684,129.03625],[35.10711,129.03629],[35.10749,129.0364],[35.10839,129.03679],[35.10934,129.03724],[35.11055,129.03772],[35.11152,129.03805],[35.11181,129.03818],[35.1122,129.03834],[35.11299,129.03869],[35.11449,129.03938],[35.1151,129.03966],[35.1156,129.03994],[35.11675,129.04061],[35.11825,129.04147],[35.11995,129.04237],[35.12118,129.04303],[35.12235,129.04365],[35.12365,129.04438],[35.12479,129.045],[35.12496,129.0451],[35.12517,129.04527],[35.1257,129.04581],[35.12739,129.0475],[35.12896,129.04912],[35.12919,129.04934],[35.12946,129.04961],[35.1316,129.05173],[35.13336,129.05345],[35.13431,129.05439],[35.13487,129.05497],[35.13528,129.0554],[35.13592,129.05605],[35.13628,129.0564],[35.13673,129.05687],[35.1369,129.05711],[35.13714,129.05754],[35.13736,129.05789],[35.13771,129.05838],[35.13796,129.05872],[35.13818,129.05896],[35.13843,129.05915],[35.13875,129.05932],[35.13905,129.05938],[35.13935,129.0594],[35.13995,129.0594],[35.14068,129.05937],[35.14096,129.05937],[35.14216,129.05937],[35.14334,129.05934],[35.1449,129.05928],[35.14724,129.05925],[35.14793,129.05925],[35.14867,129.05927],[35.15218,129.05921],[35.15446,129.05918],[35.15534,129.05916],[35.15601,129.05915],[35.15682,129.05915],[35.15707,129.05916],[35.15732,129.05919],[35.15763,129.05927],[35.15785,129.05934],[35.15804,129.05945],[35.15829,129.0596],[35.15864,129.05988],[35.16165,129.06235],[35.16213,129.06268],[35.16257,129.06299],[35.1641,129.0642],[35.16643,129.06604],[35.16829,129.0675],[35.16932,129.06826],[35.17005,129.06889],[35.17044,129.06921],[35.17105,129.0697],[35.1714,129.06998],[35.17213,129.07056],[35.17313,129.07135],[35.17459,129.07256],[35.17539,129.07318],[35.17593,129.07355],[35.17677,129.07426],[35.17754,129.07485],[35.17806,129.07524],[35.17879,129.07582],[35.17958,129.07644],[35.17973,129.07657],[35.18021,129.077],[35.18115,129.07776],[35.18167,129.07812],[35.18185,129.07826],[35.18237,129.07867],[35.18256,129.07883],[35.18322,129.07936],[35.18405,129.08002],[35.18448,129.08037],[35.18512,129.0809],[35.18536,129.08107],[35.18564,129.08128],[35.1859,129.08142],[35.18624,129.08149],[35.18673,129.08143],[35.18695,129.08138],[35.18977,129.08068],[35.19215,129.08007],[35.19317,129.0799],[35.1936,129.07988],[35.19429,129.07987],[35.19503,129.07998],[35.19537,129.08001],[35.19615,129.07998],[35.19663,129.0799],[35.1974,129.0797],[35.19764,129.07964],[35.1992,129.07927],[35.19965,129.07915],[35.20042,129.07896],[35.20126,129.07876],[35.20162,129.07867],[35.20213,129.07856],[35.20254,129.07851],[35.20284,129.0785],[35.20403,129.0785],[35.20472,129.07851],[35.20575,129.0785],[35.2065,129.07849],[35.20762,129.07847],[35.20927,129.07845],[35.20951,129.07845],[35.2098,129.07848],[35.21009,129.07852],[35.21047,129.0786],[35.21078,129.07869],[35.21102,129.07878],[35.21136,129.07892],[35.21167,129.0791],[35.21188,129.07924],[35.21285,129.07988],[35.21333,129.08023],[35.21396,129.08061],[35.21429,129.08084],[35.21442,129.08093],[35.21462,129.08109],[35.21486,129.08132],[35.21499,129.08145],[35.21519,129.0817],[35.21546,129.08208],[35.21563,129.08234],[35.2158,129.08261],[35.21595,129.08286],[35.21612,129.08311],[35.21625,129.08326],[35.21638,129.0834],[35.21668,129.08371],[35.21696,129.08393],[35.21709,129.08403],[35.21776,129.08458],[35.21846,129.08517],[35.2192,129.08573],[35.21939,129.08587],[35.21953,129.08596],[35.22053,129.08653],[35.22104,129.08682],[35.22191,129.0873],[35.22253,129.08762],[35.22318,129.08799],[35.2237,129.08826],[35.22389,129.08836],[35.22422,129.08852],[35.22444,129.08861],[35.22483,129.08876],[35.22506,129.08884],[35.22556,129.08896],[35.22609,129.08905],[35.22646,129.08909],[35.22734,129.08921],[35.22831,129.08935],[35.22853,129.08938],[35.22888,129.08942],[35.22926,129.08942],[35.22995,129.08936],[35.23058,129.08924],[35.23102,129.08918],[35.23133,129.08915],[35.23165,129.08915],[35.23318,129.08939],[35.2336,129.08947],[35.2339,129.08949],[35.23433,129.08948],[35.23453,129.08946],[35.2348,129.0894],[35.23596,129.08893],[35.23713,129.08843],[35.23735,129.08834],[35.23763,129.08825],[35.23791,129.08818],[35.23815,129.08813],[35.23852,129.0881],[35.23878,129.08811],[35.23906,129.08814],[35.23985,129.08823],[35.24036,129.08834],[35.24073,129.08849],[35.24093,129.08859],[35.24112,129.08871],[35.24128,129.08884],[35.24146,129.08898],[35.24168,129.08919],[35.24199,129.08952],[35.24248,129.09003],[35.24266,129.09021],[35.24278,129.09034],[35.24293,129.09045],[35.24312,129.09058],[35.2433,129.0907],[35.24353,129.09082],[35.24368,129.09088],[35.24387,129.09094],[35.24413,129.09102],[35.24436,129.09105],[35.24471,129.0911],[35.24541,129.09114],[35.24648,129.09126],[35.24757,129.09132],[35.24804,129.09138],[35.24915,129.09145],[35.25008,129.09153],[35.25117,129.09161],[35.25227,129.09172],[35.25293,129.09178],[35.25351,129.09179],[35.25374,129.09177],[35.25406,129.09174],[35.25432,129.09171],[35.255,129.09161],[35.25585,129.09149],[35.25654,129.09142],[35.25692,129.0914],[35.25721,129.0914],[35.25837,129.09144],[35.25945,129.09146],[35.26035,129.09146],[35.26136,129.0917],[35.26481,129.09251],[35.26523,129.09258],[35.26655,129.09281],[35.26709,129.09283]]]},{"ref":"2","label":"Line 2","color":"#81BF48","paths":[[[35.17152,129.18053],[35.17022,129.17763],[35.16959,129.17618],[35.16945,129.17592],[35.16919,129.17545],[35.1684,129.17436],[35.16767,129.17335],[35.1673,129.17283],[35.16714,129.17254],[35.16701,129.17222],[35.16692,129.17196],[35.16685,129.17163],[35.16681,129.17074],[35.1667,129.16873],[35.16665,129.16781],[35.16639,129.16437],[35.16627,129.16359],[35.16603,129.163],[35.16435,129.16],[35.16368,129.15881],[35.16223,129.15621],[35.16144,129.15477],[35.16106,129.15406],[35.16027,129.15184],[35.16015,129.15129],[35.16015,129.15064],[35.16027,129.15028],[35.16057,129.14969],[35.1609,129.14893],[35.16128,129.14809],[35.16156,129.14755],[35.16248,129.14583],[35.16373,129.14344],[35.16884,129.13847],[35.17037,129.13699],[35.17075,129.13619],[35.17079,129.13578],[35.17076,129.13534],[35.17036,129.13436],[35.16998,129.13362],[35.16938,129.13261],[35.16863,129.1312],[35.16756,129.12921],[35.16686,129.12789],[35.16658,129.12736],[35.1663,129.12683],[35.16586,129.12573],[35.16577,129.12548],[35.16569,129.12476],[35.1659,129.124],[35.16627,129.12321],[35.16702,129.12208],[35.16728,129.12168],[35.16824,129.12059],[35.16841,129.11936],[35.1685,129.11856],[35.16802,129.11711],[35.16759,129.11569],[35.16747,129.11544],[35.16728,129.11521],[35.16699,129.11502],[35.16669,129.11495],[35.16542,129.11467],[35.16504,129.11459],[35.16474,129.11453],[35.16324,129.1142],[35.16181,129.11391],[35.15953,129.11344],[35.15792,129.11317],[35.15768,129.11306],[35.14976,129.11097],[35.14455,129.10942],[35.14373,129.10921],[35.14327,129.109],[35.14301,129.10873],[35.14213,129.10784],[35.14059,129.10622],[35.14004,129.10551],[35.1389,129.10318],[35.1388,129.10297],[35.13756,129.10053],[35.13726,129.09984],[35.13706,129.09933],[35.1366,129.09819],[35.13586,129.09654],[35.13539,129.09443],[35.13517,129.09242],[35.13515,129.09217],[35.13511,129.0907],[35.13496,129.0878],[35.13487,129.08575],[35.13476,129.08478],[35.13465,129.08265],[35.13458,129.08203],[35.13448,129.08104],[35.13406,129.07989],[35.13377,129.07916],[35.13372,129.07872],[35.1338,129.07824],[35.13396,129.07776],[35.13489,129.07591],[35.13567,129.07422],[35.13606,129.07347],[35.13635,129.07294],[35.13654,129.0725],[35.13669,129.07196],[35.13683,129.07127],[35.13688,129.07087],[35.13693,129.07036],[35.13696,129.06969],[35.13699,129.06925],[35.13704,129.069],[35.13712,129.06876],[35.13733,129.06841],[35.13754,129.06815],[35.13786,129.06791],[35.13835,129.06768],[35.1388,129.06748],[35.13914,129.06733],[35.13964,129.06713],[35.13991,129.06704],[35.14028,129.06694],[35.14059,129.06688],[35.14089,129.06684],[35.14131,129.06681],[35.14164,129.06679],[35.14338,129.06677],[35.14459,129.06674],[35.14509,129.06674],[35.14573,129.06671],[35.14689,129.06669],[35.14715,129.06669],[35.14747,129.06665],[35.14768,129.06659],[35.14787,129.06652],[35.14806,129.06643],[35.14875,129.06603],[35.14922,129.06576],[35.14983,129.06554],[35.15014,129.06547],[35.15055,129.06543],[35.15097,129.06539],[35.15282,129.06536],[35.15444,129.06537],[35.15497,129.06538],[35.15536,129.06539],[35.15592,129.06545],[35.15632,129.06548],[35.15664,129.06549],[35.15687,129.06547],[35.15707,129.06543],[35.15729,129.06535],[35.15755,129.06516],[35.15771,129.06489],[35.15777,129.06439],[35.15776,129.06385],[35.15775,129.06238],[35.15772,129.05988],[35.15771,129.05916],[35.1577,129.05825],[35.15761,129.05595],[35.1576,129.05477],[35.1576,129.05365],[35.15761,129.05314],[35.1576,129.05238],[35.15759,129.05137],[35.15757,129.05112],[35.15744,129.05051],[35.15735,129.05012],[35.15713,129.04916],[35.15682,129.04793],[35.15654,129.0466],[35.1564,129.04593],[35.1563,129.04531],[35.15583,129.04269],[35.15557,129.04142],[35.15537,129.04034],[35.15522,129.0395],[35.1551,129.03874],[35.15501,129.03823],[35.15493,129.03763],[35.1548,129.03682],[35.15457,129.03541],[35.15423,129.03348],[35.15398,129.03214],[35.15382,129.03126],[35.15368,129.03033],[35.15353,129.02953],[35.15332,129.02814],[35.15323,129.02736],[35.1532,129.02633],[35.15319,129.02552],[35.15321,129.02433],[35.15324,129.02304],[35.15327,129.02047],[35.15324,129.02014],[35.15317,129.01979],[35.15309,129.01941],[35.15297,129.01897],[35.15289,129.0187],[35.15279,129.01847],[35.15262,129.01816],[35.15241,129.01781],[35.15222,129.01743],[35.15199,129.017],[35.15181,129.01654],[35.15166,129.016],[35.15156,129.01549],[35.15149,129.01493],[35.15144,129.01425],[35.15131,129.01282],[35.15129,129.01243],[35.15116,129.01076],[35.15106,129.00961],[35.15093,129.0079],[35.15075,129.0059],[35.1507,129.0053],[35.15061,129.00431],[35.15057,129.00392],[35.1505,129.00315],[35.15041,129.00224],[35.15035,129.0014],[35.15035,129.00099],[35.15036,129.00049],[35.1504,128.99996],[35.15048,128.99955],[35.15067,128.99898],[35.15096,128.99837],[35.15122,128.99777],[35.1518,128.9965],[35.15197,128.99621],[35.15211,128.99599],[35.15301,128.99469],[35.15328,128.99431],[35.15429,128.99291],[35.15519,128.99158],[35.15539,128.99132],[35.15571,128.99088],[35.15613,128.99044],[35.15736,128.98927],[35.15754,128.98909],[35.15908,128.98762],[35.15949,128.98722],[35.16014,128.98659],[35.16185,128.98494],[35.16204,128.98479],[35.16222,128.98467],[35.16251,128.98451],[35.16444,128.98353],[35.16687,128.98229],[35.16725,128.98216],[35.16758,128.9821],[35.16786,128.98208],[35.16812,128.98212],[35.16833,128.98214],[35.16858,128.98217],[35.16895,128.98226],[35.16983,128.98253],[35.17054,128.98274],[35.17111,128.98292],[35.17672,128.98468],[35.17776,128.98495],[35.17859,128.98514],[35.17988,128.98546],[35.18123,128.9858],[35.18152,128.98585],[35.1826,128.98612],[35.18339,128.98631],[35.18439,128.98656],[35.18579,128.98688],[35.18626,128.987],[35.18651,128.98709],[35.18722,128.98743],[35.18775,128.98769],[35.18815,128.98789],[35.18987,128.98872],[35.19084,128.98919],[35.19127,128.98943],[35.19144,128.98954],[35.19158,128.98966],[35.19169,128.98981],[35.19177,128.98996],[35.19251,128.99201],[35.19275,128.99246],[35.19299,128.99271],[35.19329,128.99294],[35.19479,128.99372],[35.19633,128.99459],[35.19695,128.99502],[35.19795,128.99573],[35.19902,128.99659],[35.19979,128.99719],[35.20093,128.998],[35.20288,128.99962],[35.203,128.99973],[35.20337,129.00004],[35.20395,129.00053],[35.20425,129.00079],[35.20437,129.00097],[35.20443,129.00121],[35.20461,129.00216],[35.20468,129.0025],[35.20493,129.00343],[35.20503,129.00376],[35.20519,129.00403],[35.20536,129.00423],[35.20551,129.00433],[35.20586,129.00448],[35.20612,129.00456],[35.2071,129.00481],[35.20912,129.00534],[35.20938,129.00541],[35.20984,129.00537],[35.21078,129.00506],[35.21122,129.00483],[35.21318,129.00419],[35.21341,129.00417],[35.21367,129.00423],[35.21442,129.00443],[35.21482,129.00453],[35.21716,129.0051],[35.21764,129.00523],[35.21792,129.00538],[35.21819,129.00554],[35.21922,129.00667],[35.22053,129.00796],[35.22089,129.00821],[35.22292,129.00906],[35.22405,129.00951],[35.22454,129.0097],[35.22549,129.01007],[35.2262,129.01061],[35.22654,129.01086],[35.22681,129.01107],[35.22705,129.01126],[35.22728,129.01143],[35.22828,129.01219],[35.22841,129.01228],[35.22892,129.01245],[35.23084,129.01305],[35.23222,129.01334],[35.23454,129.01373],[35.23666,129.01394],[35.23828,129.01403],[35.23959,129.01412],[35.24012,129.01416],[35.2406,129.01411],[35.24084,129.01408],[35.2412,129.01399],[35.24177,129.01382],[35.24367,129.01327],[35.24462,129.01301],[35.24514,129.01289],[35.24548,129.01287],[35.24618,129.01287],[35.24675,129.0129],[35.24702,129.0129],[35.24774,129.01295],[35.24812,129.01299],[35.24854,129.013],[35.24901,129.01298],[35.24929,129.0129],[35.24949,129.01284],[35.24991,129.0126],[35.25069,129.01206],[35.25093,129.01189],[35.25131,129.01161],[35.25147,129.01149],[35.25217,129.01099],[35.25258,129.01073],[35.25303,129.01055],[35.25357,129.01045],[35.25389,129.01048],[35.25413,129.01051],[35.25447,129.01058],[35.25498,129.01078],[35.2555,129.011],[35.25603,129.01128],[35.25664,129.01144],[35.25733,129.0117],[35.25772,129.01188],[35.25789,129.01199],[35.25942,129.01277],[35.25959,129.01283],[35.26252,129.01428],[35.26269,129.01436],[35.26437,129.01518],[35.26488,129.01545],[35.26655,129.01637],[35.2667,129.01646],[35.26826,129.01732],[35.26859,129.01749],[35.26883,129.01761],[35.26928,129.01784],[35.26959,129.01797],[35.26988,129.01806]]]},{"ref":"3","label":"Line 3","color":"#BB8C00","paths":[[[35.19017,129.07057],[35.18985,129.07126],[35.18917,129.07264],[35.18894,129.07306],[35.18885,129.07326],[35.18876,129.07346],[35.18854,129.074],[35.18845,129.07423],[35.18829,129.07464],[35.18816,129.07516],[35.18794,129.0761],[35.18778,129.07679],[35.18763,129.0773],[35.18736,129.07805],[35.18677,129.07963],[35.18648,129.08038],[35.18634,129.08075],[35.18624,129.08102],[35.18609,129.0813],[35.18599,129.0815],[35.18585,129.08171],[35.18574,129.08184],[35.18562,129.08196],[35.1854,129.08216],[35.18466,129.08248],[35.18446,129.08256],[35.18316,129.08307],[35.18281,129.08321],[35.18258,129.08328],[35.18151,129.08377],[35.18098,129.08399],[35.17988,129.08444],[35.17887,129.08487],[35.17862,129.08498],[35.17803,129.08523],[35.17784,129.08531],[35.17748,129.08547],[35.17664,129.08583],[35.17645,129.08591],[35.17577,129.08617],[35.17539,129.08636],[35.17499,129.08661],[35.17482,129.08676],[35.1747,129.08695],[35.17458,129.08722],[35.17451,129.08754],[35.17411,129.09062],[35.17391,129.09231],[35.17379,129.09327],[35.17369,129.09406],[35.1735,129.09549],[35.17346,129.09575],[35.17335,129.09659],[35.17319,129.09811],[35.17315,129.1003],[35.17314,129.10091],[35.17313,129.10114],[35.17311,129.10192],[35.17294,129.10272],[35.17252,129.10442],[35.17173,129.10752],[35.17165,129.10786],[35.1715,129.10844],[35.17136,129.10901],[35.17123,129.10945],[35.17108,129.10974],[35.1699,129.11143],[35.16814,129.114],[35.16801,129.11419],[35.16769,129.11466],[35.16751,129.11485],[35.16731,129.11498],[35.16698,129.11506],[35.16542,129.11467],[35.19017,129.07057],[35.19073,129.06934],[35.19086,129.06908],[35.19094,129.06881],[35.19099,129.06851],[35.19099,129.06809],[35.19104,129.06776],[35.19114,129.06763],[35.19128,129.06754],[35.19146,129.06749],[35.19188,129.06738],[35.19556,129.06624],[35.19623,129.06601],[35.19848,129.06526],[35.19909,129.06507],[35.19963,129.0649],[35.20006,129.06481],[35.20033,129.06479],[35.20056,129.06482],[35.20077,129.06488],[35.20107,129.06506],[35.20174,129.06547],[35.20273,129.06615],[35.20367,129.06679],[35.20422,129.06717],[35.20592,129.06832],[35.20654,129.0687],[35.20688,129.06894],[35.20719,129.06914],[35.20737,129.06922],[35.20761,129.06921],[35.20776,129.06912],[35.20793,129.06898],[35.20814,129.06873],[35.20826,129.06848],[35.20834,129.06829],[35.20849,129.06786],[35.20854,129.06761],[35.20882,129.06669],[35.20903,129.06592],[35.20963,129.0637],[35.21014,129.06169],[35.21265,129.04645],[35.213,129.04441],[35.21311,129.04369],[35.2132,129.04245],[35.21301,129.04027],[35.21278,129.03868],[35.21283,129.03818],[35.2129,129.03724],[35.21299,129.03646],[35.21304,129.03595],[35.21316,129.03492],[35.21323,129.03351],[35.21325,129.03306],[35.21321,129.03257],[35.21301,129.03132],[35.21288,129.0304],[35.21277,129.02942],[35.21276,129.02865],[35.21281,129.02812],[35.21302,129.02738],[35.21313,129.02679],[35.21324,129.02579],[35.21327,129.0249],[35.21332,129.02435],[35.21333,129.02393],[35.21333,129.02349],[35.21322,129.02028],[35.21315,129.01852],[35.21314,129.01791],[35.21307,129.01733],[35.21297,129.01681],[35.21198,129.01275],[35.21082,129.00818],[35.21035,129.00628],[35.21023,129.00579],[35.21008,129.00528],[35.2099,129.00435],[35.2098,129.00399],[35.20975,129.00349],[35.20976,129.00293],[35.20985,129.00247],[35.21002,129.0019],[35.21009,129.00155],[35.21009,129.00119],[35.21007,129.00078],[35.20998,129.00032],[35.20985,128.99988],[35.20974,128.99965],[35.20963,128.99944],[35.2095,128.99925],[35.20936,128.99908],[35.2092,128.9989],[35.20837,128.99804],[35.20724,128.99688],[35.20671,128.99633],[35.20619,128.99579],[35.206,128.99556],[35.20586,128.99536],[35.20572,128.99507],[35.20565,128.99487],[35.20559,128.9946],[35.20556,128.99431],[35.20555,128.99405],[35.20558,128.99383],[35.20561,128.99363],[35.20566,128.99342],[35.20572,128.99324],[35.20581,128.99303],[35.20598,128.99271],[35.20608,128.99257],[35.20757,128.99034],[35.21011,128.98661],[35.21036,128.98621],[35.21057,128.98576],[35.21075,128.98524],[35.21086,128.98488],[35.21095,128.98446],[35.21101,128.98404],[35.21117,128.98265],[35.21124,128.98196],[35.21133,128.98103],[35.21144,128.97998],[35.2115,128.97935],[35.21163,128.97806],[35.21243,128.97012],[35.21251,128.96939],[35.2126,128.9685],[35.21266,128.96783],[35.21289,128.96568],[35.21298,128.96476],[35.21308,128.96379],[35.21312,128.96334],[35.21318,128.96274],[35.21322,128.96247],[35.21331,128.96186],[35.21342,128.9608],[35.21348,128.9602]]]}];
+const RAIL = { seoul: SUBWAY, busan: SUBWAY_BUSAN, jeju: [] };
+
+let currentTab = "seoul";
+const markers = {};
+let map;
+let night = true, baseLayer = null, tilesOk = false;
+let railLayer = null, railOn = true;
+let routeLayer = null;
+
+/* ---------------- build tabs ---------------- */
+const tabsEl = document.getElementById("tabs");
+LEGS.forEach(leg => {
+  const b = document.createElement("button");
+  b.className = "tab" + (leg.id === "seoul" ? " active" : "");
+  b.dataset.tab = leg.id;
+  b.innerHTML = `<span class="tab-l">${leg.label}</span>
+                 <span class="tab-d">${leg.dates}</span>`;
+  b.onclick = () => setTab(leg.id);
+  tabsEl.appendChild(b);
+});
+
+/* ---------------- legend ---------------- */
+let counts = {};
+function computeCounts(){ counts = {}; CAT_ORDER.forEach(k => counts[k] = 0); PLACES.forEach(p => { if (p.city === currentTab) counts[p.cat]++; }); }
+computeCounts();
+const legendEl = document.getElementById("legend");
+function renderLegend(){
+  computeCounts();
+  legendEl.innerHTML = "";
+  CAT_ORDER.forEach(k => {
+    const c = CATS[k];
+    const b = document.createElement("button");
+    b.className = "chip" + (active[k] ? "" : " off");
+    b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}<span class="ct">${counts[k]}</span>`;
+    b.onclick = () => { active[k] = !active[k]; syncMarkers(); renderLegend(); renderList(); };
+    legendEl.appendChild(b);
+  });
+  if (CAT_ORDER.some(k => !active[k])) {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = "Show all";
+    b.onclick = () => { CAT_ORDER.forEach(k => active[k] = true); syncMarkers(); renderLegend(); renderList(); };
+    legendEl.appendChild(b);
+  }
+}
+
+/* ---------------- sidebar list ---------------- */
+const listEl = document.getElementById("list");
+function renderList(){
+  listEl.innerHTML = "";
+  let hoods = 0, shown = 0;
+  (CLUSTERS[currentTab] || []).forEach(cl => {
+    const items = PLACES.filter(p => p.city === currentTab && p.cluster === cl && active[p.cat]);
+    if (!items.length) return;
+    hoods++; shown += items.length;
+    const head = document.createElement("div");
+    head.className = "cluster";
+    head.innerHTML = `<div class="cluster-h">${cl}</div>`;
+    listEl.appendChild(head);
+    items.forEach(p => {
+      const c = CATS[p.cat];
+      const b = document.createElement("button");
+      b.className = "item" + (selectedId === p.id ? " sel" : "");
+      b.dataset.id = p.id;
+      b.innerHTML = `<span class="pindot" style="background:${c.color}">${c.emoji}</span>
+        <span class="it-body">
+          <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
+          <span class="it-note">${p.note}</span>
+          ${p.meta ? `<span class="it-meta">${p.meta}</span>` : ""}
+        </span>`;
+      b.onclick = () => focus(p.id);
+      listEl.appendChild(b);
+    });
+  });
+  document.getElementById("shownCount").textContent = shown;
+  document.getElementById("hoodCount").textContent = hoods;
+  const bc = document.getElementById("bookedCount");
+  if (bc) bc.textContent = PLACES.filter(p => p.city === currentTab && p.booked).length;
+}
+
+function highlightList(){
+  listEl.querySelectorAll(".item").forEach(el =>
+    el.classList.toggle("sel", el.dataset.id === selectedId));
+}
+
+/* ---------------- map ---------------- */
+function popupHtml(p){
+  const c = CATS[p.cat];
+  return `<div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+    <div class="pop-name">${p.name}</div>
+    <div class="pop-hood">${p.cluster}</div>
+    <div class="pop-note">${p.note}</div>
+    ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}${routeStripHtml(p)}`;
+}
+
+function drawRail(){
+  if (!railLayer || !window.L) return;
+  railLayer.clearLayers();
+  const casing = night ? "#15120D" : "#ffffff";
+  (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
+    L.polyline(pa, { color: casing, weight: 6, opacity: 0.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+  }); });
+  (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
+    L.polyline(pa, { color: ln.color, weight: 3, opacity: 0.92, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+  }); });
+}
+
+function setBaseLayer(){
+  if (!map) return;
+  if (baseLayer) map.removeLayer(baseLayer);
+  const style = night ? "dark_all" : "light_all";
+  baseLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
+    attribution: "© OpenStreetMap © CARTO", subdomains: "abcd", maxZoom: 20,
+  });
+  baseLayer.on("load", () => { tilesOk = true; document.getElementById("tilebanner").style.display = "none"; });
+  baseLayer.addTo(map);
+}
+
+function lineMeta(ref){ return (typeof SUBWAY!=="undefined" && SUBWAY.find(l=>l.ref===ref)) || {label:"Line "+ref, color:"#888"}; }
+function routeStripHtml(p){
+  const off = (typeof PLACE_OFF!=="undefined") ? PLACE_OFF[p.id] : null;
+  if (!off || !ROUTES[off]) return "";
+  const legs = ROUTES[off];
+  const parts = legs.map((leg,i) => {
+    const m = lineMeta(leg.line);
+    const chip = `<span class="pr-line" style="background:${m.color}">${m.label}</span>`;
+    return (i===legs.length-1) ? `${chip} <span class="pr-off">off at ${leg.to}</span>`
+                               : `${chip} <span class="pr-to">${leg.to}</span> <span class="pr-arr">\u2192</span>`;
+  });
+  return `<div class="pop-route"><span class="pr-k">From hotel</span> ${parts.join(" ")}</div>`;
+}
+function cssVar(v){ return getComputedStyle(document.body).getPropertyValue(v).trim() || "#C8432A"; }
+function showRoute(p){
+  if (!routeLayer) return;
+  routeLayer.clearLayers();
+  const off = PLACE_OFF[p.id]; if (!off || !ROUTES[off]) return;
+  const seq = [{ name: HOTEL_STATION, kind: "board" }];
+  ROUTES[off].forEach((leg,i) => seq.push({ name: leg.to, kind: i===ROUTES[off].length-1 ? "off" : "transfer" }));
+  seq.forEach(s => {
+    const c = STATION_COORDS[s.name]; if (!c) return;
+    const fill = s.kind==="off" ? cssVar("--accent") : s.kind==="board" ? "#3949AB" : "#7A7062";
+    const dot = L.circleMarker(c, { radius: s.kind==="off"?7:5, color:"#fff", weight:2.5, fillColor:fill, fillOpacity:1, interactive:false }).addTo(routeLayer);
+    dot.bindTooltip(s.name, { permanent:true, direction:"right", className:"rs-tip "+s.kind, offset:[7,0] });
+  });
+}
+function clearRoute(){ if (routeLayer) routeLayer.clearLayers(); }
+
+function fitCity(){
+  const pts = PLACES.filter(p => p.city === currentTab).map(p => [p.lat, p.lng]);
+  if (pts.length && map) map.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+}
+function initMap(){
+  map = L.map("map", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 12);
+
+  setBaseLayer();
+
+  railLayer = L.layerGroup();
+  if (railOn) railLayer.addTo(map);
+  drawRail();
+  routeLayer = L.layerGroup().addTo(map);
+
+  PLACES.forEach(p => {
+    const c = CATS[p.cat];
+    const icon = L.divIcon({
+      className: "",
+      html: `<div class="pin ${p.booked ? "star" : ""}" style="--pin:${c.color}">
+               <div class="pin-b"><span>${c.emoji}</span></div></div>`,
+      iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
+    });
+    const m = L.marker([p.lat, p.lng], { icon }).bindPopup(popupHtml(p));
+    m.on("popupopen", () => { selectedId = p.id; highlightList(); showRoute(p); });
+    m.on("popupclose", () => { clearRoute(); if (selectedId === p.id) { selectedId = null; highlightList(); } });
+    markers[p.id] = m;
+    if (p.city === currentTab) m.addTo(map);
+  });
+
+  fitCity();
+
+  // if no tiles loaded after a few seconds, explain (pins still work on the gray canvas)
+  setTimeout(() => {
+    if (!tilesOk) {
+      const b = document.getElementById("tilebanner");
+      b.textContent = "Live map tiles are blocked in this preview — open this file in a browser to see the full street map. The pins below work either way.";
+      b.style.display = "block";
+    }
+  }, 3500);
+}
+
+function syncMarkers(){
+  if (!map) return;
+  PLACES.forEach(p => {
+    const m = markers[p.id]; if (!m) return;
+    if (p.city === currentTab && active[p.cat]) { if (!map.hasLayer(m)) m.addTo(map); }
+    else { if (map.hasLayer(m)) map.removeLayer(m); }
+  });
+}
+
+function focus(id){
+  const p = PLACES.find(x => x.id === id); if (!p) return;
+  selectedId = id; highlightList();
+  if (map && markers[id]) {
+    map.flyTo([p.lat, p.lng], 16, { duration: 0.7 });
+    markers[id].openPopup();
+  }
+}
+
+/* ---------------- tabs ---------------- */
+function setTab(id){
+  currentTab = id;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === id));
+  selectedId = null;
+  clearRoute();
+  renderLegend();
+  renderList();
+  drawRail();
+  renderRailLegend();
+  const hasRail = (RAIL[id] || []).length > 0;
+  const rt = document.getElementById("railToggle");
+  const rl = document.getElementById("raillegend");
+  if (rt) rt.style.display = hasRail ? "" : "none";
+  if (rl) rl.style.display = (hasRail && railOn) ? "" : "none";
+  if (map) {
+    syncMarkers();
+    fitCity();
+    setTimeout(() => map && map.invalidateSize(), 60);
+  }
+}
+
+/* ---------------- go ---------------- */
+renderLegend();
+renderList();
+
+const nightBtn = document.getElementById("nightToggle");
+if (nightBtn) nightBtn.onclick = () => {
+  night = !night;
+  document.body.classList.toggle("night", night);
+  nightBtn.textContent = night ? "☀️ Day" : "🌙 Night";
+  setBaseLayer();
+  drawRail();
+};
+
+const railBtn = document.getElementById("railToggle");
+if (railBtn) railBtn.onclick = () => {
+  railOn = !railOn;
+  railBtn.classList.toggle("on", railOn);
+  if (map && railLayer) { railOn ? railLayer.addTo(map) : map.removeLayer(railLayer); }
+  const rl = document.getElementById("raillegend"); if (rl) rl.style.display = railOn ? "" : "none";
+};
+function renderRailLegend(){
+  const el = document.getElementById("raillegend"); if (!el) return;
+  el.innerHTML = '<div class="rl-h">Subway</div>' + (RAIL[currentTab]||[]).map(ln =>
+    `<span class="rl-item"><span class="rl-bar" style="background:${ln.color}"></span>${ln.label}</span>`).join("");
+}
+renderRailLegend();
+
+function libFail(){
+  const b = document.getElementById("tilebanner");
+  b.textContent = "The live map can’t load in this preview right now — download this file and open it in any browser, where it works reliably.";
+  b.style.display = "block";
+}
+function bootMap(){
+  if (window.L) { initMap(); return; }
+  // primary CDN didn't load this render — retry from a fallback source
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
+  document.head.appendChild(link);
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
+  s.onload = () => { window.L ? initMap() : libFail(); };
+  s.onerror = libFail;
+  document.body.appendChild(s);
+}
+bootMap();
+</script>
+</body>
+</html>
