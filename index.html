@@ -8,12 +8,25 @@
 <meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
 <title>Tim & Marisa · Korea — Seoul field map</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
 
 <style>
+  /* Fonts live in vendor/ so the page needs nothing from Google to render.
+     Both are variable (weight axis), so one file per subset covers every weight used.
+     The -ext subsets exist for ₩ and friends; browsers skip them unless a glyph needs them. */
+  @font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+    src:url(vendor/fonts/inter-latin-wght-normal.woff2) format('woff2');
+    unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+  @font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+    src:url(vendor/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');
+    unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+  @font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+    src:url(vendor/fonts/bricolage-grotesque-latin-wght-normal.woff2) format('woff2');
+    unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+  @font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+    src:url(vendor/fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format('woff2');
+    unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+
   *{box-sizing:border-box;}
   :root{
     --paper:#F6F2EA; --surface:#FFFFFF; --ink:#1C1A17; --muted:#7A7062;
@@ -273,7 +286,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script>
 /* ---------------- data ---------------- */
 const CATS = {"hotel": {"label": "Hotel", "emoji": "🏨", "color": "#3949AB"}, "food": {"label": "Food", "emoji": "🍖", "color": "#D64525"}, "cafe": {"label": "Cafe", "emoji": "☕", "color": "#7B4B27"}, "bakery": {"label": "Bakery", "emoji": "🥐", "color": "#D6477E"}, "dessert": {"label": "Dessert", "emoji": "🍰", "color": "#C77DBB"}, "bar": {"label": "Bar", "emoji": "🍸", "color": "#C99700"}, "shopping": {"label": "Shopping", "emoji": "🛍️", "color": "#2E8B57"}, "landmark": {"label": "Landmark", "emoji": "🏛️", "color": "#2D6CB5"}, "beauty": {"label": "Beauty", "emoji": "💅", "color": "#B0447A"}};
@@ -749,14 +762,22 @@ function initMap(){
 
   fitCity();
 
-  // if no tiles loaded after a few seconds, explain (pins still work on the gray canvas)
-  setTimeout(() => {
-    if (!tilesOk) {
-      const b = document.getElementById("tilebanner");
-      b.textContent = "Live map tiles are blocked in this preview — open this file in a browser to see the full street map. The pins below work either way.";
-      b.style.display = "block";
-    }
-  }, 3500);
+  // Tiles are the one thing still fetched live. Everything else ships with the page,
+  // so losing them degrades to pins-on-a-blank-canvas rather than a broken map.
+  setTimeout(() => { if (!tilesOk) showTileBanner(); }, 3500);
+  window.addEventListener("offline", showTileBanner);
+  window.addEventListener("online", () => {
+    document.getElementById("tilebanner").style.display = "none";
+    if (baseLayer) baseLayer.redraw();
+  });
+}
+
+function showTileBanner(){
+  const b = document.getElementById("tilebanner");
+  b.textContent = navigator.onLine
+    ? "Street tiles aren’t loading — the pins, subway lines, notes and list all still work."
+    : "Offline, so no street tiles — the pins, subway lines, notes and list all still work.";
+  b.style.display = "block";
 }
 
 function syncMarkers(){
@@ -846,21 +867,12 @@ if (railLegendEl) railLegendEl.addEventListener("click", () => {
 
 function libFail(){
   const b = document.getElementById("tilebanner");
-  b.textContent = "The live map can’t load in this preview right now — download this file and open it in any browser, where it works reliably.";
+  b.textContent = "The map library in vendor/leaflet didn’t load. The list, filters and notes still work.";
   b.style.display = "block";
 }
 function bootMap(){
-  if (window.L) { initMap(); return; }
-  // primary CDN didn't load this render — retry from a fallback source
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css";
-  document.head.appendChild(link);
-  const s = document.createElement("script");
-  s.src = "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js";
-  s.onload = () => { window.L ? initMap() : libFail(); };
-  s.onerror = libFail;
-  document.body.appendChild(s);
+  // Leaflet ships in this repo, so if it isn't here the file itself is broken — no CDN to retry.
+  window.L ? initMap() : libFail();
 }
 bootMap();
 </script>
