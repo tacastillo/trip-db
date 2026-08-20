@@ -42,15 +42,11 @@
   body.night .item:hover{background:#241f18;}
   body.night .item.sel{background:#2c2118;}
   body.night .leaflet-container{background:#0d0b08;}
-  body.night .leaflet-popup-content-wrapper,
-  body.night .leaflet-popup-tip{background:var(--surface); color:var(--ink);}
-  body.night .leaflet-popup-content-wrapper{box-shadow:0 10px 30px rgba(0,0,0,.5);}
-  body.night .leaflet-container a.leaflet-popup-close-button{color:var(--muted);}
-  body.night .pop-note{color:var(--ink);}
-  body.night .pop-hood{color:var(--muted);}
+  body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
   body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
   body.night .soon-hi{background:#22304d; color:#9db4ea;}
   body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
+  body.carded .tilebanner{top:auto; bottom:14px;}
 
   .toolbtns{display:flex; align-items:center; gap:10px;}
   .nighttoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
@@ -120,13 +116,21 @@
   .pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
   .pin.star .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 4.5px var(--pin), 0 2px 5px rgba(0,0,0,.32);}
 
-  .leaflet-popup-content-wrapper{border-radius:11px; box-shadow:0 10px 30px rgba(28,26,23,.2); padding:2px;}
-  .leaflet-popup-content{margin:12px 14px; font-family:'Inter',sans-serif; line-height:1.4;}
+  /* The place card sits at the top of the map rather than on a pin, so the ride
+     below it is never underneath it and the map can be dragged out from under it. */
+  .card{position:absolute; top:14px; right:14px; z-index:600; width:332px; max-width:calc(100% - 28px);
+    background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 14px 36px rgba(28,26,23,.18); padding:13px 16px 14px; line-height:1.4; display:none;}
+  .card.show{display:block; animation:cardIn .2s ease-out;}
+  @keyframes cardIn{from{opacity:0; transform:translateY(-9px);} to{opacity:1; transform:none;}}
+  .card-x{position:absolute; top:7px; right:7px; width:28px; height:28px; border:none; background:none;
+    cursor:pointer; color:var(--muted); font-size:16px; line-height:1; border-radius:7px; padding:0;}
+  .card-x:hover{background:var(--line-2); color:var(--ink);}
   .pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
-  .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px;}
-  .pop-hood{font-size:11px; color:#7A7062; margin-bottom:6px;}
-  .pop-note{font-size:12.5px; color:#3a352e;}
-  .pop-meta{font-size:11.5px; font-weight:600; color:#C8432A; margin-top:6px;}
+  .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px; padding-right:22px;}
+  .pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .pop-note{font-size:12.5px; color:var(--ink);}
+  .pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
 
   /* tile fallback banner */
   .tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
@@ -160,16 +164,43 @@
   .rl-bar{width:15px; height:4px; border-radius:2px; flex:none;}
   body.night .raillegend{background:rgba(30,26,20,.93);}
 
-  .pop-route{margin-top:8px; padding-top:7px; border-top:1px solid var(--line-2); font-size:11.5px; line-height:1.75;}
-  .pr-k{font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-right:5px;}
-  .pr-line{display:inline-block; color:#fff; font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap; vertical-align:middle;}
-  .pr-to{color:var(--muted); font-weight:500;}
-  .pr-off{font-weight:700; color:var(--ink);}
+  /* the ride from the hotel, as printed in the popup */
+  .pop-route{margin-top:9px; padding-top:8px; border-top:1px solid var(--line-2); font-size:11.5px;}
+  .pr-k{display:block; font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:5px;}
+  .pr-step{display:flex; align-items:baseline; gap:7px; line-height:1.6;}
+  .pr-line{display:inline-block; color:#fff; font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap;}
+  .pr-to{font-weight:700; color:var(--ink);}
+  .pr-off{font-weight:800; color:var(--accent);}
   .pr-arr{color:var(--muted);}
-  .leaflet-tooltip.rs-tip{background:rgba(255,255,255,.94); border:none; box-shadow:0 1px 5px rgba(0,0,0,.22); font-size:10.5px; font-weight:600; color:#1C1A17; padding:1px 7px; border-radius:6px;}
+  .pr-tag{font-size:8.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:var(--muted);
+    border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
+  .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
+  .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+
+  /* the rail gets its own pane so the whole network can drop back behind a picked route */
+  .leaflet-rail-pane{transition:opacity .4s ease;}
+  body.routing .leaflet-rail-pane{opacity:.3;}
+
+  .leaflet-tooltip.rs-tip{background:rgba(255,255,255,.94); border:none; box-shadow:0 1px 5px rgba(0,0,0,.22); font-size:10.5px; font-weight:600; color:#1C1A17; padding:2px 7px; border-radius:6px;}
   .leaflet-tooltip.rs-tip.off{font-weight:800;}
   .leaflet-tooltip.rs-tip::before{display:none;}
+  .rs-tip .rs-k{display:block; font-size:8px; letter-spacing:.09em; text-transform:uppercase; font-weight:800; opacity:.6; line-height:1.3;}
+  .rs-tip.off .rs-k{opacity:1; color:var(--accent);}
   body.night .leaflet-tooltip.rs-tip{background:rgba(30,26,20,.95); color:#F1EBDF;}
+  /* a soft pulse under the drawn ride — opacity only, so the blur layer is painted once */
+  @keyframes rsGlow{0%,100%{opacity:.15;} 50%{opacity:.45;}}
+  @keyframes rsGlowDay{0%,100%{opacity:.2;} 50%{opacity:.6;}}
+  .rs-glow{filter:blur(3px); animation:rsGlow 2.6s ease-in-out infinite;}
+  /* colour on paper carries less than colour on ink, so day mode pulses harder */
+  body:not(.night) .rs-glow{animation-name:rsGlowDay;}
+  @media (prefers-reduced-motion:reduce){ .rs-glow{animation:none; opacity:.26;} }
+  /* the pin the card is about, since it no longer carries the card itself */
+  .mk-sel .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 5px var(--accent), 0 3px 9px rgba(0,0,0,.4);}
+  .mk-sel{z-index:640 !important;}
+  /* a slow ping on the station you actually get off at */
+  @keyframes rsPing{0%{stroke-width:2; opacity:.9;} 65%{stroke-width:14; opacity:0;} 100%{stroke-width:14; opacity:0;}}
+  .rs-ping{animation:rsPing 2.4s cubic-bezier(.15,.6,.3,1) infinite;}
+  @media (prefers-reduced-motion:reduce){ .rs-ping{animation:none; opacity:.45;} }
 
   /* mobile map/list switcher — hidden on desktop */
   .viewswitch{display:none;}
@@ -233,9 +264,9 @@
     .raillegend.collapsed .rl-h::after{content:' ▸';}
     .raillegend:not(.collapsed) .rl-h::after{content:' ▾';}
     .tilebanner{top:10px; font-size:11.5px; padding:8px 12px; max-width:92%;}
-    .leaflet-popup-content-wrapper{max-width:78vw;}
-    .leaflet-popup-content{margin:12px 13px;}
-    .leaflet-container a.leaflet-popup-close-button{width:34px; height:34px; font-size:20px; padding:5px 5px 0 0;}
+    .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 13px;
+      max-height:44%; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .card-x{width:34px; height:34px; font-size:19px;}
     .leaflet-control-zoom{display:none;}
   }
 
@@ -279,6 +310,7 @@
     <div class="mapwrap" id="mapwrap">
       <div id="map"></div>
       <div class="tilebanner" id="tilebanner"></div>
+      <div class="card" id="card"></div>
       <div class="raillegend" id="raillegend"></div>
     </div>
 
@@ -670,13 +702,27 @@ function highlightList(){
 }
 
 /* ---------------- map ---------------- */
-function popupHtml(p){
+function cardHtml(p){
   const c = CATS[p.cat];
-  return `<div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+  return `<button class="card-x" id="cardX" title="Close" aria-label="Close">✕</button>
+    <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
     <div class="pop-name">${p.name}</div>
     <div class="pop-hood">${p.cluster}</div>
     <div class="pop-note">${p.note}</div>
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}${routeStripHtml(p)}`;
+}
+const cardEl = document.getElementById("card");
+function showCard(p){
+  cardEl.innerHTML = cardHtml(p);
+  cardEl.classList.add("show");
+  document.body.classList.add("carded");
+  cardEl.scrollTop = 0;
+  document.getElementById("cardX").onclick = deselect;
+}
+function hideCard(){
+  cardEl.classList.remove("show");
+  cardEl.innerHTML = "";
+  document.body.classList.remove("carded");
 }
 
 /* Track geometry runs to the real termini now (OpenStreetMap via Overpass, ODbL),
@@ -741,34 +787,384 @@ function setBaseLayer(){
   baseLayer.addTo(map);
 }
 
-function lineMeta(ref){ return (typeof SUBWAY!=="undefined" && SUBWAY.find(l=>l.ref===ref)) || {label:"Line "+ref, color:"#888"}; }
+/* ===========================================================
+   THE RIDE  —  drawing a route over the real track geometry
+   The rail blobs above are bare polylines with no station index,
+   so a ride is traced by snapping both ends onto the track and
+   walking the line's own geometry between them: every line becomes
+   a small graph (its paths, stitched where branches meet and where
+   the Line 2 ring closes) and the ride is the shortest walk through
+   it — which is what picks the sane way round the loop.
+   =========================================================== */
+const EARTH_R = 6371000, DEG = Math.PI / 180;
+function metres(a, b){
+  const dy = (b[0] - a[0]) * DEG * EARTH_R;
+  const dx = (b[1] - a[1]) * DEG * EARTH_R * Math.cos((a[0] + b[0]) / 2 * DEG);
+  return Math.hypot(dx, dy);
+}
+function lerpPt(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
+/* closest point on segment a–b to c — stations sit between vertices far more
+   often than on one, so projecting is what keeps the ride ending at the label */
+function projectOnSeg(c, a, b){
+  const k = Math.cos(a[0] * DEG);
+  const ax = a[1] * k, ay = a[0], bx = b[1] * k, by = b[0], cx = c[1] * k, cy = c[0];
+  const vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+  let t = l2 ? ((cx - ax) * vx + (cy - ay) * vy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const pt = lerpPt(a, b, t);
+  return { pt, d: metres(c, pt) };
+}
+const railGraphs = {};
+function railGraph(city, ref){
+  const key = city + "/" + ref;
+  if (key in railGraphs) return railGraphs[key];
+  const ln = (RAIL[city] || []).find(l => l.ref === ref);
+  if (!ln) return (railGraphs[key] = null);
+  const nodes = [], adj = [], segs = [], owner = [];
+  ln.paths.forEach((p, pi) => {
+    let prev = -1;
+    p.pts.forEach(pt => {
+      const i = nodes.length; nodes.push(pt); adj.push([]); owner.push(pi);
+      if (prev >= 0){
+        const d = metres(nodes[prev], pt);
+        adj[prev].push([i, d]); adj[i].push([prev, d]); segs.push([prev, i]);
+      }
+      prev = i;
+    });
+  });
+  const ends = []; let base = 0;
+  ln.paths.forEach(p => {
+    const a = base, b = base + p.pts.length - 1;
+    // Line 2 is a ring: same place at both ends of the path, but two nodes
+    if (metres(nodes[a], nodes[b]) < 50){ adj[a].push([b, 0]); adj[b].push([a, 0]); }
+    ends.push(a, b); base += p.pts.length;
+  });
+  // branches meet the trunk at a station the two polylines don't share a vertex with
+  ends.forEach(e => {
+    let best = -1, bd = 700;
+    for (let i = 0; i < nodes.length; i++){
+      if (owner[i] === owner[e]) continue;
+      const d = metres(nodes[i], nodes[e]);
+      if (d < bd){ bd = d; best = i; }
+    }
+    if (best >= 0){ adj[e].push([best, bd]); adj[best].push([e, bd]); }
+  });
+  return (railGraphs[key] = { nodes, adj, segs });
+}
+function snapToLine(g, c){
+  let best = null;
+  for (const [i, j] of g.segs){
+    const r = projectOnSeg(c, g.nodes[i], g.nodes[j]);
+    if (!best || r.d < best.d) best = { d: r.d, i, j, pt: r.pt };
+  }
+  return best;
+}
+function ride(g, from, to){
+  const A = snapToLine(g, from), B = snapToLine(g, to);
+  if (!A || !B) return null;
+  if (A.i === B.i && A.j === B.j) return [A.pt, B.pt];
+  const n = g.nodes.length;
+  const D = new Array(n).fill(Infinity), P = new Array(n).fill(-1), seen = new Array(n).fill(false);
+  D[A.i] = metres(A.pt, g.nodes[A.i]); D[A.j] = metres(A.pt, g.nodes[A.j]);
+  for (;;){
+    let u = -1, bd = Infinity;
+    for (let i = 0; i < n; i++) if (!seen[i] && D[i] < bd){ bd = D[i]; u = i; }
+    if (u < 0) break;
+    seen[u] = true;
+    for (const [v, w] of g.adj[u]) if (D[u] + w < D[v]){ D[v] = D[u] + w; P[v] = u; }
+  }
+  let end = -1, bd = Infinity;
+  for (const i of [B.i, B.j]){
+    const t = D[i] + metres(B.pt, g.nodes[i]);
+    if (t < bd){ bd = t; end = i; }
+  }
+  if (end < 0 || !isFinite(bd)) return null;
+  const mid = [];
+  for (let cur = end; cur >= 0; cur = P[cur]) mid.push(g.nodes[cur]);
+  mid.reverse();
+  return [A.pt, ...mid, B.pt];
+}
+function measure(pts){
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + metres(pts[i - 1], pts[i]));
+  return cum;
+}
+function tidy(pts){
+  const out = [];
+  for (const p of pts) if (!out.length || metres(out[out.length - 1], p) > 2) out.push(p);
+  return out;
+}
+
+function lineMeta(ref, city){
+  const ln = (RAIL[city || currentTab] || []).find(l => l.ref === ref)
+    || (typeof SUBWAY !== "undefined" && SUBWAY.find(l => l.ref === ref));
+  return ln || { label: "Line " + ref, color: "#888" };
+}
+
+/* Rough door-to-door numbers, and honestly rough: Seoul metro averages about
+   33 km/h once dwell time is in, a transfer costs a few minutes of stairs and
+   platform, and street walking is never the straight line the map draws. */
+const RIDE_KMH = 33, WALK_KMH = 4.6, XFER_MIN = 4, WALK_BEND = 1.3;
+
+/* hotel → …transfers… → the station you get off at → the door */
+const journeys = {};
+function journeyFor(p){
+  if (!(p.id in journeys)) journeys[p.id] = buildJourney(p);
+  return journeys[p.id];
+}
+function buildJourney(p){
+  const off = (typeof PLACE_OFF !== "undefined") ? PLACE_OFF[p.id] : null;
+  if (!off || !ROUTES[off] || !STATION_COORDS[off] || !STATION_COORDS[HOTEL_STATION]) return null;
+  const legs = [];
+  let from = HOTEL_STATION;
+  for (const leg of ROUTES[off]){
+    const g = railGraph(p.city, leg.line), a = STATION_COORDS[from], b = STATION_COORDS[leg.to];
+    if (!g || !a || !b) return null;
+    const traced = ride(g, a, b);
+    if (!traced) return null;
+    const m = lineMeta(leg.line, p.city);
+    // both ends run to the station dots, so the drawn ride starts and stops where the labels do
+    legs.push({ kind: "rail", line: leg.line, label: m.label, color: m.color,
+                from, to: leg.to, pts: tidy([a, ...traced, b]) });
+    from = leg.to;
+  }
+  legs.push({ kind: "walk", from: off, to: p.name, pts: [STATION_COORDS[off], [p.lat, p.lng]] });
+  legs.forEach(l => { l.cum = measure(l.pts); l.len = l.cum[l.cum.length - 1]; });
+  const rail = legs.filter(l => l.kind === "rail");
+  const walk = legs[legs.length - 1].len * WALK_BEND;
+  const ridden = rail.reduce((s, l) => s + l.len, 0);
+  const box = [[90, 180], [-90, -180]];
+  legs.forEach(l => l.pts.forEach(pt => {
+    box[0][0] = Math.min(box[0][0], pt[0]); box[0][1] = Math.min(box[0][1], pt[1]);
+    box[1][0] = Math.max(box[1][0], pt[0]); box[1][1] = Math.max(box[1][1], pt[1]);
+  }));
+  return {
+    off, legs, rail, box, ridden, walk,
+    minutes: Math.max(1, Math.round(ridden / 1000 / RIDE_KMH * 60
+      + (rail.length - 1) * XFER_MIN + walk / 1000 / WALK_KMH * 60)),
+  };
+}
+
 function routeStripHtml(p){
-  const off = (typeof PLACE_OFF!=="undefined") ? PLACE_OFF[p.id] : null;
-  if (!off || !ROUTES[off]) return "";
-  const legs = ROUTES[off];
-  const parts = legs.map((leg,i) => {
-    const m = lineMeta(leg.line);
-    const chip = `<span class="pr-line" style="background:${m.color}">${m.label}</span>`;
-    return (i===legs.length-1) ? `${chip} <span class="pr-off">off at ${leg.to}</span>`
-                               : `${chip} <span class="pr-to">${leg.to}</span> <span class="pr-arr">\u2192</span>`;
+  const j = journeyFor(p);
+  if (!j) return "";
+  const rows = j.rail.map((leg, i) => {
+    const last = i === j.rail.length - 1;
+    return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
+      <span class="pr-txt"><span class="pr-arr">→</span>
+      <span class="${last ? "pr-off" : "pr-to"}">${leg.to}</span>
+      <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
-  return `<div class="pop-route"><span class="pr-k">From hotel</span> ${parts.join(" ")}</div>`;
+  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
+  return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
+    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;
 }
+
 function cssVar(v){ return getComputedStyle(document.body).getPropertyValue(v).trim() || "#C8432A"; }
-function showRoute(p){
-  if (!routeLayer) return;
-  routeLayer.clearLayers();
-  const off = PLACE_OFF[p.id]; if (!off || !ROUTES[off]) return;
-  const seq = [{ name: HOTEL_STATION, kind: "board" }];
-  ROUTES[off].forEach((leg,i) => seq.push({ name: leg.to, kind: i===ROUTES[off].length-1 ? "off" : "transfer" }));
-  seq.forEach(s => {
+
+/* ---------------- drawing and animating the ride ---------------- */
+let routeAnim = null, routeDraw = null;
+const lessMotion = window.matchMedia("(prefers-reduced-motion:reduce)");
+
+function stationDots(j){
+  const stops = [{ name: HOTEL_STATION, kind: "board", kicker: "Board", tint: CATS.hotel.color }];
+  j.rail.forEach((leg, i) => {
+    const last = i === j.rail.length - 1;
+    const next = last ? null : j.rail[i + 1];
+    stops.push({
+      name: leg.to,
+      kind: last ? "off" : "transfer",
+      kicker: last ? "Get off here" : "Transfer → " + next.label,
+      tint: leg.color, then: next ? next.color : null,
+    });
+  });
+  stops.forEach(s => {
     const c = STATION_COORDS[s.name]; if (!c) return;
-    const fill = s.kind==="off" ? cssVar("--accent") : s.kind==="board" ? "#3949AB" : "#7A7062";
-    const dot = L.circleMarker(c, { radius: s.kind==="off"?7:5, color:"#fff", weight:2.5, fillColor:fill, fillOpacity:1, interactive:false }).addTo(routeLayer);
-    dot.bindTooltip(s.name, { permanent:true, direction:"right", className:"rs-tip "+s.kind, offset:[7,0] });
+    if (s.kind === "off"){
+      L.circleMarker(c, { radius: 7, color: cssVar("--accent"), weight: 2, opacity: .9,
+        fill: false, interactive: false, className: "rs-ping" }).addTo(routeLayer);
+    }
+    const fill = s.kind === "off" ? cssVar("--accent") : s.tint;
+    const dot = L.circleMarker(c, { radius: s.kind === "board" ? 5.5 : s.kind === "off" ? 7 : 8,
+      color: "#fff", weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+    // a transfer wears both lines: the one arriving outside, the one leaving in the middle
+    if (s.kind === "transfer" && s.then){
+      L.circleMarker(c, { radius: 3.6, stroke: false, fillColor: s.then, fillOpacity: 1,
+        interactive: false }).addTo(routeLayer);
+    }
+    dot.bindTooltip(`<span class="rs-k">${s.kicker}</span>${s.name}`,
+      { permanent: true, direction: "auto", className: "rs-tip " + s.kind, offset: [9, 0] });
   });
 }
-function clearRoute(){ if (routeLayer) routeLayer.clearLayers(); }
+
+/* Permanent labels don't know about each other, and two stations a few hundred
+   metres apart put theirs in the same place. Push the later ones clear. */
+function spaceLabels(){
+  if (!routeDraw || !routeLayer) return;
+  const els = [];
+  routeLayer.eachLayer(l => {
+    const t = l.getTooltip && l.getTooltip(), el = t && t.getElement();
+    if (el){ el.style.marginTop = ""; els.push(el); }
+  });
+  if (els.length < 2) return;
+  els.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+  for (let i = 1; i < els.length; i++){
+    let shift = 0;
+    for (let k = 0; k < i; k++){
+      const prev = els[k].getBoundingClientRect(), cur = els[i].getBoundingClientRect();
+      const down = Math.min(prev.bottom, cur.bottom) - Math.max(prev.top, cur.top);
+      const across = Math.min(prev.right, cur.right) - Math.max(prev.left, cur.left);
+      if (down > -3 && across > -3){
+        shift += prev.bottom + 5 - cur.top;
+        els[i].style.marginTop = shift + "px";
+      }
+    }
+  }
+}
+
+function showRoute(p){
+  clearRoute();
+  if (!routeLayer || !map || !window.L) return;
+  const j = journeyFor(p);
+  if (!j) return;
+  document.body.classList.add("routing");
+  const casing = night ? "#15120D" : "#ffffff";
+  const accent = cssVar("--accent");
+  const shapes = j.legs.map(leg => {
+    const walking = leg.kind === "walk";
+    const color = walking ? accent : leg.color;
+    // glow first so it sits under the casing; its opacity is the pulse, in CSS
+    const glow = L.polyline([], { color, weight: walking ? 10 : 16, opacity: 1,
+      lineCap: "round", lineJoin: "round", interactive: false, className: "rs-glow" }).addTo(routeLayer);
+    const under = L.polyline([], { color: casing, weight: walking ? 6 : 9, opacity: .55,
+      lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
+    const over = L.polyline([], { color, weight: walking ? 3 : 5, opacity: .96,
+      lineCap: "round", lineJoin: "round", dashArray: walking ? "1 8" : null,
+      interactive: false }).addTo(routeLayer);
+    return { leg, glow, under, over, color, start: 0 };
+  });
+  let run = 0;
+  shapes.forEach(s => { s.start = run; run += s.leg.len; });
+  const total = run;
+  // the moving head rides on top of everything the legs drew
+  const comet = L.polyline([], { color: "#fff", weight: 3, opacity: .95,
+    lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
+  const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: "#fff", weight: 2,
+    fillColor: accent, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+  stationDots(j);
+  routeDraw = { shapes, comet, head, total, j };
+  requestAnimationFrame(spaceLabels);
+  hideComet();
+  if (lessMotion.matches || total <= 0){ revealTo(total); return; }
+  animateRoute();
+}
+
+function revealTo(dist){
+  if (!routeDraw) return;
+  routeDraw.shapes.forEach(s => {
+    const local = dist - s.start;
+    if (local <= 0){ s.glow.setLatLngs([]); s.under.setLatLngs([]); s.over.setLatLngs([]); return; }
+    const pts = s.leg.pts, cum = s.leg.cum, out = [pts[0]];
+    for (let i = 1; i < pts.length; i++){
+      if (cum[i] <= local){ out.push(pts[i]); continue; }
+      const span = cum[i] - cum[i - 1];
+      out.push(lerpPt(pts[i - 1], pts[i], span > 0 ? (local - cum[i - 1]) / span : 1));
+      break;
+    }
+    s.glow.setLatLngs(out); s.under.setLatLngs(out); s.over.setLatLngs(out);
+  });
+}
+
+function pointAt(dist){
+  const shapes = routeDraw.shapes;
+  let s = shapes[0];
+  for (const sh of shapes) if (dist >= sh.start) s = sh;
+  const local = Math.max(0, Math.min(s.leg.len, dist - s.start));
+  const pts = s.leg.pts, cum = s.leg.cum;
+  let i = 1;
+  while (i < pts.length - 1 && cum[i] < local) i++;
+  const span = cum[i] - cum[i - 1];
+  return { pt: lerpPt(pts[i - 1], pts[i], span > 0 ? (local - cum[i - 1]) / span : 1), shape: s };
+}
+
+function drawComet(from, to){
+  const { comet, head, total } = routeDraw;
+  const a = Math.max(0, from), b = Math.min(total, to);
+  if (b <= a){ hideComet(); return; }
+  const tail = pointAt(a), tip = pointAt(b);
+  const out = [tail.pt];
+  routeDraw.shapes.forEach(s => s.leg.pts.forEach((pt, i) => {
+    const d = s.start + s.leg.cum[i];
+    if (d > a && d < b) out.push(pt);
+  }));
+  out.push(tip.pt);
+  comet.setLatLngs(out);
+  head.setLatLng(tip.pt);
+  if (routeDraw.tint !== tip.shape.color){
+    routeDraw.tint = tip.shape.color;
+    head.setStyle({ opacity: 1, fillOpacity: 1, fillColor: tip.shape.color });
+  }
+}
+function hideComet(){
+  if (!routeDraw) return;
+  routeDraw.comet.setLatLngs([]);
+  routeDraw.tint = null;
+  routeDraw.head.setStyle({ opacity: 0, fillOpacity: 0 });
+}
+
+function animateRoute(){
+  const total = routeDraw.total;
+  const revealMs = Math.max(900, Math.min(2400, total * .26));
+  const runMs = Math.max(1500, Math.min(3400, total * .34));
+  const restMs = 600;
+  const tail = Math.max(350, total * .13);
+  let t0 = null, whole = false;
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  const step = ts => {
+    if (!routeDraw) return;
+    if (t0 === null) t0 = ts;
+    const el = ts - t0;
+    if (el < revealMs){
+      revealTo(ease(el / revealMs) * total);
+    } else {
+      if (!whole){ revealTo(total); whole = true; }
+      const c = (el - revealMs) % (runMs + restMs);
+      if (c < runMs){
+        const tip = (c / runMs) * (total + tail);
+        drawComet(tip - tail, tip);
+      } else hideComet();
+    }
+    routeAnim = requestAnimationFrame(step);
+  };
+  routeAnim = requestAnimationFrame(step);
+}
+
+function clearRoute(){
+  if (routeAnim){ cancelAnimationFrame(routeAnim); routeAnim = null; }
+  routeDraw = null;
+  if (routeLayer) routeLayer.clearLayers();
+  document.body.classList.remove("routing");
+}
+
+/* Frame the whole ride, not just the pin — the path is the point. The card is
+   pinned to the top of the map, so the band it occupies is the only thing that
+   has to be kept clear. */
+function cardBand(){
+  return cardEl.classList.contains("show") ? cardEl.offsetHeight + (isMobile() ? 16 : 20) : 0;
+}
+function frameFor(p){
+  if (!map) return;
+  const j = journeyFor(p), pad = isMobile() ? 26 : 46, band = cardBand();
+  if (!j){
+    // no ride to frame, so just centre the pin — below the card, not under it
+    const z = 16, c = map.unproject(map.project([p.lat, p.lng], z).subtract([0, band / 2]), z);
+    map.flyTo(c, z, { duration: .7 });
+    return;
+  }
+  const b = L.latLngBounds(j.box).extend([p.lat, p.lng]);
+  map.flyToBounds(b, { paddingTopLeft: [pad, pad + band], paddingBottomRight: [pad, pad],
+    maxZoom: 15, duration: .85 });
+}
 
 function fitCity(){
   const pts = PLACES.filter(p => p.city === currentTab).map(p => [p.lat, p.lng]);
@@ -783,12 +1179,21 @@ function initMap(){
 
   setBaseLayer();
 
-  // the fade multiplies the polyline count, so draw the rail on canvas to keep panning cheap
-  railRenderer = L.canvas({ padding: 0.4 });
+  // the fade multiplies the polyline count, so draw the rail on canvas to keep panning cheap.
+  // Its own pane below the overlay lets a picked route drop the whole network back a step.
+  map.createPane("railPane").style.zIndex = 380;
+  railRenderer = L.canvas({ padding: 0.4, pane: "railPane" });
   railLayer = L.layerGroup();
   if (railOn) railLayer.addTo(map);
   drawRail();
   routeLayer = L.layerGroup().addTo(map);
+  map.on("click", () => { if (selectedId) deselect(); });
+  // station labels pick their side from the map centre, which panning moves out from under them
+  map.on("moveend", () => {
+    if (!routeDraw) return;
+    routeLayer.eachLayer(l => { const t = l.getTooltip && l.getTooltip(); if (t) t.update(); });
+    spaceLabels();
+  });
 
   PLACES.forEach(p => {
     const c = CATS[p.cat];
@@ -796,13 +1201,13 @@ function initMap(){
       className: "",
       html: `<div class="pin ${p.booked ? "star" : ""}" style="--pin:${c.color}">
                <div class="pin-b"><span>${c.emoji}</span></div></div>`,
-      iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
+      iconSize: [30, 30], iconAnchor: [15, 30],
     });
-    const m = L.marker([p.lat, p.lng], { icon }).bindPopup(popupHtml(p));
-    m.on("popupopen", () => { selectedId = p.id; highlightList(); showRoute(p); });
-    m.on("popupclose", () => { clearRoute(); if (selectedId === p.id) { selectedId = null; highlightList(); } });
+    const m = L.marker([p.lat, p.lng], { icon });
+    m.on("click", () => select(p.id));
     markers[p.id] = m;
     if (p.city === currentTab) m.addTo(map);
+    if (selectedId === p.id) markPin(p.id, true);
   });
 
   fitCity();
@@ -832,26 +1237,47 @@ function syncMarkers(){
     if (p.city === currentTab && active[p.cat]) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
+  // filtering the selected pin away shouldn't leave its card and ride stranded
+  const sel = selectedId && PLACES.find(x => x.id === selectedId);
+  if (sel && !(sel.city === currentTab && active[sel.cat])) deselect();
 }
 
-function focus(id){
+function markPin(id, on){
+  const m = markers[id], el = m && m.getElement();
+  if (el) el.classList.toggle("mk-sel", on);
+}
+function select(id){
   const p = PLACES.find(x => x.id === id); if (!p) return;
-  selectedId = id; highlightList();
+  if (selectedId && selectedId !== id) markPin(selectedId, false);
+  selectedId = id;
+  highlightList();
+  showCard(p);
   if (!map || !markers[id]) return;
-  const fly = () => { map.flyTo([p.lat, p.lng], 16, { duration: 0.7 }); markers[id].openPopup(); };
+  markPin(id, true);
+  showRoute(p);
+  frameFor(p);
+}
+function deselect(){
+  if (selectedId) markPin(selectedId, false);
+  selectedId = null;
+  hideCard();
+  clearRoute();
+  highlightList();
+}
+function focus(id){
+  if (!PLACES.some(x => x.id === id)) return;
   if (isMobile() && view !== "map") {
     // swap to the map first, let it re-measure, then move — a hidden map flies to the wrong spot
     setView("map");
-    setTimeout(() => { map.invalidateSize(); fly(); }, 90);
-  } else fly();
+    setTimeout(() => { map && map.invalidateSize(); select(id); }, 90);
+  } else select(id);
 }
 
 /* ---------------- tabs ---------------- */
 function setTab(id){
   currentTab = id;
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === id));
-  selectedId = null;
-  clearRoute();
+  deselect();
   renderLegend();
   renderList();
   drawRail();
@@ -883,6 +1309,9 @@ if (nightBtn) nightBtn.onclick = () => {
   nightBtn.textContent = night ? "☀️ Day" : "🌙 Night";
   setBaseLayer();
   drawRail();
+  // the casing under a drawn route is painted in the page background colour
+  const sel = selectedId && PLACES.find(x => x.id === selectedId);
+  if (sel && routeDraw) showRoute(sel);
 };
 
 const railBtn = document.getElementById("railToggle");
@@ -910,6 +1339,8 @@ if (railLegendEl) railLegendEl.addEventListener("click", () => {
   railLegendOpen = !railLegendOpen;
   applyRailLegendState();
 });
+
+document.addEventListener("keydown", e => { if (e.key === "Escape" && selectedId) deselect(); });
 
 function libFail(){
   const b = document.getElementById("tilebanner");
