@@ -3,6 +3,13 @@
 Seoul field map for our Korea trip — a single self-contained page (`index.html`)
 built on [Leaflet](https://leafletjs.com/), with a place list, filters, and a night mode.
 
+Picking a spot draws the ride there from the hotel along the subway lines
+themselves: every transfer station marked with the line you change onto, the
+path animated from the platform to the front door, and the rest of the network
+dropped back so the route reads at a glance. Which line a spot is reached on is
+editable by hand — see the `PLACE_OFF` / `ROUTES` block in `index.html`; the
+geometry between two stations is traced from the line data, not stored.
+
 ## Dependencies
 
 Leaflet and both fonts are vendored into `vendor/`, so the page pulls nothing
