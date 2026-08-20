@@ -562,7 +562,7 @@ let currentTab = "seoul";
 const markers = {};
 let map;
 let night = true, baseLayer = null, tilesOk = false;
-let railLayer = null, railOn = true;
+let railLayer = null, railOn = true, railRenderer = null;
 let routeLayer = null;
 
 /* ---------------- mobile map/list view ---------------- */
@@ -576,23 +576,21 @@ function setView(v){
   const mb = document.getElementById("vsMap"), lb = document.getElementById("vsList");
   if (mb){ mb.classList.toggle("on", v === "map"); mb.setAttribute("aria-pressed", v === "map"); }
   if (lb){ lb.classList.toggle("on", v === "list"); lb.setAttribute("aria-pressed", v === "list"); }
-  if (v === "map" && map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 50);
+  if (v === "map" && map) setTimeout(() => map.invalidateSize(), 50);
 }
 setView("map");
 document.getElementById("vsMap").onclick = () => setView("map");
 document.getElementById("vsList").onclick = () => setView("list");
 // the map is hidden while the list is up, so it needs re-measuring whenever the box changes
 mobileMQ.addEventListener("change", () => {
-  if (map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 60);
+  if (map) setTimeout(() => map.invalidateSize(), 60);
   if (typeof applyRailLegendState === "function") applyRailLegendState();
 });
-window.addEventListener("orientationchange", () => {
-  if (map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 250);
-});
+window.addEventListener("orientationchange", () => { if (map) setTimeout(() => map.invalidateSize(), 250); });
 let resizeT;
 window.addEventListener("resize", () => {
   clearTimeout(resizeT);
-  resizeT = setTimeout(() => { if (map) { map.invalidateSize(); applyZoomFloor(); } }, 180);
+  resizeT = setTimeout(() => { if (map) map.invalidateSize(); }, 180);
 });
 
 /* ---------------- build tabs ---------------- */
@@ -683,9 +681,10 @@ function popupHtml(p){
 
 /* The rail geometry ships clipped to a box around each city, so the box is the
    edge of the data, not the end of the line. Two things follow from that: the
-   map frames itself inside the box (see fitCity), and any path that ends *on*
-   the box gets faded out over its last stretch, so if one does reach the edge
-   of the screen it reads as "runs on off-map" instead of stopping dead. */
+   opening view is framed inside the box (see fitCity), and any path that ends
+   *on* the box fades out over its last few km, so panning or zooming out to it
+   reads as "runs on off-map" rather than stopping dead. Panning and zooming
+   themselves stay completely free — the map never drags you back. */
 const railBoxCache = {};
 function railBox(city){
   if (city in railBoxCache) return railBoxCache[city];
@@ -705,7 +704,7 @@ function railBox(city){
   return (railBoxCache[city] = box);
 }
 
-const TAPER = [0.6, 0.32, 0.13];   // opacity multipliers, core → outermost tip
+const TAPER_STEPS = 8;             // a long dissolve, not three visible steps
 function isCutEnd(pt, full){
   if (!full) return false;
   const eps = 0.0025;   // ~250m; the extremes of the data define the box exactly
@@ -714,24 +713,26 @@ function isCutEnd(pt, full){
 }
 function railSegments(pa, full){
   const solid = [{ pts: pa, fade: 1 }];
-  if (pa.length < 14) return solid;
+  if (!full || pa.length < 12) return solid;
   const cutA = isCutEnd(pa[0], full), cutB = isCutEnd(pa[pa.length - 1], full);
-  if (!cutA && !cutB) return solid;
-  const chunk = Math.max(2, Math.min(7, Math.floor((pa.length - 6) / 6)));
+  const cuts = (cutA ? 1 : 0) + (cutB ? 1 : 0);
+  if (!cuts) return solid;
+  // ~3km of fade where there is room, but never more than 40% of a short stub
+  const chunk = Math.max(1, Math.min(6, Math.floor(pa.length * 0.4 / (cuts * TAPER_STEPS))));
+  const fade = j => (j + 1) / (TAPER_STEPS + 1);   // j = 0 at the tip
   const segs = [];
   let lo = 0, hi = pa.length - 1;
   if (cutA) {
-    // chunks overlap by a point so the fade has no seams
-    TAPER.forEach((_, i) => segs.push({ pts: pa.slice(i * chunk, (i + 1) * chunk + 1),
-                                        fade: TAPER[TAPER.length - 1 - i] }));
-    lo = TAPER.length * chunk;
+    // chunks overlap by a point so the ramp has no seams
+    for (let j = 0; j < TAPER_STEPS; j++) segs.push({ pts: pa.slice(j * chunk, (j + 1) * chunk + 1), fade: fade(j) });
+    lo = TAPER_STEPS * chunk;
   }
   if (cutB) {
-    TAPER.forEach((_, i) => {
-      const b = pa.length - 1 - i * chunk;
-      segs.push({ pts: pa.slice(b - chunk, b + 1), fade: TAPER[TAPER.length - 1 - i] });
-    });
-    hi = pa.length - 1 - TAPER.length * chunk;
+    for (let j = 0; j < TAPER_STEPS; j++) {
+      const b = pa.length - 1 - j * chunk;
+      segs.push({ pts: pa.slice(b - chunk, b + 1), fade: fade(j) });
+    }
+    hi = pa.length - 1 - TAPER_STEPS * chunk;
   }
   if (hi > lo) segs.push({ pts: pa.slice(lo, hi + 1), fade: 1 });
   return segs;
@@ -746,12 +747,12 @@ function drawRail(){
   const segsFor = pa => railSegments(pa, full);
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
     segsFor(pa).forEach(function(sg){
-      L.polyline(sg.pts, { color: casing, weight: 6, opacity: 0.5 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+      L.polyline(sg.pts, { renderer: railRenderer, color: casing, weight: 6, opacity: 0.5 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
     });
   }); });
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
     segsFor(pa).forEach(function(sg){
-      L.polyline(sg.pts, { color: ln.color, weight: 3, opacity: 0.92 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+      L.polyline(sg.pts, { renderer: railRenderer, color: ln.color, weight: 3, opacity: 0.92 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
     });
   }); });
 }
@@ -796,15 +797,17 @@ function showRoute(p){
 }
 function clearRoute(){ if (routeLayer) routeLayer.clearLayers(); }
 
-/* The zoom floor is a function of the box *and* the viewport, so a rotation or a
-   list/map swap can leave the map below it — re-apply without disturbing a pan. */
-function applyZoomFloor(){
-  if (!map) return;
-  const box = railBox(currentTab);
-  map.setMinZoom(0);
-  if (!box) { map.setMaxBounds(null); return; }
-  map.setMaxBounds(box.safe);
-  map.setMinZoom(map.getBoundsZoom(box.safe, true));   // Leaflet zooms up to the floor itself
+/* One-time framing nudge: keep the *opening* view inside the data where it fits.
+   This runs only when a tab is opened — panning and zooming stay unconstrained. */
+function clampCenter(center, z, box){
+  const half = map.getSize().divideBy(2);
+  const c = map.project(center, z);
+  const sw = map.project(box.getSouthWest(), z), ne = map.project(box.getNorthEast(), z);
+  const minX = sw.x + half.x, maxX = ne.x - half.x;
+  const minY = ne.y + half.y, maxY = sw.y - half.y;   // y grows southward
+  if (minX <= maxX) c.x = Math.min(Math.max(c.x, minX), maxX);
+  if (minY <= maxY) c.y = Math.min(Math.max(c.y, minY), maxY);
+  return map.unproject(c, z);
 }
 function centroid(pts){
   const n = pts.length;
@@ -818,7 +821,6 @@ function fitCity(){
   const box = railBox(currentTab);
   let target = L.latLngBounds(pts);
   let minZ = 0;
-  map.setMinZoom(0);                        // getBoundsZoom clamps to the current floor
   if (box) {
     // Never frame wider than the data: on a phone, fitting every pin means a
     // viewport taller than the city, which puts the clipped ends on screen.
@@ -828,23 +830,22 @@ function fitCity(){
       [Math.min(target.getNorth(), safe.getNorth()), Math.min(target.getEast(), safe.getEast())]
     );
     minZ = map.getBoundsZoom(safe, true);   // tightest zoom whose view still sits inside the box
-    map.setMaxBounds(safe);
-  } else {
-    map.setMaxBounds(null);
   }
   const fitZ = map.getBoundsZoom(target, false, pad);
   const z = Math.max(fitZ, minZ);
   // If the floor crops the city, aim at the middle of the pins rather than the
   // middle of their bounding box — that keeps the dense clusters in frame.
-  const center = z > fitZ ? centroid(pts) : target.getCenter();
-  map.setMinZoom(minZ);
+  let center = L.latLng(z > fitZ ? centroid(pts) : target.getCenter());
+  if (box) center = clampCenter(center, z, box.safe);
   map.setView(center, z, { animate: false });
 }
 function initMap(){
-  map = L.map("map", { scrollWheelZoom: true, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([37.5535, 126.9905], 12);
+  map = L.map("map", { scrollWheelZoom: true, zoomSnap: 0.25 }).setView([37.5535, 126.9905], 12);
 
   setBaseLayer();
 
+  // the fade multiplies the polyline count, so draw the rail on canvas to keep panning cheap
+  railRenderer = L.canvas({ padding: 0.4 });
   railLayer = L.layerGroup();
   if (railOn) railLayer.addTo(map);
   drawRail();
@@ -950,8 +951,6 @@ if (railBtn) railBtn.onclick = () => {
   railOn = !railOn;
   railBtn.classList.toggle("on", railOn);
   if (map && railLayer) { railOn ? railLayer.addTo(map) : map.removeLayer(railLayer); }
-  // with the lines hidden there is nothing to cut off, so hand the zoom floor back
-  if (map) { if (railOn) applyZoomFloor(); else { map.setMinZoom(0); map.setMaxBounds(null); } }
   const rl = document.getElementById("raillegend"); if (rl) rl.style.display = railOn ? "" : "none";
 };
 let railLegendOpen = false;
