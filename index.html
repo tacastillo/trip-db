@@ -576,21 +576,23 @@ function setView(v){
   const mb = document.getElementById("vsMap"), lb = document.getElementById("vsList");
   if (mb){ mb.classList.toggle("on", v === "map"); mb.setAttribute("aria-pressed", v === "map"); }
   if (lb){ lb.classList.toggle("on", v === "list"); lb.setAttribute("aria-pressed", v === "list"); }
-  if (v === "map" && map) setTimeout(() => map.invalidateSize(), 50);
+  if (v === "map" && map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 50);
 }
 setView("map");
 document.getElementById("vsMap").onclick = () => setView("map");
 document.getElementById("vsList").onclick = () => setView("list");
 // the map is hidden while the list is up, so it needs re-measuring whenever the box changes
 mobileMQ.addEventListener("change", () => {
-  if (map) setTimeout(() => map.invalidateSize(), 60);
+  if (map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 60);
   if (typeof applyRailLegendState === "function") applyRailLegendState();
 });
-window.addEventListener("orientationchange", () => { if (map) setTimeout(() => map.invalidateSize(), 250); });
+window.addEventListener("orientationchange", () => {
+  if (map) setTimeout(() => { map.invalidateSize(); applyZoomFloor(); }, 250);
+});
 let resizeT;
 window.addEventListener("resize", () => {
   clearTimeout(resizeT);
-  resizeT = setTimeout(() => { if (map) map.invalidateSize(); }, 180);
+  resizeT = setTimeout(() => { if (map) { map.invalidateSize(); applyZoomFloor(); } }, 180);
 });
 
 /* ---------------- build tabs ---------------- */
@@ -679,15 +681,78 @@ function popupHtml(p){
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}${routeStripHtml(p)}`;
 }
 
+/* The rail geometry ships clipped to a box around each city, so the box is the
+   edge of the data, not the end of the line. Two things follow from that: the
+   map frames itself inside the box (see fitCity), and any path that ends *on*
+   the box gets faded out over its last stretch, so if one does reach the edge
+   of the screen it reads as "runs on off-map" instead of stopping dead. */
+const railBoxCache = {};
+function railBox(city){
+  if (city in railBoxCache) return railBoxCache[city];
+  let s = Infinity, w = Infinity, n = -Infinity, e = -Infinity;
+  (RAIL[city] || []).forEach(ln => ln.paths.forEach(pa => pa.forEach(c => {
+    if (c[0] < s) s = c[0];
+    if (c[0] > n) n = c[0];
+    if (c[1] < w) w = c[1];
+    if (c[1] > e) e = c[1];
+  })));
+  let box = null;
+  if (n > s && e > w) {
+    const iy = (n - s) * 0.05, ix = (e - w) * 0.05;
+    box = { full: L.latLngBounds([s, w], [n, e]),
+            safe: L.latLngBounds([s + iy, w + ix], [n - iy, e - ix]) };
+  }
+  return (railBoxCache[city] = box);
+}
+
+const TAPER = [0.6, 0.32, 0.13];   // opacity multipliers, core → outermost tip
+function isCutEnd(pt, full){
+  if (!full) return false;
+  const eps = 0.0025;   // ~250m; the extremes of the data define the box exactly
+  return Math.abs(pt[0] - full.getSouth()) < eps || Math.abs(pt[0] - full.getNorth()) < eps
+      || Math.abs(pt[1] - full.getWest())  < eps || Math.abs(pt[1] - full.getEast())  < eps;
+}
+function railSegments(pa, full){
+  const solid = [{ pts: pa, fade: 1 }];
+  if (pa.length < 14) return solid;
+  const cutA = isCutEnd(pa[0], full), cutB = isCutEnd(pa[pa.length - 1], full);
+  if (!cutA && !cutB) return solid;
+  const chunk = Math.max(2, Math.min(7, Math.floor((pa.length - 6) / 6)));
+  const segs = [];
+  let lo = 0, hi = pa.length - 1;
+  if (cutA) {
+    // chunks overlap by a point so the fade has no seams
+    TAPER.forEach((_, i) => segs.push({ pts: pa.slice(i * chunk, (i + 1) * chunk + 1),
+                                        fade: TAPER[TAPER.length - 1 - i] }));
+    lo = TAPER.length * chunk;
+  }
+  if (cutB) {
+    TAPER.forEach((_, i) => {
+      const b = pa.length - 1 - i * chunk;
+      segs.push({ pts: pa.slice(b - chunk, b + 1), fade: TAPER[TAPER.length - 1 - i] });
+    });
+    hi = pa.length - 1 - TAPER.length * chunk;
+  }
+  if (hi > lo) segs.push({ pts: pa.slice(lo, hi + 1), fade: 1 });
+  return segs;
+}
+
 function drawRail(){
   if (!railLayer || !window.L) return;
   railLayer.clearLayers();
   const casing = night ? "#15120D" : "#ffffff";
+  const box = railBox(currentTab);
+  const full = box && box.full;
+  const segsFor = pa => railSegments(pa, full);
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
-    L.polyline(pa, { color: casing, weight: 6, opacity: 0.5, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+    segsFor(pa).forEach(function(sg){
+      L.polyline(sg.pts, { color: casing, weight: 6, opacity: 0.5 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+    });
   }); });
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
-    L.polyline(pa, { color: ln.color, weight: 3, opacity: 0.92, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+    segsFor(pa).forEach(function(sg){
+      L.polyline(sg.pts, { color: ln.color, weight: 3, opacity: 0.92 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+    });
   }); });
 }
 
@@ -731,12 +796,52 @@ function showRoute(p){
 }
 function clearRoute(){ if (routeLayer) routeLayer.clearLayers(); }
 
+/* The zoom floor is a function of the box *and* the viewport, so a rotation or a
+   list/map swap can leave the map below it — re-apply without disturbing a pan. */
+function applyZoomFloor(){
+  if (!map) return;
+  const box = railBox(currentTab);
+  map.setMinZoom(0);
+  if (!box) { map.setMaxBounds(null); return; }
+  map.setMaxBounds(box.safe);
+  map.setMinZoom(map.getBoundsZoom(box.safe, true));   // Leaflet zooms up to the floor itself
+}
+function centroid(pts){
+  const n = pts.length;
+  return [pts.reduce((a,p) => a + p[0], 0) / n, pts.reduce((a,p) => a + p[1], 0) / n];
+}
 function fitCity(){
   const pts = PLACES.filter(p => p.city === currentTab).map(p => [p.lat, p.lng]);
-  if (pts.length && map) map.fitBounds(L.latLngBounds(pts), { padding: [50, 50] });
+  if (!pts.length || !map) return;
+  const mob = isMobile();
+  const pad = L.point(mob ? 16 : 40, mob ? 16 : 40);
+  const box = railBox(currentTab);
+  let target = L.latLngBounds(pts);
+  let minZ = 0;
+  map.setMinZoom(0);                        // getBoundsZoom clamps to the current floor
+  if (box) {
+    // Never frame wider than the data: on a phone, fitting every pin means a
+    // viewport taller than the city, which puts the clipped ends on screen.
+    const safe = box.safe;
+    target = L.latLngBounds(
+      [Math.max(target.getSouth(), safe.getSouth()), Math.max(target.getWest(), safe.getWest())],
+      [Math.min(target.getNorth(), safe.getNorth()), Math.min(target.getEast(), safe.getEast())]
+    );
+    minZ = map.getBoundsZoom(safe, true);   // tightest zoom whose view still sits inside the box
+    map.setMaxBounds(safe);
+  } else {
+    map.setMaxBounds(null);
+  }
+  const fitZ = map.getBoundsZoom(target, false, pad);
+  const z = Math.max(fitZ, minZ);
+  // If the floor crops the city, aim at the middle of the pins rather than the
+  // middle of their bounding box — that keeps the dense clusters in frame.
+  const center = z > fitZ ? centroid(pts) : target.getCenter();
+  map.setMinZoom(minZ);
+  map.setView(center, z, { animate: false });
 }
 function initMap(){
-  map = L.map("map", { scrollWheelZoom: true }).setView([37.5535, 126.9905], 12);
+  map = L.map("map", { scrollWheelZoom: true, zoomSnap: 0.25, zoomDelta: 0.5 }).setView([37.5535, 126.9905], 12);
 
   setBaseLayer();
 
@@ -819,7 +924,8 @@ function setTab(id){
   if (map) {
     syncMarkers();
     fitCity();
-    setTimeout(() => map && map.invalidateSize(), 60);
+    // the box can still be the old size here (list view, a tab tapped mid-resize) — refit once it settles
+    setTimeout(() => { if (map) { map.invalidateSize(); fitCity(); } }, 60);
   }
   if (isMobile()) {
     setView("map");
@@ -844,6 +950,8 @@ if (railBtn) railBtn.onclick = () => {
   railOn = !railOn;
   railBtn.classList.toggle("on", railOn);
   if (map && railLayer) { railOn ? railLayer.addTo(map) : map.removeLayer(railLayer); }
+  // with the lines hidden there is nothing to cut off, so hand the zoom floor back
+  if (map) { if (railOn) applyZoomFloor(); else { map.setMinZoom(0); map.setMaxBounds(null); } }
   const rl = document.getElementById("raillegend"); if (rl) rl.style.display = railOn ? "" : "none";
 };
 let railLegendOpen = false;
