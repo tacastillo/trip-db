@@ -114,7 +114,6 @@
   .pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid #fff; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
     display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.32);}
   .pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
-  .pin.star .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 4.5px var(--pin), 0 2px 5px rgba(0,0,0,.32);}
 
   /* The place card sits at the top of the map rather than on a pin, so the ride
      below it is never underneath it and the map can be dragged out from under it. */
@@ -301,7 +300,7 @@
     <aside class="side" id="side">
       <div class="sum">
         <div class="sum-n"><b id="shownCount">40</b> spots · <span id="hoodCount">10</span> neighborhoods</div>
-        <div class="sum-sub"><span id="bookedCount">3</span> booked · ⭐ = reserved · tap to fly there</div>
+        <div class="sum-sub" id="sumSub"></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="list" id="list"></div>
@@ -361,8 +360,8 @@ const PLACES = [
   { id:"beton", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"bakery", lat:37.54294, lng:127.05523, name:"Beton", note:"Cult salt-bread cafe; concrete-Euro vibe. Long fast-moving queue.", added:true },
   { id:"standardbread", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"bakery", lat:37.54168, lng:127.06125, name:"Standard Bread", note:"Grand bread-factory cafe; crème brûlée French toast.", added:true },
   { id:"hanjungsun", city:"seoul", cluster:"Seongsu · Seoul Forest", cat:"dessert", lat:37.54285, lng:127.05417, name:"Han Jung Sun", note:"Viral fruit mochi; thin skin. Strawberry sells out by ~2pm.", added:true },
-  { id:"mingles", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52534, lng:127.04415, name:"Mingles", note:"3 Michelin stars. Chef Mingoo Kang. Book well ahead.", booked:true, meta:"BOOKED · Catchtable" },
-  { id:"hanmiok", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52527, lng:127.04011, name:"Hanmiok (Cheongdam)", note:"Blowtorch brisket, wagyu-sushi start.", booked:true, meta:"BOOKED · Catchtable" },
+  { id:"mingles", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52534, lng:127.04415, name:"Mingles", note:"3 Michelin stars. Chef Mingoo Kang. Book well ahead.", meta:"BOOKED · Catchtable" },
+  { id:"hanmiok", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52527, lng:127.04011, name:"Hanmiok (Cheongdam)", note:"Blowtorch brisket, wagyu-sushi start.", meta:"BOOKED · Catchtable" },
   { id:"wumok", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52661, lng:127.03542, name:"Wumok", note:"Dry-aged steak spot." },
   { id:"damsot-ap", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.52535, lng:127.03858, name:"Damsot (Apgujeong)", note:"Eggplant pot rice; Apgujeong branch." },
   { id:"nudake", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"dessert", lat:37.52542, lng:127.03564, name:"Nudake Haus Dosan", note:"Sculptural pastries; 5-story Gentle Monster flagship." },
@@ -374,7 +373,7 @@ const PLACES = [
   { id:"zest", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"bar", lat:37.52526, lng:127.04078, name:"Zest", note:"#2 Asia’s 50 Best Bars; zero-waste. Catchtable required.", added:true, meta:"Catchtable" },
   { id:"hongbaksa", city:"seoul", cluster:"Cheongdam · Dosan · Apgujeong", cat:"food", lat:37.51921, lng:127.0279, name:"Hongbaksa BBQ (Dr. Hong)", note:"24h; pick your cut at the counter. Late-night option.", meta:"Open 24h" },
   { id:"garosugil", city:"seoul", cluster:"Sinsa · Garosugil", cat:"landmark", lat:37.52106, lng:127.02287, name:"Garosugil", note:"Tree-lined boutique/cafe street." },
-  { id:"gebangsikdang", city:"seoul", cluster:"Sinsa · Garosugil", cat:"food", lat:37.5173, lng:127.03944, name:"Gebangsikdang", note:"Soy-marinated blue crab; crab-roe rice. Plan: Seongsu branch.", booked:true, meta:"BOOKED · Catchtable" },
+  { id:"gebangsikdang", city:"seoul", cluster:"Sinsa · Garosugil", cat:"food", lat:37.5173, lng:127.03944, name:"Gebangsikdang", note:"Soy-marinated blue crab; crab-roe rice. Plan: Seongsu branch.", meta:"BOOKED · Catchtable" },
   { id:"etoile", city:"seoul", cluster:"Sinsa · Garosugil", cat:"bakery", lat:37.52128, lng:127.02221, name:"Etoile", note:"Tiny French patisserie; madeleines, financiers. Croissants sell out.", added:true },
   { id:"sona", city:"seoul", cluster:"Sinsa · Garosugil", cat:"dessert", lat:37.52071, lng:127.02159, name:"Sona", note:"Plated-dessert tasting; Champagne Sugar Ball.", added:true, meta:"Closed Mon–Tue" },
   { id:"pancakeshop", city:"seoul", cluster:"Sinsa · Garosugil", cat:"dessert", lat:37.52019, lng:127.02017, name:"Pancakeshop Garosugil", note:"Cozy pancake cafe; Oreo & Nutella.", added:true },
@@ -463,6 +462,9 @@ const SUBWAY = [{"ref":"1","label":"Line 1","color":"#004A85","paths":[{"pts":[[
    SUBWAY ROUTING  —  easy to edit
    • Wrong line or transfer?      edit ROUTES["<off station>"]
    • A pin gets off at wrong stop? edit PLACE_OFF["<pin id>"]
+   A pin with no PLACE_OFF entry falls back to the nearest station that has a
+   route, so a new spot gets a ride without touching this table; PLACE_OFF is
+   the override for when the nearest station isn't the one you'd actually use.
    Each leg is { line, to }. The LAST to = where you get off;
    an earlier to = the station you transfer at.
    Line refs: 1-7, 9, B=Suin–Bundang, SB=Sinbundang, GJ=Gyeongui–Jungang
@@ -692,8 +694,11 @@ function renderList(){
   document.getElementById("shownCount").textContent = shown;
   const vsc = document.getElementById("vsCount"); if (vsc) vsc.textContent = shown;
   document.getElementById("hoodCount").textContent = hoods;
-  const bc = document.getElementById("bookedCount");
-  if (bc) bc.textContent = PLACES.filter(p => p.city === currentTab && p.booked).length;
+  const sub = document.getElementById("sumSub");
+  // rail geometry isn't the test — Busan draws lines but has no station table yet
+  if (sub) sub.textContent = PLACES.some(p => p.city === currentTab && journeyFor(p))
+    ? "tap a spot for the ride there from the hotel"
+    : "tap a spot to see it on the map";
 }
 
 function highlightList(){
@@ -912,8 +917,24 @@ function journeyFor(p){
   if (!(p.id in journeys)) journeys[p.id] = buildJourney(p);
   return journeys[p.id];
 }
+/* The walk the nearest-station guess is allowed to hand you, in metres. Sized to
+   the longest walk in PLACE_OFF, so a guess is never worse than a hand-set one —
+   past that the nearest station isn't really the station for that spot. It also
+   keeps cities with no station table of their own from matching anything. */
+const AUTO_WALK_MAX = 1100;
+function offStationFor(p){
+  if (PLACE_OFF[p.id]) return PLACE_OFF[p.id];
+  if (p.cat === "hotel") return null;             // the ride starts here
+  let best = null;
+  for (const s in STATION_COORDS){
+    if (!ROUTES[s]) continue;
+    const d = metres([p.lat, p.lng], STATION_COORDS[s]);
+    if (!best || d < best.d) best = { s, d };
+  }
+  return best && best.d <= AUTO_WALK_MAX ? best.s : null;
+}
 function buildJourney(p){
-  const off = (typeof PLACE_OFF !== "undefined") ? PLACE_OFF[p.id] : null;
+  const off = offStationFor(p);
   if (!off || !ROUTES[off] || !STATION_COORDS[off] || !STATION_COORDS[HOTEL_STATION]) return null;
   const legs = [];
   let from = HOTEL_STATION;
@@ -1146,26 +1167,6 @@ function clearRoute(){
   document.body.classList.remove("routing");
 }
 
-/* Frame the whole ride, not just the pin — the path is the point. The card is
-   pinned to the top of the map, so the band it occupies is the only thing that
-   has to be kept clear. */
-function cardBand(){
-  return cardEl.classList.contains("show") ? cardEl.offsetHeight + (isMobile() ? 16 : 20) : 0;
-}
-function frameFor(p){
-  if (!map) return;
-  const j = journeyFor(p), pad = isMobile() ? 26 : 46, band = cardBand();
-  if (!j){
-    // no ride to frame, so just centre the pin — below the card, not under it
-    const z = 16, c = map.unproject(map.project([p.lat, p.lng], z).subtract([0, band / 2]), z);
-    map.flyTo(c, z, { duration: .7 });
-    return;
-  }
-  const b = L.latLngBounds(j.box).extend([p.lat, p.lng]);
-  map.flyToBounds(b, { paddingTopLeft: [pad, pad + band], paddingBottomRight: [pad, pad],
-    maxZoom: 15, duration: .85 });
-}
-
 function fitCity(){
   const pts = PLACES.filter(p => p.city === currentTab).map(p => [p.lat, p.lng]);
   if (!pts.length || !map) return;
@@ -1199,7 +1200,7 @@ function initMap(){
     const c = CATS[p.cat];
     const icon = L.divIcon({
       className: "",
-      html: `<div class="pin ${p.booked ? "star" : ""}" style="--pin:${c.color}">
+      html: `<div class="pin" style="--pin:${c.color}">
                <div class="pin-b"><span>${c.emoji}</span></div></div>`,
       iconSize: [30, 30], iconAnchor: [15, 30],
     });
@@ -1254,8 +1255,9 @@ function select(id){
   showCard(p);
   if (!map || !markers[id]) return;
   markPin(id, true);
+  // the map stays put: a ride that draws while the view is still moving is
+  // two animations fighting, and the opening view already frames the city
   showRoute(p);
-  frameFor(p);
 }
 function deselect(){
   if (selectedId) markPin(selectedId, false);

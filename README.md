@@ -8,9 +8,20 @@ themselves: every transfer station marked with the line you change onto, the
 path animated from the platform to the front door under a slow pulse, and the
 rest of the network dropped back so the route reads at a glance. The spot's
 details open in a card pinned to the top of the map rather than hanging off its
-pin, so the ride below it stays visible and the map still drags freely. Which line a spot is reached on is
-editable by hand — see the `PLACE_OFF` / `ROUTES` block in `index.html`; the
-geometry between two stations is traced from the line data, not stored.
+pin, so the ride below it stays visible and the map still drags freely. The map
+does not move when you pick a spot — the opening view already frames the city,
+and a ride that draws while the view is still flying is two animations fighting.
+
+A spot with no entry in `PLACE_OFF` gets off at the nearest station that has a
+route, so adding a place to `PLACES` is usually the whole job; `PLACE_OFF` is
+the override for when the nearest station isn't the one you'd actually use, and
+`ROUTES` is where the lines and transfers live. Both are hand-editable — see the
+block above them in `index.html`. The geometry between two stations is traced
+from the line data at load, not stored.
+
+Seoul is the only leg with a station table, so it is the only leg that draws a
+ride: Busan has its lines on the map but no stations behind them, and Jeju has
+no metro to ride.
 
 ## Dependencies
 
@@ -32,6 +43,20 @@ banner; the list, filters, notes and popups are unaffected. Note that the page
 itself is not offline-installable — with no connection at all, the browser has
 to have `index.html` in its HTTP cache to open it. A service worker would fix
 that.
+
+## Maintaining the data
+
+The subway geometry and station coordinates inside `index.html` come from
+OpenStreetMap, and `tools/` is how they get refreshed — plus a checker that
+holds the hand-written tables and the generated ones to each other:
+
+```sh
+node tools/check-data.mjs      # every table against every other; non-zero on a problem
+node tools/fetch-rail.mjs      # rebuild the line geometry (add --write to apply)
+```
+
+None of it runs at page load; see [`tools/README.md`](tools/README.md) for the
+rest, and [`CLAUDE.md`](CLAUDE.md) for how the pieces fit together.
 
 ## Deploying
 
