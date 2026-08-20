@@ -1,0 +1,123 @@
+{
+  "_comment": [
+    "Hand-maintained. Translates the Notion schema into what the map renders.",
+    "Notion has 20 Types and 21 Neighborhoods; the map has 9 categories and a hand-ordered",
+    "cluster list per city. These tables are the bridge.",
+    "If a sync reports an unmapped Type or Neighborhood, add it here."
+  ],
+  "_typeToCat": "Notion Type (select) -> map category. Categories are defined by CATS in index.html.",
+  "typeToCat": {
+    "Fine Dining": "food",
+    "Korean BBQ": "food",
+    "Seafood": "food",
+    "Comfort Food": "food",
+    "Market": "food",
+    "Coffee": "cafe",
+    "Tea House": "cafe",
+    "Bakery": "bakery",
+    "Dessert": "dessert",
+    "Bar": "bar",
+    "Beauty Clinic": "beauty",
+    "Spa & Sauna": "beauty",
+    "Cosmetics": "shopping",
+    "Eyewear": "shopping",
+    "Fashion": "shopping",
+    "Stationery & Gifts": "shopping",
+    "Concept Store": "shopping",
+    "Museum & Gallery": "landmark",
+    "Landmark": "landmark",
+    "Nature & Park": "landmark"
+  },
+  "_neighborhoodToCluster": "Notion Neighborhood (multi-select) -> map cluster. A row with several neighborhoods uses the first one that resolves here.",
+  "neighborhoodToCluster": {
+    "Jongno/Insadong": "Jongno · palaces & Ikseon-dong",
+    "Ikseon-dong": "Jongno · palaces & Ikseon-dong",
+    "Seochon": "Jongno · palaces & Ikseon-dong",
+    "Seongsu": "Seongsu · Seoul Forest",
+    "Hannam/Itaewon": "Hannam · Itaewon",
+    "Hongdae/Hapjeong": "Hongdae · Hapjeong · Mangwon",
+    "Cheongdam/Apgujeong/Dosan": "Cheongdam · Dosan · Apgujeong",
+    "Gangnam/Sinsa": "Gangnam · Yeoksam",
+    "Garosugil": "Sinsa · Garosugil",
+    "COEX/Samseong": "Samseong · COEX",
+    "Yeouido": "Yeouido",
+    "Jeju City": "Jeju City · Dongmun",
+    "Aewol": "Aewol · West coast",
+    "Hallim/West Jeju": "Aewol · West coast",
+    "Seogwipo/South Jeju": "Seogwipo · South",
+    "Hallasan/Central": "Hallasan · Central",
+    "Seongsan/East Jeju": "East · Hamdeok & Seongsan",
+    "Haeundae": "Haeundae · Marine City",
+    "Gwangalli/Nam-gu": "Gwangalli · Suyeong",
+    "Seomyeon/Busanjin": "Seomyeon · Jeonpo",
+    "Yeongdo": "Gamcheon · West"
+  },
+  "_clusterByPlace": [
+    "Wins over Neighborhood. Two reasons to use it:",
+    "  1. the row has no Neighborhood set in Notion (setting it there is the better fix), or",
+    "  2. Neighborhood lists a chain's branches rather than where this pin's coordinates are.",
+    "Keyed by the exact Notion Name."
+  ],
+  "clusterByPlace": {
+    "N Seoul Tower": "Namsan",
+    "Hamdeok Beach": "East · Hamdeok & Seongsan",
+    "Seongsan Ilchulbong": "East · Hamdeok & Seongsan",
+    "O'sulloc Tea House — Jeju (flagship, Seogwang tea fields)": "Jungmun · Southwest",
+    "Gamcheon Culture Village": "Gamcheon · West",
+    "DUF Coffee (Gamcheon)": "Gamcheon · West",
+    "MOCA Busan": "Gamcheon · West",
+    "Hytte Roastery — Gwangalli (their favorite)": "Gwangalli · Suyeong",
+    "Hytte Roastery — Jeonpo": "Seomyeon · Jeonpo",
+    "Warm Cove (웜코브) — Gwangalli": "Gwangalli · Suyeong",
+    "WERK Roasters — Gwangalli (Suyeong-gu)": "Gwangalli · Suyeong",
+    "Eonyang Bulgogi Busanjip (언양불고기 부산집)": "Gwangalli · Suyeong",
+    "산성육육점 (Sanseong Sikyukjeom) — Jeonpo": "Seomyeon · Jeonpo",
+    "Eulji Darak": "Dongdaemun · home base",
+    "Lowide Coffee Bakery": "Cheongdam · Dosan · Apgujeong",
+    "Sona": "Sinsa · Garosugil",
+    "Yeongdong Seolleongtang (영동설렁탕)": "Sinsa · Garosugil",
+    "Sosin Isso (소신이쏘)": "Sinchon · Yeonnam",
+    "Gyeongui Line Forest Park (경의선숲길)": "Sinchon · Yeonnam",
+    "Cheonjeyeon Waterfalls (천제연폭포)": "Jungmun · Southwest",
+    "Daepo Jusangjeolli Cliff (주상절리)": "Jungmun · Southwest",
+    "Songaksan Coastal Trail (송악산)": "Jungmun · Southwest",
+    "Dakmeoreu Coast (닭머르)": "East · Hamdeok & Seongsan"
+  },
+  "_fallbackCluster": "Last resort when a row has no Neighborhood and no clusterByPlace entry. Rows landing here are listed in the sync summary.",
+  "fallbackCluster": {
+    "seoul": "Jongno · palaces & Ikseon-dong",
+    "jeju": "Jeju City · Dongmun",
+    "busan": "Haeundae · Marine City"
+  },
+  "_clusterOrder": "The sidebar groups places in this order. Clusters with no places are skipped at render time.",
+  "clusterOrder": {
+    "seoul": [
+      "Dongdaemun · home base",
+      "Jongno · palaces & Ikseon-dong",
+      "Namsan",
+      "Hannam · Itaewon",
+      "Seongsu · Seoul Forest",
+      "Cheongdam · Dosan · Apgujeong",
+      "Sinsa · Garosugil",
+      "Gangnam · Yeoksam",
+      "Samseong · COEX",
+      "Sinchon · Yeonnam",
+      "Hongdae · Hapjeong · Mangwon",
+      "Yeouido"
+    ],
+    "busan": [
+      "Haeundae · Marine City",
+      "Gwangalli · Suyeong",
+      "Seomyeon · Jeonpo",
+      "Gamcheon · West"
+    ],
+    "jeju": [
+      "Jeju City · Dongmun",
+      "Aewol · West coast",
+      "Seogwipo · South",
+      "Jungmun · Southwest",
+      "Hallasan · Central",
+      "East · Hamdeok & Seongsan"
+    ]
+  }
+}

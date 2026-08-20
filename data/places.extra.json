@@ -1,0 +1,63 @@
+{
+  "_comment": [
+    "Hand-maintained. Everything the Notion sync can't produce on its own.",
+    "",
+    "  drop     remove a Notion row from the map, keyed by its Notion page id",
+    "  override replace fields on a Notion-derived pin (same key), for when the Notion",
+    "           value is awkward on a pin label and you'd rather not edit Notion",
+    "  booked   Notion page ids that are actually reserved — draws the ⭐ and the booked count",
+    "  places   standalone pins appended after the synced ones (hotels, extra branches,",
+    "           anything not in Notion at all)",
+    "",
+    "Notion page ids are the `id` field in data/places.notion.json.",
+    "A drop/override/booked entry pointing at a row that no longer exists is reported by",
+    "the build as stale rather than failing it."
+  ],
+
+  "drop": [
+    {
+      "notionId": "38e9bcc8fb46814fadbbfa15f02c951c",
+      "name": "Han Jung Sung",
+      "why": "duplicate of Han Jung Sun — same shop, same coordinates, one letter apart"
+    },
+    {
+      "notionId": "3ad9bcc8fb4681b5a7f8c15fd350479b",
+      "name": "Seongsan Ilchulbong",
+      "why": "duplicate of the 성산일출봉 row, which has the neighborhood and the notes"
+    },
+    {
+      "notionId": "38e9bcc8fb46818094ccc55754e103b3",
+      "name": "Milestone Coffee Roasters",
+      "why": "one row covering three branches — pinned individually in places below"
+    }
+  ],
+
+  "override": [],
+
+  "booked": [
+    "38e9bcc8fb46818f83e8eb4f4ef78f96",
+    "3af9bcc8fb4681b09436fbc096c0e42c"
+  ],
+
+  "places": [
+    { "id": "novotel", "city": "seoul", "cluster": "Dongdaemun · home base", "cat": "hotel", "lat": 37.56643, "lng": 127.00457, "name": "Novotel Ambassador Dongdaemun", "note": "Home base, Aug 30–Sep 4 & Sep 10–12.", "booked": true },
+    { "id": "grandhyatt", "city": "jeju", "cluster": "Jeju City · Dongmun", "cat": "hotel", "lat": 33.48537, "lng": 126.48157, "name": "Grand Hyatt Jeju", "note": "Home base, Sep 4–7. Jeju City.", "booked": true },
+    { "id": "parkhyatt", "city": "busan", "cluster": "Haeundae · Marine City", "cat": "hotel", "lat": 35.15654, "lng": 129.1419, "name": "Park Hyatt Busan", "note": "Home base, Sep 7–10. Marine City, Gwangan Bridge views.", "booked": true },
+
+    { "id": "milestone-hannam", "city": "seoul", "cluster": "Hannam · Itaewon", "cat": "cafe", "lat": 37.53787, "lng": 127.00267, "name": "Milestone Coffee (Hannam)", "note": "Vienna coffee, cloud tiramisu. Waitlist." },
+    { "id": "milestone-seongsu", "city": "seoul", "cluster": "Seongsu · Seoul Forest", "cat": "cafe", "lat": 37.54743, "lng": 127.04283, "name": "Milestone Coffee (Seongsu)", "note": "Best-vibe branch, backyard seating." },
+    { "id": "nudake-seongsu", "city": "seoul", "cluster": "Seongsu · Seoul Forest", "cat": "dessert", "lat": 37.54151, "lng": 127.05416, "name": "Nudake Seongsu", "note": "Gentle Monster dessert flagship #2; Burger Cake exclusive." },
+    { "id": "damsot-apgujeong", "city": "seoul", "cluster": "Cheongdam · Dosan · Apgujeong", "cat": "food", "lat": 37.52535, "lng": 127.03858, "name": "Damsot (Apgujeong)", "note": "Eggplant pot rice; Apgujeong branch." },
+
+    { "id": "cheongsudang", "city": "seoul", "cluster": "Jongno · palaces & Ikseon-dong", "cat": "bakery", "lat": 37.57388, "lng": 126.98976, "name": "Cheongsudang Bakery", "note": "Vintage hanok bakery-cafe in Ikseon-dong." },
+    { "id": "garlicboy", "city": "seoul", "cluster": "Jongno · palaces & Ikseon-dong", "cat": "food", "lat": 37.57032, "lng": 127.00016, "name": "Garlic Boy", "note": "Garlic-bomb spot in the Gwangjang area." },
+    { "id": "hanbok", "city": "seoul", "cluster": "Jongno · palaces & Ikseon-dong", "cat": "shopping", "lat": 37.5765, "lng": 126.9858, "name": "Hanbok rental (Anguk)", "note": "Rent → free palace admission. Fall foliage." },
+    { "id": "nakwon", "city": "seoul", "cluster": "Jongno · palaces & Ikseon-dong", "cat": "shopping", "lat": 37.57336, "lng": 126.99007, "name": "Nakwon Instrument Arcade", "note": "Vintage music/instrument arcade." },
+    { "id": "mokmyeok", "city": "seoul", "cluster": "Namsan", "cat": "food", "lat": 37.55809, "lng": 126.98688, "name": "Mokmyeoksanbang", "note": "Hanok restaurant on Namsan slope." },
+    { "id": "bornbred", "city": "seoul", "cluster": "Seongsu · Seoul Forest", "cat": "food", "lat": 37.56672, "lng": 127.04452, "name": "Born and Bred", "note": "Four-floor hanwoo by Majang Meat Market. Catchtable.", "meta": "Closed Tue · Catchtable" },
+    { "id": "wumok", "city": "seoul", "cluster": "Cheongdam · Dosan · Apgujeong", "cat": "food", "lat": 37.52661, "lng": 127.03542, "name": "Wumok", "note": "Dry-aged steak spot." },
+    { "id": "garosugil", "city": "seoul", "cluster": "Sinsa · Garosugil", "cat": "landmark", "lat": 37.52106, "lng": 127.02287, "name": "Garosugil", "note": "Tree-lined boutique/cafe street." },
+    { "id": "madeby", "city": "seoul", "cluster": "Hongdae · Hapjeong · Mangwon", "cat": "shopping", "lat": 37.55973, "lng": 126.92638, "name": "Made By", "note": "Stationery / design shop." },
+    { "id": "biennale", "city": "busan", "cluster": "Gamcheon · West", "cat": "landmark", "lat": 35.0894, "lng": 129.0433, "name": "Busan Biennale 2026 — Yeongdo", "note": "Warehouse venue on Yeongdo Island. Approximate pin — confirm the exact address.", "meta": "Through Nov 1" }
+  ]
+}
