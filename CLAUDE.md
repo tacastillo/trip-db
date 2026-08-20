@@ -1,0 +1,118 @@
+# Working on trip-db
+
+A field map for one trip to Korea: Seoul, Jeju, Busan. `index.html` is the whole
+site — markup, styles, data and logic in one file, served straight off the
+`main` branch by GitHub Pages.
+
+## The one rule
+
+**There is no build step, and there must not be one.** `index.html` is what the
+browser gets, byte for byte. Leaflet and the fonts are vendored under `vendor/`
+so the page pulls nothing from a CDN. The only thing fetched at runtime is
+street tiles from CARTO, and losing them degrades to pins-on-a-blank-canvas with
+a banner saying so.
+
+The scripts in `tools/` are maintenance, not a build: they rewrite constants
+inside `index.html` and are then out of the picture. Never introduce a step that
+has to run before the page works.
+
+## Layout of index.html
+
+Roughly in file order:
+
+| Section | What lives there |
+| --- | --- |
+| `<style>` | Everything. Theme tokens on `:root`, dark overrides under `body.night`, mobile under one media query at 780px |
+| Data | `CATS`, `CAT_ORDER`, `CLUSTERS`, `PLACES`, `LEGS`, `SUBWAY`, `SUBWAY_BUSAN` |
+| Routing tables | `HOTEL_STATION`, `PLACE_OFF`, `ROUTES`, `STATION_COORDS` |
+| State + list | `active`, `selectedId`, `renderLegend`, `renderList` |
+| Map | `drawRail`, `initMap`, `syncMarkers`, `fitCity` |
+| Journey | `railGraph`, `ride`, `buildJourney`, `offStationFor` |
+| Drawing | `showRoute`, `animateRoute`, `revealTo`, `stationDots`, `spaceLabels` |
+| Selection | `select`, `deselect`, `showCard`, `focus` |
+
+## Which data is generated and which is yours
+
+| Constant | Source | Edit by hand? |
+| --- | --- | --- |
+| `PLACES`, `CLUSTERS`, `CATS`, `LEGS` | you | yes — this is the trip |
+| `PLACE_OFF`, `ROUTES` | you | yes — they are the routing overrides |
+| `STATION_COORDS` | OpenStreetMap, via `tools/fetch-stations.mjs` | names yes, coordinates no |
+| `SUBWAY`, `SUBWAY_BUSAN` | OpenStreetMap, via `tools/fetch-rail.mjs` | no — regenerate instead |
+
+Station **names are keys**. `ROUTES` is keyed by them and `PLACE_OFF` points at
+them, so renaming one silently breaks a route. `fetch-stations.mjs` never
+renames for that reason; it reports what it could not match and leaves it alone.
+
+## Adding a place
+
+Append to `PLACES`:
+
+```js
+{ id:"shortid", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong",
+  cat:"food", lat:37.5745, lng:126.9885, name:"Name", note:"One line.",
+  meta:"Optional red line under the note" },
+```
+
+Then `node tools/check-data.mjs`. Things it will catch that the page will not:
+
+- `cluster` must already exist in `CLUSTERS[city]`. If it does not, the pin
+  still lands on the map but the sidebar row never renders and the counts are
+  wrong — no error anywhere.
+- `cat` must be a key in `CATS`, and `city` a `LEGS` id.
+- `id` must be unique; a duplicate quietly shadows the earlier one.
+
+A new Seoul spot usually needs nothing else — see below.
+
+## How a ride is worked out
+
+When you pick a spot, the page builds the journey from the hotel:
+
+1. **Which station you get off at** — `offStationFor()`. `PLACE_OFF[id]` wins if
+   it is set. Otherwise it takes the nearest station that has a `ROUTES` entry,
+   provided the walk is under `AUTO_WALK_MAX` (1100m, sized to the longest
+   hand-set walk). Hotels get nothing; that is where the ride starts.
+2. **Which lines to take** — `ROUTES[station]`, a list of `{line, to}`. The last
+   `to` is where you get off, earlier ones are transfers.
+3. **The shape of the track** — traced, never stored. `railGraph()` turns the
+   line's polylines into a graph, `ride()` runs Dijkstra between the two
+   stations, and the walk is a straight line to the door.
+
+So adding a Seoul spot near an existing station needs no table edit. Add
+`PLACE_OFF[id]` only when the nearest station is not the one you would really
+use. Add to `ROUTES` and `STATION_COORDS` when a station is genuinely new.
+
+Only Seoul draws rides. Busan has line geometry but no station table behind it;
+Jeju has no metro. Both are handled, not broken: the card opens, no ride draws.
+
+## Before you push
+
+```sh
+node tools/check-data.mjs      # data consistency; exits non-zero on a problem
+node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
+```
+
+For anything that changes behaviour or layout, **drive the real page** — this is
+a map, and unit checks do not see a route drawn under a card or a label off the
+edge. Serve it and script a browser:
+
+```sh
+python3 -m http.server 8000
+```
+
+Then with Playwright: load the page, call `focus('<place id>')`, wait for the
+draw, and assert on the DOM and on Leaflet's own state (`map.getCenter()`,
+`routeDraw`, `.rs-tip` rects). Screenshot and look at it. Past regressions that
+only a real browser caught: station labels colliding, the route drawing beneath
+the card, a route framed off-screen, the map moving mid-draw.
+
+## Conventions worth keeping
+
+- **Themes**: every colour goes through a token on `:root`, overridden under
+  `body.night`. Never hard-code a hex in a rule that both themes use.
+- **Mobile**: one media query at 780px. The map and list swap rather than stack.
+- **Animation**: honour `prefers-reduced-motion` — the route draws complete and
+  static instead of animating.
+- **Failure**: degrade, do not break. Missing tiles, no route, an unknown
+  station — the page keeps working and says what it can.
+- **Comments** explain why a thing is the way it is, not what the line does.

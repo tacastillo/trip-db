@@ -44,6 +44,20 @@ itself is not offline-installable — with no connection at all, the browser has
 to have `index.html` in its HTTP cache to open it. A service worker would fix
 that.
 
+## Maintaining the data
+
+The subway geometry and station coordinates inside `index.html` come from
+OpenStreetMap, and `tools/` is how they get refreshed — plus a checker that
+holds the hand-written tables and the generated ones to each other:
+
+```sh
+node tools/check-data.mjs      # every table against every other; non-zero on a problem
+node tools/fetch-rail.mjs      # rebuild the line geometry (add --write to apply)
+```
+
+None of it runs at page load; see [`tools/README.md`](tools/README.md) for the
+rest, and [`CLAUDE.md`](CLAUDE.md) for how the pieces fit together.
+
 ## Deploying
 
 GitHub Pages serves the `main` branch from the repository root (Settings →
