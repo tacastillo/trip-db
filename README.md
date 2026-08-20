@@ -5,8 +5,10 @@ built on [Leaflet](https://leafletjs.com/), with a place list, filters, and a ni
 
 Picking a spot draws the ride there from the hotel along the subway lines
 themselves: every transfer station marked with the line you change onto, the
-path animated from the platform to the front door, and the rest of the network
-dropped back so the route reads at a glance. Which line a spot is reached on is
+path animated from the platform to the front door under a slow pulse, and the
+rest of the network dropped back so the route reads at a glance. The spot's
+details open in a card pinned to the top of the map rather than hanging off its
+pin, so the ride below it stays visible and the map still drags freely. Which line a spot is reached on is
 editable by hand — see the `PLACE_OFF` / `ROUTES` block in `index.html`; the
 geometry between two stations is traced from the line data, not stored.
 

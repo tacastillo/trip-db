@@ -42,15 +42,11 @@
   body.night .item:hover{background:#241f18;}
   body.night .item.sel{background:#2c2118;}
   body.night .leaflet-container{background:#0d0b08;}
-  body.night .leaflet-popup-content-wrapper,
-  body.night .leaflet-popup-tip{background:var(--surface); color:var(--ink);}
-  body.night .leaflet-popup-content-wrapper{box-shadow:0 10px 30px rgba(0,0,0,.5);}
-  body.night .leaflet-container a.leaflet-popup-close-button{color:var(--muted);}
-  body.night .pop-note{color:var(--ink);}
-  body.night .pop-hood{color:var(--muted);}
+  body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
   body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
   body.night .soon-hi{background:#22304d; color:#9db4ea;}
   body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
+  body.carded .tilebanner{top:auto; bottom:14px;}
 
   .toolbtns{display:flex; align-items:center; gap:10px;}
   .nighttoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
@@ -120,13 +116,21 @@
   .pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
   .pin.star .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 4.5px var(--pin), 0 2px 5px rgba(0,0,0,.32);}
 
-  .leaflet-popup-content-wrapper{border-radius:11px; box-shadow:0 10px 30px rgba(28,26,23,.2); padding:2px;}
-  .leaflet-popup-content{margin:12px 14px; font-family:'Inter',sans-serif; line-height:1.4;}
+  /* The place card sits at the top of the map rather than on a pin, so the ride
+     below it is never underneath it and the map can be dragged out from under it. */
+  .card{position:absolute; top:14px; right:14px; z-index:600; width:332px; max-width:calc(100% - 28px);
+    background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+    box-shadow:0 14px 36px rgba(28,26,23,.18); padding:13px 16px 14px; line-height:1.4; display:none;}
+  .card.show{display:block; animation:cardIn .2s ease-out;}
+  @keyframes cardIn{from{opacity:0; transform:translateY(-9px);} to{opacity:1; transform:none;}}
+  .card-x{position:absolute; top:7px; right:7px; width:28px; height:28px; border:none; background:none;
+    cursor:pointer; color:var(--muted); font-size:16px; line-height:1; border-radius:7px; padding:0;}
+  .card-x:hover{background:var(--line-2); color:var(--ink);}
   .pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
-  .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px;}
-  .pop-hood{font-size:11px; color:#7A7062; margin-bottom:6px;}
-  .pop-note{font-size:12.5px; color:#3a352e;}
-  .pop-meta{font-size:11.5px; font-weight:600; color:#C8432A; margin-top:6px;}
+  .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px; padding-right:22px;}
+  .pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .pop-note{font-size:12.5px; color:var(--ink);}
+  .pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
 
   /* tile fallback banner */
   .tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
@@ -183,6 +187,16 @@
   .rs-tip .rs-k{display:block; font-size:8px; letter-spacing:.09em; text-transform:uppercase; font-weight:800; opacity:.6; line-height:1.3;}
   .rs-tip.off .rs-k{opacity:1; color:var(--accent);}
   body.night .leaflet-tooltip.rs-tip{background:rgba(30,26,20,.95); color:#F1EBDF;}
+  /* a soft pulse under the drawn ride — opacity only, so the blur layer is painted once */
+  @keyframes rsGlow{0%,100%{opacity:.15;} 50%{opacity:.45;}}
+  @keyframes rsGlowDay{0%,100%{opacity:.2;} 50%{opacity:.6;}}
+  .rs-glow{filter:blur(3px); animation:rsGlow 2.6s ease-in-out infinite;}
+  /* colour on paper carries less than colour on ink, so day mode pulses harder */
+  body:not(.night) .rs-glow{animation-name:rsGlowDay;}
+  @media (prefers-reduced-motion:reduce){ .rs-glow{animation:none; opacity:.26;} }
+  /* the pin the card is about, since it no longer carries the card itself */
+  .mk-sel .pin-b{box-shadow:0 0 0 2.5px #fff, 0 0 0 5px var(--accent), 0 3px 9px rgba(0,0,0,.4);}
+  .mk-sel{z-index:640 !important;}
   /* a slow ping on the station you actually get off at */
   @keyframes rsPing{0%{stroke-width:2; opacity:.9;} 65%{stroke-width:14; opacity:0;} 100%{stroke-width:14; opacity:0;}}
   .rs-ping{animation:rsPing 2.4s cubic-bezier(.15,.6,.3,1) infinite;}
@@ -250,9 +264,9 @@
     .raillegend.collapsed .rl-h::after{content:' ▸';}
     .raillegend:not(.collapsed) .rl-h::after{content:' ▾';}
     .tilebanner{top:10px; font-size:11.5px; padding:8px 12px; max-width:92%;}
-    .leaflet-popup-content-wrapper{max-width:78vw;}
-    .leaflet-popup-content{margin:12px 13px;}
-    .leaflet-container a.leaflet-popup-close-button{width:34px; height:34px; font-size:20px; padding:5px 5px 0 0;}
+    .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 13px;
+      max-height:44%; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+    .card-x{width:34px; height:34px; font-size:19px;}
     .leaflet-control-zoom{display:none;}
   }
 
@@ -296,6 +310,7 @@
     <div class="mapwrap" id="mapwrap">
       <div id="map"></div>
       <div class="tilebanner" id="tilebanner"></div>
+      <div class="card" id="card"></div>
       <div class="raillegend" id="raillegend"></div>
     </div>
 
@@ -687,13 +702,27 @@ function highlightList(){
 }
 
 /* ---------------- map ---------------- */
-function popupHtml(p){
+function cardHtml(p){
   const c = CATS[p.cat];
-  return `<div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+  return `<button class="card-x" id="cardX" title="Close" aria-label="Close">✕</button>
+    <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
     <div class="pop-name">${p.name}</div>
     <div class="pop-hood">${p.cluster}</div>
     <div class="pop-note">${p.note}</div>
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}${routeStripHtml(p)}`;
+}
+const cardEl = document.getElementById("card");
+function showCard(p){
+  cardEl.innerHTML = cardHtml(p);
+  cardEl.classList.add("show");
+  document.body.classList.add("carded");
+  cardEl.scrollTop = 0;
+  document.getElementById("cardX").onclick = deselect;
+}
+function hideCard(){
+  cardEl.classList.remove("show");
+  cardEl.innerHTML = "";
+  document.body.classList.remove("carded");
 }
 
 /* Track geometry runs to the real termini now (OpenStreetMap via Overpass, ODbL),
@@ -1004,12 +1033,15 @@ function showRoute(p){
   const shapes = j.legs.map(leg => {
     const walking = leg.kind === "walk";
     const color = walking ? accent : leg.color;
+    // glow first so it sits under the casing; its opacity is the pulse, in CSS
+    const glow = L.polyline([], { color, weight: walking ? 10 : 16, opacity: 1,
+      lineCap: "round", lineJoin: "round", interactive: false, className: "rs-glow" }).addTo(routeLayer);
     const under = L.polyline([], { color: casing, weight: walking ? 6 : 9, opacity: .55,
       lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
     const over = L.polyline([], { color, weight: walking ? 3 : 5, opacity: .96,
       lineCap: "round", lineJoin: "round", dashArray: walking ? "1 8" : null,
       interactive: false }).addTo(routeLayer);
-    return { leg, under, over, color, start: 0 };
+    return { leg, glow, under, over, color, start: 0 };
   });
   let run = 0;
   shapes.forEach(s => { s.start = run; run += s.leg.len; });
@@ -1031,7 +1063,7 @@ function revealTo(dist){
   if (!routeDraw) return;
   routeDraw.shapes.forEach(s => {
     const local = dist - s.start;
-    if (local <= 0){ s.under.setLatLngs([]); s.over.setLatLngs([]); return; }
+    if (local <= 0){ s.glow.setLatLngs([]); s.under.setLatLngs([]); s.over.setLatLngs([]); return; }
     const pts = s.leg.pts, cum = s.leg.cum, out = [pts[0]];
     for (let i = 1; i < pts.length; i++){
       if (cum[i] <= local){ out.push(pts[i]); continue; }
@@ -1039,7 +1071,7 @@ function revealTo(dist){
       out.push(lerpPt(pts[i - 1], pts[i], span > 0 ? (local - cum[i - 1]) / span : 1));
       break;
     }
-    s.under.setLatLngs(out); s.over.setLatLngs(out);
+    s.glow.setLatLngs(out); s.under.setLatLngs(out); s.over.setLatLngs(out);
   });
 }
 
@@ -1114,43 +1146,24 @@ function clearRoute(){
   document.body.classList.remove("routing");
 }
 
-/* Frame the whole ride, not just the pin — the path is the point. The popup opens
-   upward out of the pin, so room is reserved above it, but only as much as the pin
-   won't already have once the ride is framed; anything still clipped gets nudged
-   in when the flight lands. */
+/* Frame the whole ride, not just the pin — the path is the point. The card is
+   pinned to the top of the map, so the band it occupies is the only thing that
+   has to be kept clear. */
+function cardBand(){
+  return cardEl.classList.contains("show") ? cardEl.offsetHeight + (isMobile() ? 16 : 20) : 0;
+}
 function frameFor(p){
   if (!map) return;
-  const j = journeyFor(p);
-  if (!j){ map.flyTo([p.lat, p.lng], 16, { duration: .7 }); return; }
-  const b = L.latLngBounds(j.box).extend([p.lat, p.lng]);
-  const size = map.getSize(), pad = isMobile() ? 26 : 46;
-  const el = map.getPane("popupPane").querySelector(".leaflet-popup");
-  const popH = (el ? el.offsetHeight : 150) + 26, popW = (el ? el.offsetWidth : 260) / 2 + 10;
-  const capY = size.y * .55, capX = size.x * .32;
-  let top = pad, left = pad, right = pad;
-  // padding lowers the zoom, which lowers the headroom, which asks for more padding
-  for (let i = 0; i < 3; i++){
-    const z = Math.min(15, map.getBoundsZoom(b, false, L.point(left + right, top + pad)));
-    const pin = map.project([p.lat, p.lng], z);
-    const nw = map.project(b.getNorthWest(), z), se = map.project(b.getSouthEast(), z);
-    top = Math.max(pad, Math.min(capY, popH - (pin.y - nw.y) + pad));
-    left = Math.max(pad, Math.min(capX, popW - (pin.x - nw.x) + pad));
-    right = Math.max(pad, Math.min(capX, popW - (se.x - pin.x) + pad));
+  const j = journeyFor(p), pad = isMobile() ? 26 : 46, band = cardBand();
+  if (!j){
+    // no ride to frame, so just centre the pin — below the card, not under it
+    const z = 16, c = map.unproject(map.project([p.lat, p.lng], z).subtract([0, band / 2]), z);
+    map.flyTo(c, z, { duration: .7 });
+    return;
   }
-  map.flyToBounds(b, { paddingTopLeft: [Math.round(left), Math.round(top)],
-    paddingBottomRight: [Math.round(right), pad], maxZoom: 15, duration: .85 });
-  map.once("moveend", nudgePopup);
-}
-function nudgePopup(){
-  const pane = map.getPane("popupPane");
-  const el = pane && pane.querySelector(".leaflet-popup");
-  if (!el) return;
-  const box = map.getContainer().getBoundingClientRect(), pop = el.getBoundingClientRect();
-  let dx = 0, dy = 0;
-  if (pop.top < box.top + 10) dy = pop.top - (box.top + 10);
-  if (pop.left < box.left + 10) dx = pop.left - (box.left + 10);
-  else if (pop.right > box.right - 10) dx = pop.right - (box.right - 10);
-  if (dx || dy) map.panBy([dx, dy], { duration: .35 });
+  const b = L.latLngBounds(j.box).extend([p.lat, p.lng]);
+  map.flyToBounds(b, { paddingTopLeft: [pad, pad + band], paddingBottomRight: [pad, pad],
+    maxZoom: 15, duration: .85 });
 }
 
 function fitCity(){
@@ -1174,7 +1187,7 @@ function initMap(){
   if (railOn) railLayer.addTo(map);
   drawRail();
   routeLayer = L.layerGroup().addTo(map);
-  map.on("click", () => { clearRoute(); if (selectedId) { selectedId = null; highlightList(); } });
+  map.on("click", () => { if (selectedId) deselect(); });
   // station labels pick their side from the map centre, which panning moves out from under them
   map.on("moveend", () => {
     if (!routeDraw) return;
@@ -1188,15 +1201,13 @@ function initMap(){
       className: "",
       html: `<div class="pin ${p.booked ? "star" : ""}" style="--pin:${c.color}">
                <div class="pin-b"><span>${c.emoji}</span></div></div>`,
-      iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
+      iconSize: [30, 30], iconAnchor: [15, 30],
     });
-    const m = L.marker([p.lat, p.lng], { icon }).bindPopup(popupHtml(p));
-    m.on("popupopen", () => { selectedId = p.id; highlightList(); showRoute(p); frameFor(p); });
-    // the card covers the ride on a phone, so a drawn route outlives its popup —
-    // tapping bare map is what puts the network back
-    m.on("popupclose", () => { if (!routeDraw && selectedId === p.id) { selectedId = null; highlightList(); } });
+    const m = L.marker([p.lat, p.lng], { icon });
+    m.on("click", () => select(p.id));
     markers[p.id] = m;
     if (p.city === currentTab) m.addTo(map);
+    if (selectedId === p.id) markPin(p.id, true);
   });
 
   fitCity();
@@ -1226,32 +1237,47 @@ function syncMarkers(){
     if (p.city === currentTab && active[p.cat]) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
-  // filtering the selected pin away shouldn't leave its ride stranded on the map
+  // filtering the selected pin away shouldn't leave its card and ride stranded
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
-  if (sel && !(sel.city === currentTab && active[sel.cat])) {
-    clearRoute(); selectedId = null; highlightList();
-  }
+  if (sel && !(sel.city === currentTab && active[sel.cat])) deselect();
 }
 
-function focus(id){
+function markPin(id, on){
+  const m = markers[id], el = m && m.getElement();
+  if (el) el.classList.toggle("mk-sel", on);
+}
+function select(id){
   const p = PLACES.find(x => x.id === id); if (!p) return;
-  selectedId = id; highlightList();
+  if (selectedId && selectedId !== id) markPin(selectedId, false);
+  selectedId = id;
+  highlightList();
+  showCard(p);
   if (!map || !markers[id]) return;
-  // opening the popup is what draws the ride and frames it — see the popupopen handler
-  const open = () => markers[id].openPopup();
+  markPin(id, true);
+  showRoute(p);
+  frameFor(p);
+}
+function deselect(){
+  if (selectedId) markPin(selectedId, false);
+  selectedId = null;
+  hideCard();
+  clearRoute();
+  highlightList();
+}
+function focus(id){
+  if (!PLACES.some(x => x.id === id)) return;
   if (isMobile() && view !== "map") {
     // swap to the map first, let it re-measure, then move — a hidden map flies to the wrong spot
     setView("map");
-    setTimeout(() => { map.invalidateSize(); open(); }, 90);
-  } else open();
+    setTimeout(() => { map && map.invalidateSize(); select(id); }, 90);
+  } else select(id);
 }
 
 /* ---------------- tabs ---------------- */
 function setTab(id){
   currentTab = id;
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === id));
-  selectedId = null;
-  clearRoute();
+  deselect();
   renderLegend();
   renderList();
   drawRail();
@@ -1313,6 +1339,8 @@ if (railLegendEl) railLegendEl.addEventListener("click", () => {
   railLegendOpen = !railLegendOpen;
   applyRailLegendState();
 });
+
+document.addEventListener("keydown", e => { if (e.key === "Escape" && selectedId) deselect(); });
 
 function libFail(){
   const b = document.getElementById("tilebanner");
