@@ -110,6 +110,25 @@ for (const [station, legs] of Object.entries(ROUTES)){
     err(`ROUTES "${station}": you cannot board line ${legs[0].line} at ${HOTEL_STATION} (${Math.round(d)}m away)`);
 }
 
+/* A route that goes out and doubles back reads as nonsense on the map, and
+   nothing else here catches it: every leg is on a real line, the transfer is a
+   real transfer, the drawn track is the real track. Compare the hotel → transfers
+   → destination dogleg against the straight line and let a human judge. Both
+   guards matter — the ratio alone flags a one-stop hop that is barely a detour,
+   the extra metres alone flag a long ride that goes nowhere odd. A ring line
+   never trips this: Line 2 the long way round has no transfer to bend at. */
+const DOGLEG_RATIO = 1.8, DOGLEG_EXTRA_M = 1500;
+for (const [station, legs] of Object.entries(ROUTES)){
+  if (!STATION_COORDS[station] || !STATION_COORDS[HOTEL_STATION]) continue;
+  if (legs.some(l => !STATION_COORDS[l.to])) continue;
+  let from = HOTEL_STATION, via = 0;
+  for (const leg of legs){ via += metres(STATION_COORDS[from], STATION_COORDS[leg.to]); from = leg.to; }
+  const direct = metres(STATION_COORDS[HOTEL_STATION], STATION_COORDS[station]);
+  if (via > direct * DOGLEG_RATIO && via - direct > DOGLEG_EXTRA_M)
+    warn(`ROUTES "${station}" doubles back: ${legs.map(l => l.line + "\u2192" + l.to).join(", ")} `
+       + `covers ${Math.round(via)}m of ground to reach a station ${Math.round(direct)}m away`);
+}
+
 for (const s of Object.keys(STATION_COORDS))
   if (s !== HOTEL_STATION && !ROUTES[s] && !Object.values(ROUTES).some(legs => legs.some(l => l.to === s)))
     warn(`STATION_COORDS has "${s}", which no route uses — the nearest-station fallback ignores it`);
