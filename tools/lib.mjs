@@ -70,6 +70,16 @@ export function serializeStations(coords){
   return `{\n${rows.join("\n")}\n}`;
 }
 
+/** Neighborhood polygons: one entry per line, rings dense at 5dp — read by
+    people at the entry level, never at the coordinate level. */
+export function serializeHoods(hoods){
+  const ring = (r) => `[${r.map(([a, b]) => `[${round(a, 5)},${round(b, 5)}]`).join(",")}]`;
+  const entry = (h) => `    { cluster:${JSON.stringify(h.cluster)}, color:${JSON.stringify(h.color)}, source:${JSON.stringify(h.source)},\n`
+    + `      rings:[${h.rings.map(ring).join(",\n             ")}] },`;
+  const city = ([id, list]) => `  ${id}: [\n${list.map(entry).join("\n")}\n  ],`;
+  return `{\n${Object.entries(hoods).map(city).join("\n")}\n}`;
+}
+
 /* ---------- geometry ---------- */
 
 const R = 6371000, rad = (d) => d * Math.PI / 180;

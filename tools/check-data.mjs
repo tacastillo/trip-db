@@ -58,6 +58,41 @@ for (const [cityId, list] of Object.entries(CLUSTERS))
   for (const cl of list)
     if (!PLACES.some(p => p.city === cityId && p.cluster === cl)) warn(`CLUSTERS.${cityId} lists "${cl}", which has no places`);
 
+/* ---------- the neighborhood polygons ---------- */
+/* A cluster with no HOODS entry just draws no polygon — legal, but worth a
+   nudge. A HOODS entry naming a cluster that no longer exists is the same
+   silent key breakage the cluster check above exists for, so that one fails.
+   Pins are NOT required to sit inside their polygon: some clusters (Seomyeon,
+   Aewol) deliberately shade the day's core area, not every outlier. */
+const HOODS = K("HOODS");
+for (const [cityId, list] of Object.entries(HOODS)){
+  if (!legIds.has(cityId)) err(`HOODS has "${cityId}", which is not a leg`);
+  const seen = new Set();
+  for (const h of list){
+    const at = `HOODS.${cityId} "${h.cluster}"`;
+    if (!(CLUSTERS[cityId] || []).includes(h.cluster))
+      err(`${at}: not in CLUSTERS.${cityId} — renamed cluster, orphaned polygon`);
+    if (seen.has(h.cluster)) err(`${at}: listed twice`);
+    seen.add(h.cluster);
+    if (!/^#[0-9a-fA-F]{6}$/.test(h.color || "")) err(`${at}: color "${h.color}" is not a hex colour`);
+    if (!["osm", "hand"].includes(h.source)) err(`${at}: source "${h.source}" is neither "osm" nor "hand"`);
+    const box = CITY_BOX[cityId];
+    for (const [i, ring] of (h.rings || []).entries()){
+      // an explicitly closed ring repeats its first point; either form is fine
+      const closed = ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1];
+      if (ring.length - (closed ? 1 : 0) < 3) err(`${at} ring ${i}: fewer than 3 distinct points`);
+      for (const [lat, lng] of ring)
+        if (box && !(lat >= box[0] && lat <= box[2] && lng >= box[1] && lng <= box[3])){
+          err(`${at} ring ${i}: ${lat},${lng} is outside ${cityId}`); break;
+        }
+    }
+  }
+}
+for (const [cityId, list] of Object.entries(CLUSTERS))
+  for (const cl of list)
+    if (!(HOODS[cityId] || []).some(h => h.cluster === cl))
+      warn(`HOODS.${cityId} has no entry for "${cl}" — it draws no polygon`);
+
 /* ---------- the rail data ---------- */
 for (const [cityId, lines] of Object.entries(RAIL)){
   const refs = new Set();
