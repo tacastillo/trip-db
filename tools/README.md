@@ -12,6 +12,7 @@ extend and stations move.
 | --- | --- | --- |
 | `check-data.mjs` | no | Checks every table in `index.html` against every other. Exits non-zero on a problem. |
 | `test-pipeline.mjs` | no | Exercises the geometry pipeline against the data already in the file. |
+| `test-plan.mjs` | no | Runs the day planner's pure core, lifted out of `index.html` between its sentinel comments. |
 | `fetch-rail.mjs` | yes | Rebuilds `SUBWAY` / `SUBWAY_BUSAN` from OpenStreetMap. |
 | `fetch-stations.mjs` | yes | Refreshes `STATION_COORDS` from OpenStreetMap. |
 | `lib.mjs` | — | Shared: reading and writing the constants, geometry, Overpass. |
@@ -23,8 +24,15 @@ would change; nothing is written without `--write`.
 
 ```sh
 node tools/check-data.mjs        # after editing PLACES, and before pushing
+node tools/test-plan.mjs         # after touching anything between the plan-core sentinels
 node tools/test-pipeline.mjs     # after touching anything in lib.mjs
 ```
+
+`test-plan.mjs` slices the planner's pure half straight out of `index.html` and evaluates
+it here, so it covers the URL grammar, the Naver links, the ordering checks and the
+suggestions without a browser. It also asserts that block never reached for the DOM — if
+it had, none of the rest could run. What it cannot see is the pane, the dragging or the
+overlay; drive the page for those.
 
 `check-data.mjs` also prints ride coverage per leg, which is the quickest way to
 see whether a change to the routing tables actually reached the map:

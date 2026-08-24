@@ -23,6 +23,41 @@ Seoul is the only leg with a station table, so it is the only leg that draws a
 ride: Busan has its lines on the map but no stations behind them, and Jeju has
 no metro to ride.
 
+## Planning a day
+
+The sidebar has a second tab. Add spots from the map card or from the list — there is a
+search box now — and they stack up into an ordered day, draggable into a different
+order. On the map a planned stop keeps its category colour but carries its number
+instead of its emoji, and everything else fades back, so the day reads on its own.
+Nothing is drawn between the stops — a straight line between two of them is not a route
+you could follow, and the useful part is in the list.
+
+The day lives entirely in the address bar, so a bookmark is the whole save mechanism:
+
+```
+index.html?city=seoul&day=2026-09-01&stops=novotel,gyeongbok,bukchon&title=Jongno
+```
+
+Between every pair of stops it gives you the distance, a walking estimate when walking
+is sensible, and a **Naver Maps** link for the actual directions. Where both stops sit
+on one subway line it names it — "Line 5 · Dongdaemun History & Culture Park → Jongno
+3-ga" — and where they do not, it says nothing rather than guessing a transfer. It does not tell you
+how long a hop takes, and that is deliberate: the routing tables only know rides out
+from the hotel, so a station-to-station time does not exist anywhere in this project and
+guessing one would be worse than the link.
+
+What it *does* work out, from the data and without asking anyone: whether two stops are
+the wrong way round, whether the whole day would be shorter walked in another order,
+which unplanned spots sit near what you have already picked, and — if you set a date —
+whether anything on the list is shut that weekday.
+
+**Copy briefing** puts the day on your clipboard as markdown: every stop with its notes,
+coordinates, hours prose and hop links, plus a plain statement of what the map does not
+know. Paste it into a chat, or just hand over the link — `#plan-url-spec` inside the page
+tells an agent that fetches the URL how to decode the query string and where the place
+data is, so it can read the day without running any JavaScript, then add the things this
+map genuinely cannot: how busy somewhere gets, how long the queue runs, what to order.
+
 ## Dependencies
 
 Leaflet and both fonts are vendored into `vendor/`, so the page pulls nothing
@@ -52,6 +87,7 @@ holds the hand-written tables and the generated ones to each other:
 
 ```sh
 node tools/check-data.mjs      # every table against every other; non-zero on a problem
+node tools/test-plan.mjs       # the day planner's pure core
 node tools/fetch-rail.mjs      # rebuild the line geometry (add --write to apply)
 ```
 

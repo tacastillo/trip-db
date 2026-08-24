@@ -261,3 +261,15 @@ export const flag = (name) => argv.includes("--" + name);
 export const bbox = (pts) => pts.reduce((b, p) => [
   Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1]),
 ], [90, 180, -90, -180]).map(n => Number(n.toFixed(4)));
+
+/** The text between two marker comments, exclusive. Throws rather than returning
+    nothing, because a silently missing sentinel means a test that asserts on an empty
+    string and passes. */
+export function sliceBetween(text, startMark, endMark){
+  const a = text.indexOf(startMark);
+  if (a < 0) throw new Error(`no ${startMark} in index.html`);
+  const b = text.indexOf(endMark, a + startMark.length);
+  if (b < 0) throw new Error(`no ${endMark} after ${startMark} in index.html`);
+  if (text.indexOf(startMark, a + 1) >= 0) throw new Error(`${startMark} appears more than once`);
+  return text.slice(a + startMark.length, b);
+}
