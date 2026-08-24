@@ -3,17 +3,17 @@
    Data © OpenStreetMap contributors, ODbL.
 
      node tools/fetch-rail.mjs            # fetch and report, change nothing
-     node tools/fetch-rail.mjs --write    # fetch and rewrite index.html
+     node tools/fetch-rail.mjs --write    # fetch and rewrite src/data/subway*.js
      node tools/fetch-rail.mjs --city busan --write
 
-   The page never runs this. index.html ships with the geometry inside it; this
+   The page never runs this. src/data/ ships with the geometry inside it; this
    is how that geometry gets refreshed when a line extends or a branch opens.
 
    Colours and labels are OURS, not OSM's — the `colour` tag is inconsistent
    across these relations, and the labels are what fits the legend. Only the
    geometry comes from the fetch, so editing a colour here is safe. */
 
-import { readIndex, saveIndex, readConst, writeConst, serializeRail,
+import { readSource, saveSource, sourceFor, readConst, writeConst, serializeRail,
          overpass, buildLine, bbox, argv, flag } from "./lib.mjs";
 
 const CITIES = {
@@ -88,7 +88,7 @@ const stats = (lines) => {
 async function main(){
   const only = arg("city", null);
   const targets = only ? [only] : Object.keys(CITIES);
-  let src = readIndex(), wrote = false;
+  const touched = new Map();          // file -> its text, so two cities in one file both land
 
   for (const name of targets){
     const city = CITIES[name];
@@ -110,15 +110,21 @@ async function main(){
         + `${l.paths.reduce((n, p) => n + p.pts.length, 0)} pts`);
     }
 
-    const before = stats(readConst(src, city.constant)), after = stats(built);
+    const file = sourceFor(city.constant);
+    if (!touched.has(file)) touched.set(file, readSource(file));
+    const before = stats(readConst(touched.get(file), city.constant)), after = stats(built);
     console.log(`  in the file: ${before.paths} paths / ${before.points} pts   bbox ${before.bbox}`);
     console.log(`  just fetched: ${after.paths} paths / ${after.points} pts   bbox ${after.bbox}`);
 
-    if (flag("write")){ src = writeConst(src, city.constant, serializeRail(built)); wrote = true; }
+    if (flag("write"))
+      touched.set(file, writeConst(touched.get(file), city.constant, serializeRail(built)));
+    else touched.delete(file);
   }
 
-  if (wrote){ saveIndex(src); console.log("\nindex.html updated — run `node tools/check-data.mjs`, then diff it."); }
-  else console.log("\nNothing written. Re-run with --write to update index.html.");
+  if (flag("write") && touched.size){
+    for (const [file, text] of touched) saveSource(file, text);
+    console.log(`\n${[...touched.keys()].join(", ")} updated — run \`node tools/check-data.mjs\`, then diff it.`);
+  } else console.log("\nNothing written. Re-run with --write to update the data modules.");
 }
 
 main().catch(e => {

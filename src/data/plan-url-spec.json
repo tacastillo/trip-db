@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "what": "A one-day plan for this trip map, carried entirely in the URL query string. Nothing is stored on a server.",
+  "example": "index.html?city=seoul&day=2026-09-01&stops=gwangjang,onion,cheongsudang&title=Jongno%20crawl",
+  "params": {
+    "city": "one of the leg ids: seoul | jeju | busan",
+    "stops": "comma-separated place ids, in visiting order; duplicates collapse; at most 12",
+    "day": "YYYY-MM-DD. A label, and the only thing that decides which weekday closures apply. No schedule is computed from it.",
+    "title": "percent-encoded free text, at most 60 characters"
+  },
+  "unknownParamsArePreserved": true,
+  "unknownStopIdsArePreserved": true,
+  "resolve": {
+    "how": "Each id in ?stops= is the `id` field of an entry in the PLACES array, published as JSON in the <script type=\"application/json\" id=\"trip-data\"> element in this file.",
+    "placeFields": [
+      "id",
+      "city",
+      "cluster",
+      "cat",
+      "lat",
+      "lng",
+      "name",
+      "note",
+      "meta (optional)",
+      "added (optional)"
+    ],
+    "categories": "The `cats` object in that same #trip-data block maps `cat` to {label, emoji, color}.",
+    "hoursCaveat": "There are no hours, price or duration fields. Hours and prices appear only as prose inside `meta` or `note`, e.g. \"Closed Mon\" or \"2,500 won, closes 5:10pm\". Quote them; do not parse them into a schedule."
+  },
+  "notRepresented": [
+    "arrival times, dwell times and durations of any kind",
+    "rail time between two stops - the routing table is rooted at the hotel only, so no station-to-station time exists anywhere in this file",
+    "how busy anywhere is, or how long the queue runs"
+  ],
+  "directions": "Each consecutive pair of stops gets a Naver Maps directions link built from the two lat/lng pairs. See naverDirUrl() in the inline script for the exact grammar.",
+  "goodUseOfThis": "Read the plan, then add what the map cannot know: when each place is busy, what to order, how long a queue tends to run, and whether the order makes sense for the hours involved."
+}

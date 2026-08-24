@@ -1,16 +1,19 @@
 #!/usr/bin/env node
-/* Exercise the day-planner core against the data already in index.html.
+/* Exercise the day-planner core against the data the page ships.
 
      node tools/test-plan.mjs
 
-   No network, no arguments, no browser. The planner's pure half lives between two
-   sentinel comments in index.html so it can be lifted out and run here; everything
-   that touches the DOM, the map or the URL sits outside them and is not covered by
-   this file. Drive the real page for that. */
+   No network, no arguments, no browser. The planner's pure half is src/lib/, which
+   imports cleanly into node; everything that touches the DOM, the map or the URL sits
+   in src/client/ and is not covered by this file. Drive the real page for that.
+   check-data.mjs is what holds src/lib/ to being importable at all. */
 
-import { readIndex, readConst, sliceBetween } from "./lib.mjs";
+import * as core from "../src/lib/plan-core.js";
+import { metres } from "../src/lib/geo.js";
+import { metres as libMetres } from "./lib.mjs";
+import { PLACES } from "../src/data/places.js";
+import { STATION_COORDS } from "../src/data/routing.js";
 
-const src = readIndex();
 let failures = 0;
 const ok = (name, pass, detail) => {
   if (!pass) failures++;
@@ -19,46 +22,9 @@ const ok = (name, pass, detail) => {
 const group = (n) => console.log(`\n${n}`);
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/* ---------- lift the core out of the page ---------- */
-
-const CORE_A = "/* ==== plan-core:start ==== */", CORE_B = "/* ==== plan-core:end ==== */";
-const GEO_A  = "/* ==== geo-core:start ==== */",  GEO_B  = "/* ==== geo-core:end ==== */";
-const body = sliceBetween(src, CORE_A, CORE_B);
-const geo  = sliceBetween(src, GEO_A, GEO_B);
-
-const EXPORTS = ["decodePlanQuery","encodePlanQuery","resolvePlan","matchesQuery","hopMetres",
-  "hopWalk","planLegs","planStats","pathLen","naverMode","naverDirUrl","naverAppUrl","backtracks",
-  "reorderByProximity","nearbySuggestions","orderCautions","planBriefMarkdown","closedDays",
-  "planDow","fmtM","metres","hopLine","stationLines","PLAN_MAX_STOPS","PLAN_PARAMS","NEAR_MAX",
-  "NEAR_RADIUS_M","SWAP_GAIN_M","HOP_WALKABLE_M","STATION_ON_LINE_M"];
-
-/* The page's own metres() goes in, not lib.mjs's: lib is haversine, the page is
-   equirectangular, and every threshold below is a distance comparison. */
-// RAIL is built from two constants in the page, so it is rebuilt the same way here
-const RAIL = { seoul: readConst(src,"SUBWAY"), busan: readConst(src,"SUBWAY_BUSAN"), jeju: [] };
-const core = new Function("PLACES","CATS","CLUSTERS","LEGS","WALK_KMH","WALK_BEND","RAIL","STATION_COORDS",
-  `${geo}\n${body}\nreturn {${EXPORTS.join(",")}};`)(
-    readConst(src,"PLACES"), readConst(src,"CATS"), readConst(src,"CLUSTERS"),
-    readConst(src,"LEGS"), readConst(src,"WALK_KMH"), readConst(src,"WALK_BEND"),
-    RAIL, readConst(src,"STATION_COORDS"));
-
-const PLACES = readConst(src, "PLACES");
 const seoul = PLACES.filter(p => p.city === "seoul");
 const pick = (id) => PLACES.find(p => p.id === id);
 const R = (ids) => core.resolvePlan(ids, PLACES);
-
-/* ---------- the sentinels themselves ---------- */
-
-group("the extracted block");
-ok("plan-core sentinels appear exactly once each",
-  src.split(CORE_A).length === 2 && src.split(CORE_B).length === 2);
-ok("geo-core sentinels appear exactly once each",
-  src.split(GEO_A).length === 2 && src.split(GEO_B).length === 2);
-
-// comments in the block legitimately name these; only real code counts
-const code = body.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-const impure = [...new Set(code.match(/(?<![.\w])(document|window|location|history|localStorage|navigator|currentTab|selectedId|railLayer|routeLayer|planLayer)\b/g) || [])];
-ok("the core touches no DOM, no page state", impure.length === 0, impure.join(", "));
 
 /* ---------- the URL ---------- */
 
@@ -203,8 +169,7 @@ ok("a rideLine callback is used when given",
 /* ---------- which line carries a hop ---------- */
 
 group("naming the line for a hop");
-const SC = readConst(src, "STATION_COORDS");
-const stns = Object.keys(SC);
+const stns = Object.keys(STATION_COORDS);
 ok("every station resolves to at least one line",
   stns.every(st => core.stationLines(st, "seoul").length > 0),
   stns.filter(st => !core.stationLines(st, "seoul").length).join(", "));
@@ -233,11 +198,10 @@ ok("and carry none when it is not", core.planLegs(R([pick("gyeongbok").id, pick(
 /* ---------- the two metres() ---------- */
 
 group("the geometry the page ships");
-import { metres as libMetres } from "./lib.mjs";
 let worst = 0;
 for (let i = 0; i < seoul.length - 1; i++){
   const p = seoul[i], q = seoul[i+1];
-  worst = Math.max(worst, Math.abs(core.metres([p.lat,p.lng],[q.lat,q.lng]) - libMetres([p.lat,p.lng],[q.lat,q.lng])));
+  worst = Math.max(worst, Math.abs(metres([p.lat,p.lng],[q.lat,q.lng]) - libMetres([p.lat,p.lng],[q.lat,q.lng])));
 }
 ok("the page's equirectangular metres and lib's haversine agree within a metre",
   worst < 1, `worst ${worst.toFixed(3)} m`);

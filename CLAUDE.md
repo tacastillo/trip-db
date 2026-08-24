@@ -1,54 +1,73 @@
 # Working on trip-db
 
-A field map for one trip to Korea: Seoul, Jeju, Busan. `index.html` is the whole
-site — markup, styles, data and logic in one file, served straight off the
-`main` branch by GitHub Pages.
+A field map for one trip to Korea: Seoul, Jeju, Busan. It is an [Astro][] site with
+no framework and no islands: `.astro` files carry the markup, plain CSS carries the
+look, and the behaviour is a handful of ES modules under `src/client/`. The built
+site is committed to `docs/` and served from there by GitHub Pages.
 
-## The one rule
+[Astro]: https://astro.build
 
-**There is no build step, and there must not be one.** `index.html` is what the
-browser gets, byte for byte. Leaflet and the fonts are vendored under `vendor/`
-so the page pulls nothing from a CDN. The only thing fetched at runtime is
-street tiles from CARTO, and losing them degrades to pins-on-a-blank-canvas with
-a banner saying so.
+## The shape of it
 
-The scripts in `tools/` are maintenance, not a build: they rewrite constants
-inside `index.html` and are then out of the picture. Never introduce a step that
-has to run before the page works.
+```
+astro.config.mjs        base:'/trip-db/', outDir:'./docs'
+public/                 copied verbatim: vendor/ (Leaflet, fonts) and .nojekyll
+docs/                   the build output, committed — this is what Pages serves
+src/
+  pages/index.astro     the one page; there is no router and no second page
+  layouts/FieldMap.astro  <head>, the @font-face block, leaflet's css and js
+  components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData
+  styles/               plain global CSS, imported in cascade order by the layout
+  data/                 the trip and the vendored OSM geometry
+  lib/                  pure: no DOM, no Leaflet, no page state — node imports this
+  client/               everything that touches the page
+tools/                  maintenance scripts; not part of the build
+```
 
-## Layout of index.html
+**There is a build step, and `docs/` is committed.** `npm run build` before you push,
+or what is deployed is not what you wrote. There is no CI to catch it. Two things
+follow from the bundler that did not use to be true: the page no longer opens from
+`file://` (bundled ES modules need a real origin — serve it), and nothing is a global
+any more (see *Driving the page* below).
 
-Roughly in file order:
+## src/client — who owns what
 
-| Section | What lives there |
+| Module | What lives there |
 | --- | --- |
-| `<style>` | Everything. Theme tokens on `:root`, dark overrides under `body.night`, mobile under one media query at 780px |
-| `#plan-url-spec` | A JSON block describing the plan URL, for agents that fetch the page but cannot run it |
-| Data | `CATS`, `CAT_ORDER`, `CLUSTERS`, `PLACES`, `LEGS`, `SUBWAY`, `SUBWAY_BUSAN` |
-| Routing tables | `HOTEL_STATION`, `PLACE_OFF`, `ROUTES`, `STATION_COORDS` |
-| State + list | `active`, `selectedId`, `renderLegend`, `renderList` |
-| Map | `drawRail`, `initMap`, `syncMarkers`, `fitCity` |
-| Journey | `railGraph`, `ride`, `buildJourney`, `offStationFor` |
-| Drawing | `showRoute`, `animateRoute`, `revealTo`, `stationDots`, `spaceLabels` |
-| Selection | `select`, `deselect`, `showCard`, `focus` |
-| Day plan | `PLAN_*` constants and the pure core, then the pane, the drag and the overlay |
+| `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
+| `view.js` | the mobile map/list switch, `isMobile` |
+| `legend.js` `list.js` `card.js` | the sidebar's three renderers |
+| `map.js` | `initMap`, `drawRail`, `syncMarkers`, `fitCity`, the Leaflet layers |
+| `route.js` | drawing and animating the ride, the station labels |
+| `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
+| `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
+| `tabs.js` `rail-legend.js` | the leg tabs and the subway key |
+| `main.js` | the boot sequence, the two toggle buttons, `window.trip` |
+
+Shared mutable state is an `export let` read elsewhere as a live binding, which is
+why almost every read is still a bare name. A value only gets a setter when a module
+other than its owner writes it — `setCurrentTab`, `setNight`, `setPlan` and a few more.
+
+**Nothing may run at import time that reaches into another module.** Module evaluation
+order is not source order: a top-level call across a cycle lands in the temporal dead
+zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, in order.
 
 ## Which data is generated and which is yours
 
-| Constant | Source | Edit by hand? |
-| --- | --- | --- |
-| `PLACES`, `CLUSTERS`, `CATS`, `LEGS` | you | yes — this is the trip |
-| `PLACE_OFF`, `ROUTES` | you | yes — they are the routing overrides |
-| `STATION_COORDS` | OpenStreetMap, via `tools/fetch-stations.mjs` | names yes, coordinates no |
-| `SUBWAY`, `SUBWAY_BUSAN` | OpenStreetMap, via `tools/fetch-rail.mjs` | no — regenerate instead |
+| Constant | File | Source | Edit by hand? |
+| --- | --- | --- | --- |
+| `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS` | `data/places.js` | you | yes — this is the trip |
+| `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
+| `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
+| `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
 
-Station **names are keys**. `ROUTES` is keyed by them and `PLACE_OFF` points at
-them, so renaming one silently breaks a route. `fetch-stations.mjs` never
-renames for that reason; it reports what it could not match and leaves it alone.
+Station **names are keys**. `ROUTES` is keyed by them and `PLACE_OFF` points at them,
+so renaming one silently breaks a route. `fetch-stations.mjs` never renames for that
+reason; it reports what it could not match and leaves it alone.
 
 ## Adding a place
 
-Append to `PLACES`:
+Append to `PLACES` in `src/data/places.js`:
 
 ```js
 { id:"shortid", city:"seoul", cluster:"Jongno · palaces & Ikseon-dong",
@@ -70,19 +89,19 @@ A new Seoul spot usually needs nothing else — see below.
 
 When you pick a spot, the page builds the journey from the hotel:
 
-1. **Which station you get off at** — `offStationFor()`. `PLACE_OFF[id]` wins if
-   it is set. Otherwise it takes the nearest station that has a `ROUTES` entry,
-   provided the walk is under `AUTO_WALK_MAX` (1100m, sized to the longest
-   hand-set walk). Hotels get nothing; that is where the ride starts.
+1. **Which station you get off at** — `offStationFor()` in `lib/journey.js`.
+   `PLACE_OFF[id]` wins if it is set. Otherwise it takes the nearest station that has
+   a `ROUTES` entry, provided the walk is under `AUTO_WALK_MAX` (1100m, sized to the
+   longest hand-set walk). Hotels get nothing; that is where the ride starts.
 2. **Which lines to take** — `ROUTES[station]`, a list of `{line, to}`. The last
    `to` is where you get off, earlier ones are transfers.
-3. **The shape of the track** — traced, never stored. `railGraph()` turns the
-   line's polylines into a graph, `ride()` runs Dijkstra between the two
+3. **The shape of the track** — traced, never stored. `railGraph()` in `lib/rail.js`
+   turns the line's polylines into a graph, `ride()` runs Dijkstra between the two
    stations, and the walk is a straight line to the door.
 
 So adding a Seoul spot near an existing station needs no table edit. Add
-`PLACE_OFF[id]` only when the nearest station is not the one you would really
-use. Add to `ROUTES` and `STATION_COORDS` when a station is genuinely new.
+`PLACE_OFF[id]` only when the nearest station is not the one you would really use.
+Add to `ROUTES` and `STATION_COORDS` when a station is genuinely new.
 
 Only Seoul draws rides. Busan has line geometry but no station table behind it;
 Jeju has no metro. Both are handled, not broken: the card opens, no ride draws.
@@ -97,10 +116,16 @@ index.html?city=seoul&day=2026-09-01&stops=novotel,gyeongbok,bukchon&title=Jongn
 ```
 
 That grammar is a deliberate choice, not a shortcut. Someone can read the day off the
-link, and so can an agent that fetches the deployed URL and cannot run the script: it
-takes the ids out of `stops`, looks each one up in `PLACES` in the same file, and has
-the whole day with every note attached. `#plan-url-spec` says so in machine-readable
-form, and `check-data.mjs` fails if that block drifts from `PLAN_PARAMS`.
+link, and so can an agent that fetches the deployed URL and cannot run the script.
+`build.format` is `"file"` so `index.html` stays a real file at the root of the site
+and every link ever shared keeps resolving.
+
+Two JSON blocks in the page serve that reader: `#plan-url-spec` says how to decode the
+query string, and `#trip-data` publishes `PLACES` and the category table so the ids can
+be resolved without running anything. The second exists **because** the script is
+bundled now — when the page was one file the data was simply there to read, and losing
+that quietly would have broken shared links for everyone but a browser.
+`check-data.mjs` fails if the spec drifts from `PLAN_PARAMS`.
 
 Rotted links degrade rather than break. An id the map no longer has is **kept**, shown
 as its own row and flagged — dropping it would quietly amputate a stop from a link
@@ -137,28 +162,24 @@ you already have. `closedDays()` reads the handful of `Closed Mon` shapes that a
 occur in `meta` — it is not an hours parser and must not become one. Everything else in
 `meta` is shown verbatim and never interpreted.
 
-### The two sentinels
+## The pure half
 
-The planner's pure half is fenced:
+`src/lib/` is the fence. Nothing in it may touch `document`, `window`, `location`,
+`history`, `localStorage` or `navigator`, and `tools/check-data.mjs` fails the build
+if something does. That is what lets `tools/test-plan.mjs` import `plan-core.js`
+straight into node and test it without a browser. Anything that touches the page goes
+in `src/client/` instead.
 
-```js
-/* ==== plan-core:start ==== */   … no DOM, no map, no page state …   /* ==== plan-core:end ==== */
-```
-
-`tools/test-plan.mjs` slices that block straight out of the file and runs it in Node,
-which works only while it stays pure — a `document` or a `currentTab` inside the fence
-fails the test that checks for exactly that. Anything that touches the page goes below
-`plan-core:end`. `geo-core` fences `metres()` for the same reason: the tests measure
-with the page's own arithmetic rather than a near-copy.
-
-One related rule: declare constants **one per statement**. `tools/lib.mjs` finds a
-constant by searching for the literal text `const NAME = `, so a name that only ever
-appears after a comma is invisible to every checker.
+One related rule survives from the single-file days: declare constants **one per
+statement**. `tools/lib.mjs` finds a constant by searching for the literal text
+`const NAME = `, so a name that only ever appears after a comma is invisible to
+`fetch-rail.mjs` and `fetch-stations.mjs`.
 
 ## Before you push
 
 ```sh
-node tools/check-data.mjs      # data consistency; exits non-zero on a problem
+npm run build                  # docs/ is committed; a stale docs/ is what ships
+node tools/check-data.mjs      # data consistency, and the src/lib fence
 node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 ```
@@ -168,26 +189,49 @@ a map, and unit checks do not see a route drawn under a card or a label off the
 edge. Serve it and script a browser:
 
 ```sh
-python3 -m http.server 8000
+npm run dev                    # http://localhost:4321/trip-db/
 ```
 
-Then with Playwright: load the page, call `focus('<place id>')`, wait for the
-draw, and assert on the DOM and on Leaflet's own state (`map.getCenter()`,
-`routeDraw`, `planLayer.getLayers()`, `.rs-tip` rects). Screenshot and look at it. Past
-regressions that only a real browser caught: station labels colliding, the route drawing
-beneath the card, a route framed off-screen, the map moving mid-draw, and plan rows
-whose lines ran together because their spans were never made block.
+### Driving the page
 
-Install Playwright outside the repo — a scratch directory, not here. This project has no
-`package.json` and no `node_modules`, and that is worth keeping.
+Bundled modules export nothing to the console, so `src/client/main.js` publishes a
+handle deliberately:
+
+```js
+window.trip = { focus, select, deselect, setTab, setSideTab, setView,
+                planAdd, planRemove, planToggle, planClear, planReorder, planHref,
+                PLACES, CATS, RAIL,
+                get map(), get railLayer(), get routeLayer(), get routeDraw(),
+                get selectedId(), get currentTab(), get plan(), get planOver() }
+```
+
+With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,
+and assert on the DOM and on Leaflet's own state (`trip.map.getCenter()`,
+`trip.routeDraw`, `.rs-tip` rects). Screenshot and look at it. Past regressions that
+only a real browser caught: station labels colliding, the route drawing beneath the
+card, a route framed off-screen, the map moving mid-draw, and plan rows whose lines
+ran together because their spans were never made block.
+
+Install Playwright outside the repo — a scratch directory, not here. Chromium is
+usually already on the machine; point `executablePath` at it rather than downloading
+another one.
 
 ## Conventions worth keeping
 
-- **Themes**: every colour goes through a token on `:root`, overridden under
-  `body.night`. Never hard-code a hex in a rule that both themes use.
-- **Mobile**: one media query at 780px. The map and list swap rather than stack.
+- **Themes**: every colour goes through a token on `:root` in `styles/tokens.css`,
+  overridden under `body.night`. Never hard-code a hex in a rule that both themes use.
+- **Global CSS, never scoped.** The sheet is built on cross-cutting state classes —
+  `body.night`, `body.planning`, `body.routing`, `.side[data-sidetab]` — which Astro's
+  scoping would rewrite out from under it. The stylesheets are imported in cascade
+  order by the layout; keep them that way.
+- **Mobile**: one media query at 780px, in `styles/mobile.css`. The map and list swap
+  rather than stack.
 - **Animation**: honour `prefers-reduced-motion` — the route draws complete and
   static instead of animating.
 - **Failure**: degrade, do not break. Missing tiles, no route, an unknown
   station — the page keeps working and says what it can.
+- **Vendoring**: Leaflet and both fonts live in `public/vendor/`, so the page pulls
+  nothing from a CDN. The only thing fetched at runtime is street tiles from CARTO,
+  and losing them degrades to pins-on-a-blank-canvas with a banner saying so. Leaflet
+  stays a plain `<script>` setting `window.L`; that is what keeps `libFail()` honest.
 - **Comments** explain why a thing is the way it is, not what the line does.

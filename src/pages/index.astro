@@ -1,0 +1,19 @@
+---
+import FieldMap from "../layouts/FieldMap.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import Sidebar from "../components/Sidebar.astro";
+import MapPane from "../components/MapPane.astro";
+import PlanUrlSpec from "../components/PlanUrlSpec.astro";
+import TripData from "../components/TripData.astro";
+---
+<FieldMap>
+  <div class="app">
+    <SiteHeader />
+    <div class="body">
+      <Sidebar />
+      <MapPane />
+    </div>
+  </div>
+  <PlanUrlSpec />
+  <TripData />
+</FieldMap>

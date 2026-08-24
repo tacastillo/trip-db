@@ -1,21 +1,22 @@
 # tools
 
-Maintenance scripts for the data vendored inside `index.html`. Plain Node
-(18+), no dependencies, no `npm install` — a fresh clone can run them.
+Maintenance scripts for the data vendored under `src/data/`. Plain Node (18+),
+no dependencies of their own — they import the data modules directly, so they run
+against a fresh clone with nothing installed.
 
-**These are not a build step.** The page ships with its data inside it and never
-runs any of this. The scripts exist so the vendored data can be *regenerated*
-instead of hand-patched, which is the only way it stays consistent as lines
-extend and stations move.
+**These are not part of the build.** The page ships with its data inside it and
+never runs any of this at load time. The scripts exist so the vendored data can be
+*regenerated* instead of hand-patched, which is the only way it stays consistent as
+lines extend and stations move.
 
 | Script | Network | What it does |
 | --- | --- | --- |
-| `check-data.mjs` | no | Checks every table in `index.html` against every other. Exits non-zero on a problem. |
-| `test-pipeline.mjs` | no | Exercises the geometry pipeline against the data already in the file. |
-| `test-plan.mjs` | no | Runs the day planner's pure core, lifted out of `index.html` between its sentinel comments. |
+| `check-data.mjs` | no | Checks every table in `src/data/` against every other, and holds `src/lib/` to being free of the DOM. Exits non-zero on a problem. |
+| `test-pipeline.mjs` | no | Exercises the geometry pipeline against the data already in `src/data/subway.js`. |
+| `test-plan.mjs` | no | Runs the day planner's pure core by importing `src/lib/plan-core.js`. |
 | `fetch-rail.mjs` | yes | Rebuilds `SUBWAY` / `SUBWAY_BUSAN` from OpenStreetMap. |
 | `fetch-stations.mjs` | yes | Refreshes `STATION_COORDS` from OpenStreetMap. |
-| `lib.mjs` | — | Shared: reading and writing the constants, geometry, Overpass. |
+| `lib.mjs` | — | Shared: which module holds which constant, reading and writing them, geometry, Overpass. |
 
 Both fetchers are **dry-run by default**. They print what they found and what
 would change; nothing is written without `--write`.
@@ -24,25 +25,24 @@ would change; nothing is written without `--write`.
 
 ```sh
 node tools/check-data.mjs        # after editing PLACES, and before pushing
-node tools/test-plan.mjs         # after touching anything between the plan-core sentinels
+node tools/test-plan.mjs         # after touching anything in src/lib/
 node tools/test-pipeline.mjs     # after touching anything in lib.mjs
 ```
 
-`test-plan.mjs` slices the planner's pure half straight out of `index.html` and evaluates
-it here, so it covers the URL grammar, the Naver links, the ordering checks and the
-suggestions without a browser. It also asserts that block never reached for the DOM — if
-it had, none of the rest could run. What it cannot see is the pane, the dragging or the
-overlay; drive the page for those.
+`test-plan.mjs` imports `src/lib/plan-core.js` straight into node, so it covers the URL
+grammar, the Naver links, the ordering checks and the suggestions without a browser. That
+only works while `src/lib/` stays free of the DOM, which `check-data.mjs` is what enforces.
+What neither can see is the pane, the dragging or the overlay; drive the page for those.
 
 `check-data.mjs` also prints ride coverage per leg, which is the quickest way to
 see whether a change to the routing tables actually reached the map:
 
 ```
 coverage
-  Seoul   66/67  spots draw a ride  (1 hotel, where the ride starts)
-  Jeju     0/32  spots draw a ride  (1 hotel, where the ride starts)  — no rail data for this leg
-  Busan    0/22  spots draw a ride  (1 hotel, where the ride starts)
-  16 of those picked a station automatically; longest walk 713m of 1100m allowed
+  Seoul   73/75  spots draw a ride  (1 hotel, where the ride starts)
+  Jeju     0/38  spots draw a ride  (1 hotel, where the ride starts)  — no rail data for this leg
+  Busan    0/24  spots draw a ride  (1 hotel, where the ride starts)
+  23 of those picked a station automatically; longest walk 960m of 1100m allowed
 ```
 
 ## Refreshing the subway geometry
@@ -89,5 +89,6 @@ constant.
 ## Adding a city to the fetchers
 
 Add an entry to `CITIES` in both fetch scripts: a centre, a clip radius, and for
-rail, the lines with their refs, labels, colours and Overpass filters. Then wire
-the constant into `RAIL` in `index.html`.
+rail, the lines with their refs, labels, colours and Overpass filters. Register the
+new constant's file in `SOURCES` in `lib.mjs`, then wire it into `RAIL` in
+`src/data/rail.js`.

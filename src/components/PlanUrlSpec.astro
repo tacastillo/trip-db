@@ -1,0 +1,9 @@
+---
+/* The whole day plan lives in this page's query string. This block is here so that an
+   agent which fetches the URL but cannot run the script can still read the itinerary:
+   take the ids out of ?stops=, look each one up in the trip data published alongside
+   it, and you have the day, in order, with every note the trip owner wrote.
+   tools/check-data.mjs fails if what this documents drifts from PLAN_PARAMS. */
+import spec from "../data/plan-url-spec.json";
+---
+<script type="application/json" id="plan-url-spec" set:html={JSON.stringify(spec, null, 2)}></script>
