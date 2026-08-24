@@ -106,11 +106,14 @@ Rotted links degrade rather than break. An id the map no longer has is **kept**,
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
 
-Nothing is drawn between the stops on the map, and that is deliberate. A planned stop
-takes its number onto its own pin and everything else steps back — `body.planning` fades
-the other markers and `railFade()` drops the lines — so the order reads without a line
-through it. A permanent connector was only ever a straight streak across a city it said
-nothing true about. Hovering a hop row calls `showHop()` for that one link.
+**Nothing is ever drawn between two stops on the map.** A planned stop takes its number
+onto its own pin and everything else steps back — `body.planning` fades the other markers
+and `railFade()` drops the rail — so the order reads on its own. There is no connector,
+no overlay layer, and none should be added: a line from one stop to the next is a
+straight streak across a city that says nothing you can act on. It is not a route, not a
+walk and not a ride, because `ROUTES` is rooted at the hotel and there is no
+station-to-station geometry to trace. What you can act on lives in the hop row instead —
+the distance, the line where the geometry proves one, and the Naver link.
 
 `hopLine()` names the line for a hop, but only when both stations sit on one line and no
 transfer has to be guessed. That restraint is the whole point: `STATION_COORDS` holds the

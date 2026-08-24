@@ -231,7 +231,6 @@
     border-radius:20px; padding:2px 8px;}
   .phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10px;}
   .phop-s{color:var(--muted);}
-  .phop:focus-visible{outline:2px solid var(--accent); outline-offset:-2px; border-radius:6px;}
   .phop-a:hover{border-color:var(--accent);}
 
   .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
@@ -258,10 +257,6 @@
   .pact:hover{border-color:var(--accent); color:var(--accent);}
   .pact.done{border-color:var(--ok); color:var(--ok);}
 
-  /* the numbered chip beside a planned pin */
-  .pnum{display:flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%;
-    border:2px solid #fff; color:#fff; font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:10px;
-    box-shadow:0 1px 4px rgba(0,0,0,.35); font-variant-numeric:tabular-nums;}
 
   .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
     background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
@@ -1404,11 +1399,6 @@ function initMap(){
   railLayer = L.layerGroup();
   if (railOn) railLayer.addTo(map);
   drawRail();
-  // its own pane and group: clearRoute() empties routeLayer between rides, and the
-  // day's shape has to survive that. Under routeLayer, so a traced ride draws over it.
-  map.createPane("planPane").style.zIndex = 450;
-  planRenderer = L.canvas({ padding: 0.4, pane: "planPane" });
-  planLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
   map.on("click", () => { if (selectedId) deselect(); });
   // station labels pick their side from the map centre, which panning moves out from under them
@@ -1432,7 +1422,6 @@ function initMap(){
   // opening a plan link and landing on the whole city hides the very thing the link
   // was for, so a day in the URL frames itself instead
   if (planStops().some(s => s.place)) fitPlan(); else fitCity();
-  drawPlanOverlay();
 
   // Tiles are the one thing still fetched live. Everything else ships with the page,
   // so losing them degrades to pins-on-a-blank-canvas rather than a broken map.
@@ -1925,7 +1914,6 @@ let plan = { city:"seoul", ids:[], day:"", title:"", extra:[] };
 let planOver = 0;          // stops a too-long link had to drop, so the pane can say so
 let sideTab = "places";
 let placeQuery = "";
-let planLayer = null, planRenderer = null;
 let planDragging = false, planRenderQueued = false, planDragFrom = -1;
 let urlWritable = true, urlTimer = null, planFull = false;
 
@@ -1973,7 +1961,6 @@ function afterPlanChange(){
   renderPlan();
   syncMarkers();
   drawRail();
-  drawPlanOverlay();
   refreshPlanControls();
   const c = document.getElementById("planCount");
   if (c) c.textContent = plan.ids.length || "";
@@ -2071,7 +2058,7 @@ function planHopHtml(leg){
     ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
        <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
     : "";
-  return `<div class="phop" data-hop="${leg.i}" tabindex="0"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
+  return `<div class="phop"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
     ${line}<a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
 }
 
@@ -2153,11 +2140,6 @@ function wirePlanPane(el){
   on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
   on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
   on("[data-drag]", "pointerdown", planDragStart);
-  // the link between two stops appears while you are looking at that hop, and not before
-  on("[data-hop]", "mouseenter", e => showHop(+e.currentTarget.dataset.hop));
-  on("[data-hop]", "mouseleave", hideHop);
-  on("[data-hop]", "focusin", e => showHop(+e.currentTarget.dataset.hop));
-  on("[data-hop]", "focusout", hideHop);
 
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
@@ -2235,31 +2217,13 @@ function planDragStart(e){
 
 /* ---------------- the plan on the map ---------------- */
 
-/* Nothing is drawn between the stops at rest, and that is the point. The numbered pins
-   carry the order on their own once everything else steps back, and a permanent line
-   between them was only ever a straight streak across a city it says nothing true
-   about: ROUTES is rooted at the hotel, so there is no station-to-station geometry to
-   trace between two stops. Hovering a hop in the pane draws that one link, on demand. */
-function drawPlanOverlay(){
-  if (!planLayer) return;
-  planLayer.clearLayers();
-}
-
-/** The single hop between stop i and i+1, while the pane row for it is under the
-    pointer. Drawn as a thread, not a route — see the note above. */
-function showHop(i){
-  if (!planLayer || currentTab !== plan.city) return;
-  const stops = planStops();
-  const a = stops[i] && stops[i].place, b = stops[i + 1] && stops[i + 1].place;
-  planLayer.clearLayers();
-  if (!a || !b) return;
-  const pts = [[a.lat, a.lng], [b.lat, b.lng]];
-  L.polyline(pts, { color: night ? "#15120D" : "#ffffff", weight: 6, opacity: .5,
-    lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
-  L.polyline(pts, { color: cssVar("--accent"), weight: 2.5, opacity: .95, dashArray: "2 8",
-    lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
-}
-function hideHop(){ if (planLayer) planLayer.clearLayers(); }
+/* Nothing is drawn between the stops on the map, and nothing should be. A line from
+   one stop to the next is a straight streak across a city that says nothing you can
+   act on: ROUTES is rooted at the hotel, so there is no station-to-station geometry to
+   trace, and a straight line is not a route, a walk, or a ride. The pins carry their
+   own numbers once the rest of the map steps back, and the hop rows in the pane carry
+   the distance, the line where the geometry proves one, and the Naver link — which is
+   the part you can actually use. */
 function fitPlan(){
   if (!map) return;
   const pts = planStops().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);
@@ -2307,7 +2271,7 @@ function setTab(id){
   // switching city never discards a day; an empty plan just follows you
   if (!plan.ids.length) plan.city = id;
   renderPlan();
-  drawPlanOverlay();
+  syncMarkers();
   const hasRail = (RAIL[id] || []).length > 0;
   const rt = document.getElementById("railToggle");
   const rl = document.getElementById("raillegend");
@@ -2333,7 +2297,6 @@ const nightBtn = document.getElementById("nightToggle");
 if (nightBtn) nightBtn.onclick = () => {
   night = !night;
   document.body.classList.toggle("night", night);
-  drawPlanOverlay();          // the connector casing is painted in the page background
   nightBtn.textContent = night ? "☀️ Day" : "🌙 Night";
   setBaseLayer();
   drawRail();

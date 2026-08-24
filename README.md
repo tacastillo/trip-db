@@ -28,8 +28,9 @@ no metro to ride.
 The sidebar has a second tab. Add spots from the map card or from the list — there is a
 search box now — and they stack up into an ordered day, draggable into a different
 order. On the map a planned stop keeps its category colour but carries its number
-instead of its emoji, and everything else fades back, so the day reads on its own
-without a line drawn through it. Hovering a hop in the list shows that one link.
+instead of its emoji, and everything else fades back, so the day reads on its own.
+Nothing is drawn between the stops — a straight line between two of them is not a route
+you could follow, and the useful part is in the list.
 
 The day lives entirely in the address bar, so a bookmark is the whole save mechanism:
 
