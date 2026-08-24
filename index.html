@@ -31,12 +31,16 @@
   :root{
     --paper:#F6F2EA; --surface:#FFFFFF; --ink:#1C1A17; --muted:#7A7062;
     --line:#E7E0D2; --line-2:#EFEAE0; --accent:#C8432A;
+    /* An input has to read as inset, so it is off --surface rather than on it; and a
+       plan that saves you a kilometre wants a colour that isn't the warning red. */
+    --field:#FBF8F2; --ok:#2E7D52; --warn:#9C5A16;
   }
 
   /* night mode */
   body.night{
     --paper:#15120D; --surface:#1E1A14; --ink:#F1EBDF; --muted:#9C9081;
     --line:#342E25; --line-2:#2A241D; --accent:#E2604A;
+    --field:#161310; --ok:#5FBE8B; --warn:#D9A05B;
   }
   body.night #map{background:#0d0b08;}
   body.night .item:hover{background:#241f18;}
@@ -44,7 +48,6 @@
   body.night .leaflet-container{background:#0d0b08;}
   body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
   body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
-  body.night .soon-hi{background:#22304d; color:#9db4ea;}
   body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
   body.carded .tilebanner{top:auto; bottom:14px;}
 
@@ -74,7 +77,6 @@
   .tab-d{font-size:11.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums;}
   .tab.active{color:var(--ink);}
   .tab.active::after{content:''; position:absolute; left:0; right:0; bottom:-1px; height:3px; background:var(--accent); border-radius:3px;}
-  .soon{font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; font-weight:600; color:var(--muted); border:1px solid var(--line); border-radius:20px; padding:2px 7px;}
 
   /* body */
   .body{flex:1; min-height:0; display:flex;}
@@ -130,24 +132,127 @@
   .pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
   .pop-note{font-size:12.5px; color:var(--ink);}
   .pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
+  .card-plan{margin-top:10px;}
 
   /* tile fallback banner */
   .tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
     background:rgba(28,26,23,.86); color:#F6F2EA; font-size:12px; line-height:1.4; padding:9px 14px; border-radius:9px;
     box-shadow:0 6px 20px rgba(0,0,0,.25); display:none; text-align:center;}
 
-  /* coming soon */
-  .soonpane{flex:1; display:none; align-items:center; justify-content:center; padding:30px;}
-  .soonpane.show{display:flex;}
-  .soon-card{max-width:420px; text-align:center;}
-  .soon-k{font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); font-weight:600;}
-  .soon-t{font-family:'Bricolage Grotesque',sans-serif; font-size:30px; font-weight:700; margin:6px 0 2px;}
-  .soon-dt{font-size:14px; color:var(--muted); font-variant-numeric:tabular-nums;}
-  .soon-hotel{margin-top:22px; border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:16px 18px; display:inline-flex; align-items:center; gap:12px; text-align:left;}
-  .soon-hi{width:38px; height:38px; border-radius:9px; background:#eef0fb; color:#3949AB; display:flex; align-items:center; justify-content:center; font-size:18px; flex:none;}
-  .soon-hk{font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600;}
-  .soon-hn{font-size:15px; font-weight:600;}
-  .soon-note{font-size:12.5px; color:var(--muted); margin-top:20px; line-height:1.5;}
+
+  /* ---- day planner ---- */
+  /* Places and Plan are two panes of the same sidebar, not a third column: that way
+     the mobile map/list swap below already covers the planner with no new rules. */
+  .sidetabs{display:flex; gap:4px; padding:9px 12px 0;}
+  .sidetab{flex:1; border:none; background:none; cursor:pointer; font-family:'Bricolage Grotesque',sans-serif;
+    font-weight:600; font-size:13px; color:var(--muted); padding:8px 6px; border-radius:8px 8px 0 0;
+    display:flex; align-items:center; justify-content:center; gap:6px; line-height:1; border-bottom:2px solid transparent;}
+  .sidetab:hover{color:var(--ink);}
+  .sidetab.on{color:var(--ink); border-bottom-color:var(--accent);}
+  .st-ct{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .sidetab.on .st-ct{color:var(--accent);}
+
+  #side[data-sidetab="plan"] .sum,
+  #side[data-sidetab="plan"] .searchwrap,
+  #side[data-sidetab="plan"] .legend,
+  #side[data-sidetab="plan"] .list{display:none;}
+  #side[data-sidetab="places"] .planpane{display:none;}
+
+  /* The search box lives outside #list on purpose — renderList() empties #list on
+     every keystroke, and an input inside it would lose focus mid-word. */
+  .searchwrap{padding:11px 14px 0; position:relative;}
+  .searchbox{width:100%; font-family:inherit; font-size:13px; color:var(--ink); background:var(--field);
+    border:1px solid var(--line); border-radius:9px; padding:8px 30px 8px 11px; line-height:1.2; -webkit-appearance:none;}
+  .searchbox::placeholder{color:var(--muted);}
+  .searchbox::-webkit-search-decoration,.searchbox::-webkit-search-cancel-button{-webkit-appearance:none;}
+  .searchbox:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
+  .searchclear{position:absolute; right:19px; top:50%; transform:translateY(-50%); border:none; background:none;
+    cursor:pointer; color:var(--muted); font-size:14px; line-height:1; padding:4px 6px; border-radius:6px; display:none;}
+  .searchclear.on{display:block;}
+  .searchclear:hover{color:var(--ink); background:var(--line-2);}
+
+  /* a row is a button, so the add control has to be its sibling, never its child */
+  .itemrow{display:flex; align-items:flex-start;}
+  .itemrow .item{flex:1; min-width:0;}
+  .planbtn{flex:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
+    font-family:inherit; font-size:14px; line-height:1; width:26px; height:26px; border-radius:8px; margin:9px 12px 0 0;
+    display:flex; align-items:center; justify-content:center; padding:0;}
+  .planbtn:hover{border-color:var(--accent); color:var(--accent);}
+  .planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff;}
+  .planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
+
+  .planpane{flex:1; min-height:0; overflow-y:auto; padding:2px 0 16px;}
+  .phead{padding:12px 16px 10px; border-bottom:1px solid var(--line-2); display:flex; flex-direction:column; gap:7px;}
+  .ptitle{width:100%; font-family:'Bricolage Grotesque',sans-serif; font-size:15px; font-weight:700; color:var(--ink);
+    background:var(--field); border:1px solid var(--line); border-radius:8px; padding:7px 10px; -webkit-appearance:none;}
+  .ptitle:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
+  .pdate{font-family:inherit; font-size:12px; color:var(--ink); background:var(--field); border:1px solid var(--line);
+    border-radius:8px; padding:6px 9px; -webkit-appearance:none;}
+  .pdate:focus{outline:none; border-color:var(--accent);}
+  .pmeta{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
+  .pmeta b{color:var(--accent);}
+
+  .pstop{display:flex; gap:9px; align-items:flex-start; padding:9px 14px 9px 10px;}
+  .pstop.dragging{opacity:.5;}
+  .pstop.dropbefore{box-shadow:inset 0 2px 0 var(--accent);}
+  .pdrag{flex:none; border:none; background:none; color:var(--muted); cursor:grab; font-size:13px; line-height:1;
+    padding:6px 2px; border-radius:6px; touch-action:none;}
+  .pdrag:active{cursor:grabbing;}
+  .pnum-i{flex:none; width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:10.5px; font-weight:700; color:#fff; margin-top:1px; box-shadow:0 1px 2px rgba(0,0,0,.2);
+    font-variant-numeric:tabular-nums;}
+  .pbody{flex:1; min-width:0; text-align:left; background:none; border:none; padding:0; cursor:pointer;
+    color:var(--ink); font-family:inherit; display:block;}
+  .pname{display:block; font-size:13.5px; font-weight:600; line-height:1.25;}
+  .phood{display:block; font-size:11px; color:var(--muted); margin-top:1px;}
+  .pnote{display:block; font-size:11.5px; color:var(--muted); line-height:1.35; margin-top:2px;}
+  .pmetaline{display:block; font-size:10.5px; color:var(--accent); font-weight:600; margin-top:3px;}
+  .pstop.gone .pname{color:var(--muted); font-style:italic;}
+  .pctrl{flex:none; display:flex; flex-direction:column; gap:2px;}
+  .pmove{border:none; background:none; color:var(--muted); cursor:pointer; font-size:9px; line-height:1;
+    padding:3px 5px; border-radius:5px;}
+  .pmove:hover:not(:disabled){color:var(--ink); background:var(--line-2);}
+  .pmove:disabled{opacity:.25; cursor:default;}
+  .pdrop{border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1;
+    padding:3px 5px; border-radius:5px;}
+  .pdrop:hover{color:var(--accent); background:var(--line-2);}
+
+  /* The hop between two stops. There is no rail time here on purpose — see naverDirUrl. */
+  .phop{display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:2px 14px 6px 40px; font-size:11px; color:var(--muted);
+    font-variant-numeric:tabular-nums;}
+  .phop-r{width:1px; height:11px; background:var(--line); margin-left:-14px;}
+  .phop-a{color:var(--accent); text-decoration:none; font-weight:600; border:1px solid var(--line);
+    border-radius:20px; padding:2px 8px;}
+  .phop-a:hover{border-color:var(--accent);}
+
+  .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
+    background:var(--field); padding:8px 10px; font-size:11.5px; line-height:1.4; color:var(--ink);}
+  .pcaution.closed{border-left-color:var(--accent);}
+  .pcaution-fix{margin-top:6px; border:1px solid var(--ok); background:none; color:var(--ok); cursor:pointer;
+    font-family:inherit; font-size:11px; font-weight:600; border-radius:20px; padding:3px 10px;}
+  .pcaution-fix:hover{background:var(--ok); color:#fff;}
+
+  .psec{padding:14px 16px 4px;}
+  .psec-h{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:600; color:var(--muted);
+    display:flex; align-items:center; gap:8px;}
+  .psec-h::after{content:''; flex:1; height:1px; background:var(--line-2);}
+  .psug{display:flex; gap:9px; align-items:flex-start; width:100%; text-align:left; background:none; border:none;
+    cursor:pointer; color:var(--ink); font-family:inherit; padding:7px 16px;}
+  .psug:hover{background:var(--field);}
+  .psug .pindot{margin-top:1px;}
+  .psug .it-note,.psug-d{display:block;}
+  .psug-d{font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px;}
+  .pempty{padding:22px 20px; color:var(--muted); font-size:12.5px; line-height:1.5; text-align:center;}
+  .pacts{display:flex; flex-wrap:wrap; gap:6px; padding:12px 14px 4px;}
+  .pact{border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:inherit;
+    font-size:11.5px; font-weight:500; border-radius:20px; padding:6px 11px; line-height:1;}
+  .pact:hover{border-color:var(--accent); color:var(--accent);}
+  .pact.done{border-color:var(--ok); color:var(--ok);}
+
+  /* the numbered chip beside a planned pin */
+  .pnum{display:flex; align-items:center; justify-content:center; width:19px; height:19px; border-radius:50%;
+    border:2px solid #fff; color:#fff; font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,.35); font-variant-numeric:tabular-nums;}
 
   .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
     background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
@@ -248,6 +353,15 @@
     .list{padding-bottom:max(18px, env(safe-area-inset-bottom)); overscroll-behavior:contain;
       -webkit-overflow-scrolling:touch;}
     .item{padding:12px 16px; gap:11px;}
+    .sidetab{font-size:13.5px; min-height:40px;}
+    /* under 16px iOS zooms the whole page the moment the field takes focus */
+    .searchbox,.ptitle{font-size:16px;}
+    .planpane{padding-bottom:max(18px, env(safe-area-inset-bottom));
+      overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+    .pstop{padding:12px 14px 12px 8px;}
+    .planbtn,.pmove,.pdrop,.pdrag{min-width:34px; min-height:34px;}
+    .planbtn{width:34px; height:34px;}
+    .psug{padding:11px 16px;}
     .it-name{font-size:14.5px;}
     .it-note{font-size:12.5px; margin-top:3px;}
 
@@ -297,13 +411,23 @@
   </header>
 
   <div class="body">
-    <aside class="side" id="side">
+    <aside class="side" id="side" data-sidetab="places">
+      <div class="sidetabs" id="sidetabs">
+        <button class="sidetab on" id="tabPlaces" aria-pressed="true">📋 Places</button>
+        <button class="sidetab" id="tabPlan" aria-pressed="false">🗓️ Plan <span class="st-ct" id="planCount"></span></button>
+      </div>
       <div class="sum">
         <div class="sum-n"><b id="shownCount">40</b> spots · <span id="hoodCount">10</span> neighborhoods</div>
         <div class="sum-sub" id="sumSub"></div>
       </div>
+      <div class="searchwrap">
+        <input class="searchbox" id="search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Search spots, notes, neighbourhoods" aria-label="Search spots" />
+        <button class="searchclear" id="searchClear" title="Clear" aria-label="Clear search">✕</button>
+      </div>
       <div class="legend" id="legend"></div>
       <div class="list" id="list"></div>
+      <div class="planpane" id="planpane"></div>
     </aside>
 
     <div class="mapwrap" id="mapwrap">
@@ -313,9 +437,41 @@
       <div class="raillegend" id="raillegend"></div>
     </div>
 
-    <div class="soonpane" id="soonpane"></div>
   </div>
 </div>
+
+<!-- The whole day plan lives in this page's query string. This block is here so that an
+     agent which fetches the URL but cannot run the script can still read the itinerary:
+     take the ids out of ?stops=, look each one up in the PLACES array below, and you have
+     the day, in order, with every note the trip owner wrote. -->
+<script type="application/json" id="plan-url-spec">
+{
+  "version": 1,
+  "what": "A one-day plan for this trip map, carried entirely in the URL query string. Nothing is stored on a server.",
+  "example": "index.html?city=seoul&day=2026-09-01&stops=gwangjang,onion,cheongsudang&title=Jongno%20crawl",
+  "params": {
+    "city": "one of the leg ids: seoul | jeju | busan",
+    "stops": "comma-separated place ids, in visiting order; duplicates collapse; at most 12",
+    "day": "YYYY-MM-DD. A label, and the only thing that decides which weekday closures apply. No schedule is computed from it.",
+    "title": "percent-encoded free text, at most 60 characters"
+  },
+  "unknownParamsArePreserved": true,
+  "unknownStopIdsArePreserved": true,
+  "resolve": {
+    "how": "Each id in ?stops= is the `id` field of an entry in the PLACES array literal, declared in the single inline script element in this file.",
+    "placeFields": ["id", "city", "cluster", "cat", "lat", "lng", "name", "note", "meta (optional)", "added (optional)"],
+    "categories": "The CATS object literal in the same script maps `cat` to {label, emoji, color}.",
+    "hoursCaveat": "There are no hours, price or duration fields. Hours and prices appear only as prose inside `meta` or `note`, e.g. \"Closed Mon\" or \"2,500 won, closes 5:10pm\". Quote them; do not parse them into a schedule."
+  },
+  "notRepresented": [
+    "arrival times, dwell times and durations of any kind",
+    "rail time between two stops - the routing table is rooted at the hotel only, so no station-to-station time exists anywhere in this file",
+    "how busy anywhere is, or how long the queue runs"
+  ],
+  "directions": "Each consecutive pair of stops gets a Naver Maps directions link built from the two lat/lng pairs. See naverDirUrl() in the inline script for the exact grammar.",
+  "goodUseOfThis": "Read the plan, then add what the map cannot know: when each place is busy, what to order, how long a queue tends to run, and whether the order makes sense for the hours involved."
+}
+</script>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script>
@@ -688,7 +844,8 @@ function renderList(){
   listEl.innerHTML = "";
   let hoods = 0, shown = 0;
   (CLUSTERS[currentTab] || []).forEach(cl => {
-    const items = PLACES.filter(p => p.city === currentTab && p.cluster === cl && active[p.cat]);
+    const items = PLACES.filter(p => p.city === currentTab && p.cluster === cl && active[p.cat]
+                                     && matchesQuery(p, placeQuery));
     if (!items.length) return;
     hoods++; shown += items.length;
     const head = document.createElement("div");
@@ -707,9 +864,27 @@ function renderList(){
           ${p.meta ? `<span class="it-meta">${p.meta}</span>` : ""}
         </span>`;
       b.onclick = () => focus(p.id);
-      listEl.appendChild(b);
+      // .item is itself a button, so the add control has to be its sibling
+      const add = document.createElement("button");
+      add.className = "planbtn" + (planHas(p.id) ? " on" : "");
+      add.dataset.planAdd = p.id;
+      add.textContent = planHas(p.id) ? "✓" : "+";
+      add.title = planHas(p.id) ? "Remove from the day" : "Add to the day";
+      add.setAttribute("aria-pressed", planHas(p.id) ? "true" : "false");
+      add.onclick = () => planToggle(p.id);
+      const row = document.createElement("div");
+      row.className = "itemrow";
+      row.appendChild(b); row.appendChild(add);
+      listEl.appendChild(row);
     });
   });
+  if (!shown) {
+    const e = document.createElement("div");
+    e.className = "pempty";
+    e.textContent = placeQuery.trim() ? `Nothing matches “${placeQuery.trim()}”.`
+                                      : "Every category is switched off.";
+    listEl.appendChild(e);
+  }
   document.getElementById("shownCount").textContent = shown;
   const vsc = document.getElementById("vsCount"); if (vsc) vsc.textContent = shown;
   document.getElementById("hoodCount").textContent = hoods;
@@ -733,7 +908,9 @@ function cardHtml(p){
     <div class="pop-name">${p.name}</div>
     <div class="pop-hood">${p.cluster}</div>
     <div class="pop-note">${p.note}</div>
-    ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}${routeStripHtml(p)}`;
+    ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}
+    <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
+    ${routeStripHtml(p)}`;
 }
 const cardEl = document.getElementById("card");
 function showCard(p){
@@ -742,6 +919,8 @@ function showCard(p){
   document.body.classList.add("carded");
   cardEl.scrollTop = 0;
   document.getElementById("cardX").onclick = deselect;
+  const cp = document.getElementById("cardPlan");
+  if (cp){ cp.classList.toggle("done", planHas(p.id)); cp.onclick = () => planToggle(p.id); }
 }
 function hideCard(){
   cardEl.classList.remove("show");
@@ -820,12 +999,14 @@ function setBaseLayer(){
    the Line 2 ring closes) and the ride is the shortest walk through
    it — which is what picks the sane way round the loop.
    =========================================================== */
+/* ==== geo-core:start ==== */
 const EARTH_R = 6371000, DEG = Math.PI / 180;
 function metres(a, b){
   const dy = (b[0] - a[0]) * DEG * EARTH_R;
   const dx = (b[1] - a[1]) * DEG * EARTH_R * Math.cos((a[0] + b[0]) / 2 * DEG);
   return Math.hypot(dx, dy);
 }
+/* ==== geo-core:end ==== */
 function lerpPt(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
 /* closest point on segment a–b to c — stations sit between vertices far more
    often than on one, so projecting is what keeps the ride ending at the label */
@@ -928,7 +1109,13 @@ function lineMeta(ref, city){
 /* Rough door-to-door numbers, and honestly rough: Seoul metro averages about
    33 km/h once dwell time is in, a transfer costs a few minutes of stairs and
    platform, and street walking is never the straight line the map draws. */
-const RIDE_KMH = 33, WALK_KMH = 4.6, XFER_MIN = 4, WALK_BEND = 1.3;
+/* One per statement, not one comma-separated line: tools/lib.mjs finds a constant
+   by searching for the literal text `const NAME = `, so a name that only ever
+   appears after a comma is invisible to the checkers. */
+const RIDE_KMH = 33;
+const WALK_KMH = 4.6;
+const XFER_MIN = 4;
+const WALK_BEND = 1.3;
 
 /* hotel → …transfers… → the station you get off at → the door */
 const journeys = {};
@@ -1206,6 +1393,11 @@ function initMap(){
   railLayer = L.layerGroup();
   if (railOn) railLayer.addTo(map);
   drawRail();
+  // its own pane and group: clearRoute() empties routeLayer between rides, and the
+  // day's shape has to survive that. Under routeLayer, so a traced ride draws over it.
+  map.createPane("planPane").style.zIndex = 450;
+  planRenderer = L.canvas({ padding: 0.4, pane: "planPane" });
+  planLayer = L.layerGroup().addTo(map);
   routeLayer = L.layerGroup().addTo(map);
   map.on("click", () => { if (selectedId) deselect(); });
   // station labels pick their side from the map centre, which panning moves out from under them
@@ -1230,7 +1422,10 @@ function initMap(){
     if (selectedId === p.id) markPin(p.id, true);
   });
 
-  fitCity();
+  // opening a plan link and landing on the whole city hides the very thing the link
+  // was for, so a day in the URL frames itself instead
+  if (planStops().some(s => s.place)) fitPlan(); else fitCity();
+  drawPlanOverlay();
 
   // Tiles are the one thing still fetched live. Everything else ships with the page,
   // so losing them degrades to pins-on-a-blank-canvas rather than a broken map.
@@ -1254,12 +1449,14 @@ function syncMarkers(){
   if (!map) return;
   PLACES.forEach(p => {
     const m = markers[p.id]; if (!m) return;
-    if (p.city === currentTab && active[p.cat]) { if (!map.hasLayer(m)) m.addTo(map); }
+    // a planned stop stays on the map whatever the chips say — otherwise its number
+    // in the plan points at a pin that isn't there
+    if (p.city === currentTab && (active[p.cat] || planHas(p.id))) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
   // filtering the selected pin away shouldn't leave its card and ride stranded
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
-  if (sel && !(sel.city === currentTab && active[sel.cat])) deselect();
+  if (sel && !(sel.city === currentTab && (active[sel.cat] || planHas(sel.id)))) deselect();
 }
 
 function markPin(id, on){
@@ -1294,6 +1491,722 @@ function focus(id){
   } else select(id);
 }
 
+
+/* ---------------- day plan: the pure core ---------------- */
+/* ==== plan-core:start ==== */
+/* Everything between these sentinels is pure. It reads the data tables and its own
+   arguments and nothing else — no document, no map, no history, no mutable page
+   state. tools/test-plan.mjs slices this block straight out of the file and runs it
+   in Node, which keeps working only for as long as that stays true. */
+
+/* A plan lives in the query string and nowhere else. Twelve stops keeps the link
+   pasteable and keeps the 2-opt pass below trivially cheap. */
+const PLAN_MAX_STOPS = 12;
+const PLAN_TITLE_MAX = 60;
+const PLAN_PARAMS = { city:"city", stops:"stops", day:"day", title:"title" };
+
+/* Suggestions. The radius is deliberately tighter than AUTO_WALK_MAX: that one asks
+   "could you walk this from a station", this one asks "is this near enough that you'd
+   tack it on", which is a shorter walk. */
+const NEAR_RADIUS_M = 900;
+const NEAR_MAX = 6;
+const NEAR_CLUSTER_BONUS = 0.35, NEAR_NEW_CLUSTER_PENALTY = 0.15;
+const NEAR_VARIETY_BONUS = 0.12, NEAR_NEW_PLACE_BONUS = 0.05;
+
+/* Two guards on the backtracking warning, for the reason check-data.mjs pairs its
+   dogleg ratio with an absolute: the fraction alone cries wolf on a tight plan, the
+   absolute alone stays quiet on a sprawling one. */
+const SWAP_GAIN_M = 250, SWAP_GAIN_FRAC = 0.08;
+const REORDER_MAX_PASSES = 8;
+
+/* Past this, "walk it" stops being advice. */
+const HOP_WALKABLE_M = 1200;
+
+const DOW = ["mon","tue","wed","thu","fri","sat","sun"];
+const DOW_LABEL = { mon:"Monday", tue:"Tuesday", wed:"Wednesday", thu:"Thursday",
+                    fri:"Friday", sat:"Saturday", sun:"Sunday" };
+
+/** Metres as the rest of the page words them. */
+function fmtM(m){
+  return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+/** "2026-09-01" -> "tue". Empty for anything that isn't a real calendar date. */
+function planDow(day){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day || "");
+  if (!m) return "";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  // Date.UTC rolls 2026-13-45 over into next year rather than refusing it
+  if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return "";
+  return DOW[(d.getUTCDay() + 6) % 7];
+}
+
+/* The only shapes that actually occur in meta: "Closed Mon", "Closed Mon-Tue",
+   "Closed Sun/Mon", "Closed Tue · Catchtable". A dash is a range, a slash or comma is
+   a list. Anything else is left alone and shown verbatim — this reads the handful of
+   forms the trip notes use, it is not a hours parser, and it must never become one. */
+const CLOSED_RE = /^closed\s+((?:mon|tue|wed|thu|fri|sat|sun)(?:\s*[–—\-\/,&]\s*(?:mon|tue|wed|thu|fri|sat|sun))*)/i;
+function closedDays(meta){
+  const m = CLOSED_RE.exec(String(meta || "").trim());
+  if (!m) return [];
+  const names = m[1].toLowerCase().match(/mon|tue|wed|thu|fri|sat|sun/g) || [];
+  const range = /[–—\-]/.test(m[1]) && names.length === 2;
+  if (!range) return names;
+  const a = DOW.indexOf(names[0]), b = DOW.indexOf(names[1]);
+  if (a < 0 || b < 0) return names;
+  const out = [];
+  for (let i = a; ; i = (i + 1) % 7){ out.push(DOW[i]); if (i === b || out.length > 7) break; }
+  return out;
+}
+
+/** location.search -> a plan. Never reads location itself, so it can be tested. */
+function decodePlanQuery(search, legs, max){
+  const q = new URLSearchParams(String(search || "").replace(/^\?/, ""));
+  const cap = max || PLAN_MAX_STOPS;
+  const legIds = (legs || LEGS).map(l => l.id);
+  const asked = q.get(PLAN_PARAMS.city);
+  const city = legIds.indexOf(asked) >= 0 ? asked : legIds[0];
+  const ids = [];
+  String(q.get(PLAN_PARAMS.stops) || "").split(",").forEach(s => {
+    const id = s.trim();
+    // a repeated id would give one place two numbers on the map and two rows to drag
+    if (id && ids.indexOf(id) < 0) ids.push(id);
+  });
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get(PLAN_PARAMS.day) || "") ? q.get(PLAN_PARAMS.day) : "";
+  const title = String(q.get(PLAN_PARAMS.title) || "").slice(0, PLAN_TITLE_MAX);
+  const mine = Object.keys(PLAN_PARAMS).map(k => PLAN_PARAMS[k]);
+  const extra = [];
+  q.forEach((v, k) => { if (mine.indexOf(k) < 0) extra.push([k, v]); });
+  return { city, ids: ids.slice(0, cap), day, title, over: Math.max(0, ids.length - cap), extra };
+}
+
+/** The inverse. Anything someone else hung on the URL rides along untouched. */
+function encodePlanQuery(plan){
+  const q = new URLSearchParams();
+  (plan.extra || []).forEach(kv => q.append(kv[0], kv[1]));
+  if (plan.city) q.set(PLAN_PARAMS.city, plan.city);
+  if (plan.ids && plan.ids.length) q.set(PLAN_PARAMS.stops, plan.ids.join(","));
+  if (plan.day) q.set(PLAN_PARAMS.day, plan.day);
+  if (plan.title) q.set(PLAN_PARAMS.title, plan.title);
+  // URLSearchParams escapes the separator; the whole point of this grammar is that a
+  // person or an agent can read the ids straight off the link, so put it back.
+  const s = q.toString().replace(/%2C/g, ",");
+  return s ? "?" + s : "";
+}
+
+/** Ids to rows. An id we no longer know stays in the list as a row with no place —
+    dropping it would quietly amputate a stop from someone else's shared link. */
+function resolvePlan(ids, places){
+  const by = {};
+  (places || PLACES).forEach(p => { by[p.id] = p; });
+  return (ids || []).map(id => ({ id, place: by[id] || null }));
+}
+
+/** Free-text search over everything a row actually shows. */
+function matchesQuery(p, q, cats){
+  const s = String(q || "").trim().toLowerCase();
+  if (!s) return true;
+  const cat = (cats || CATS)[p.cat];
+  const hay = [p.name, p.note, p.meta, p.cluster, cat && cat.label].join(" ").toLowerCase();
+  return s.split(/\s+/).every(t => hay.indexOf(t) >= 0);
+}
+
+function hopMetres(a, b){ return metres([a.lat, a.lng], [b.lat, b.lng]); }
+
+/** The same arithmetic buildJourney already uses for its walk to the door. */
+function hopWalk(a, b){
+  const m = hopMetres(a, b) * WALK_BEND;
+  return { m, minutes: Math.max(1, Math.round(m / 1000 / WALK_KMH * 60)) };
+}
+
+function naverMode(a, b){
+  if (hopMetres(a, b) <= HOP_WALKABLE_M) return "walk";
+  return a.city === "jeju" ? "car" : "transit";     // Jeju has no metro to ride
+}
+
+/* Naver's web directions URL is positional, not named: two place blocks separated by
+   "/", then "/-/" (the waypoint slot, empty), then the mode. A block is
+
+       lng,lat,name,,
+
+   and the two trailing empty fields are Naver's own place-id and place-type slots,
+   which we do not have. Note the coordinates are LONGITUDE FIRST — the opposite of
+   every other coordinate pair in this file — so that swap happens here and nowhere
+   else. encodeURIComponent on the name is load-bearing: it turns a comma inside a
+   name into %2C, which the field separator no longer matches.
+
+   This is the one function to change if a link ever stops resolving. Nothing in the
+   environment this was written in could reach Naver to check it. Naver's documented
+   app scheme, for reference, is
+       nmap://route/public|car|walk|bicycle?slat=&slng=&sname=&dlat=&dlng=&dname=&appname= */
+function naverDirUrl(a, b, mode){
+  const block = p => `${p.lng},${p.lat},${encodeURIComponent(p.name)},,`;
+  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${mode || naverMode(a, b)}`;
+}
+function naverAppUrl(a, b, mode){
+  const m = mode || naverMode(a, b);
+  const q = new URLSearchParams({
+    slat:a.lat, slng:a.lng, sname:a.name,
+    dlat:b.lat, dlng:b.lng, dname:b.name, appname:"trip-db",
+  });
+  return `nmap://route/${m === "transit" ? "public" : m}?${q}`;
+}
+
+/** One entry per gap between consecutive stops; null where an end is unresolved. */
+function planLegs(stops){
+  const legs = [];
+  for (let i = 0; i < stops.length - 1; i++){
+    const a = stops[i].place, b = stops[i + 1].place;
+    if (!a || !b){ legs.push(null); continue; }
+    const mode = naverMode(a, b), w = hopWalk(a, b);
+    legs.push({ i, a, b, metres: hopMetres(a, b), mode, walkable: mode === "walk",
+                walkM: w.m, walkMin: w.minutes,
+                naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode) });
+  }
+  return legs;
+}
+
+/** Raw metres end to end. No WALK_BEND: every caller compares two of these, and a
+    constant factor cancels out of a comparison. */
+function pathLen(stops){
+  let t = 0;
+  for (let i = 0; i < stops.length - 1; i++){
+    const a = stops[i].place, b = stops[i + 1].place;
+    if (a && b) t += hopMetres(a, b);
+  }
+  return t;
+}
+
+function planStats(stops){
+  const legs = planLegs(stops);
+  let total = 0, walkM = 0, walkMin = 0, rides = 0;
+  legs.forEach(l => {
+    if (!l) return;
+    total += l.metres;
+    if (l.walkable){ walkM += l.walkM; walkMin += l.walkMin; } else rides++;
+  });
+  return { legs, total, walkM, walkMin, rides, resolved: stops.filter(s => s.place).length };
+}
+
+/** Adjacent pairs that would be shorter the other way round. */
+function backtracks(stops){
+  const base = pathLen(stops), out = [];
+  for (let i = 0; i < stops.length - 1; i++){
+    const swapped = stops.slice();
+    swapped[i] = stops[i + 1]; swapped[i + 1] = stops[i];
+    const gain = base - pathLen(swapped);
+    if (gain > SWAP_GAIN_M && gain > base * SWAP_GAIN_FRAC) out.push({ i, gain });
+  }
+  return out;
+}
+
+/** Nearest-neighbour from wherever you said you start, then 2-opt. Only ever a
+    suggestion: it returns the identity order unless it genuinely beats what you have,
+    so offering it twice in a row cannot make the plan wander. */
+function reorderByProximity(stops){
+  const idx = stops.map((_, i) => i);
+  const before = pathLen(stops);
+  const flat = { order: idx, before_m: before, after_m: before, gain_m: 0 };
+  if (stops.length < 3 || !stops.every(s => s.place)) return flat;
+  const len = o => {
+    let t = 0;
+    for (let i = 0; i < o.length - 1; i++) t += hopMetres(stops[o[i]].place, stops[o[i + 1]].place);
+    return t;
+  };
+  const order = [0], left = idx.slice(1);
+  while (left.length){
+    const last = stops[order[order.length - 1]].place;
+    let best = 0, bd = Infinity;
+    left.forEach((j, k) => {
+      const d = hopMetres(last, stops[j].place);
+      if (d < bd - 1e-9){ bd = d; best = k; }        // ties keep the earlier stop
+    });
+    order.push(left.splice(best, 1)[0]);
+  }
+  for (let pass = 0; pass < REORDER_MAX_PASSES; pass++){
+    let improved = false;
+    for (let i = 1; i < order.length - 1 && !improved; i++){
+      for (let j = i + 1; j < order.length && !improved; j++){
+        const cand = order.slice(0, i).concat(order.slice(i, j + 1).reverse(), order.slice(j + 1));
+        // first improving move, not the best one: same input must give the same output
+        if (len(cand) < len(order) - 1e-9){ order.length = 0; order.push.apply(order, cand); improved = true; }
+      }
+    }
+    if (!improved) break;
+  }
+  const after = len(order);
+  if (after >= before - 1e-9) return flat;
+  return { order, before_m: before, after_m: after, gain_m: before - after };
+}
+
+/** Spots worth tacking on, given what is already in the day. Deterministic: same plan
+    in, same list out, which is what makes this the application's job and not an
+    agent's. */
+function nearbySuggestions(stops, opts){
+  const o = opts || {};
+  const places = o.places || PLACES;
+  const cats = o.cats || null;
+  const planned = {};
+  stops.forEach(s => { planned[s.id] = true; });
+  const anchors = stops.map(s => s.place).filter(Boolean);
+  if (!anchors.length) return [];
+  const clusters = {}, catsIn = {};
+  anchors.forEach(p => { clusters[p.cluster] = true; catsIn[p.cat] = true; });
+  const out = [];
+  places.forEach(q => {
+    if (q.city !== o.city || planned[q.id] || q.cat === "hotel") return;
+    if (cats && !cats[q.cat]) return;
+    let d = Infinity, near = -1;
+    anchors.forEach(a => {
+      const t = hopMetres(a, q);
+      if (t < d){ d = t; near = stops.findIndex(s => s.place === a); }
+    });
+    const inCluster = !!clusters[q.cluster];
+    if (d > NEAR_RADIUS_M && !inCluster) return;
+    const score = (1 - Math.min(1, d / NEAR_RADIUS_M))
+      + (inCluster ? NEAR_CLUSTER_BONUS : -NEAR_NEW_CLUSTER_PENALTY)
+      + (catsIn[q.cat] ? 0 : NEAR_VARIETY_BONUS)
+      + (q.added ? NEAR_NEW_PLACE_BONUS : 0);
+    // slot it next to the stop it is near, which is the whole point of suggesting it
+    out.push({ place:q, d, score, nearIdx:near, insertAt: near < 0 ? stops.length : near + 1 });
+  });
+  out.sort((x, y) => y.score - x.score || x.d - y.d || (x.place.id < y.place.id ? -1 : 1));
+  return out.slice(0, NEAR_MAX);
+}
+
+/** Everything the page can say about this order without guessing. */
+function orderCautions(stops, city, day){
+  const out = [];
+  const unknown = stops.filter(s => !s.place);
+  if (unknown.length) out.push({ kind:"unknown", text:
+    `${unknown.length} stop${unknown.length > 1 ? "s" : ""} in this link ${unknown.length > 1 ? "are" : "is"} not in the map: ${unknown.map(s => s.id).join(", ")}.` });
+  stops.forEach((s, i) => {
+    if (s.place && s.place.city !== city) out.push({ kind:"city", i, text:
+      `Stop ${i + 1}, ${s.place.name}, is in ${s.place.city} — this day is ${city}.` });
+  });
+  backtracks(stops).forEach(b => {
+    const a = stops[b.i].place, c = stops[b.i + 1].place;
+    out.push({ kind:"order", i:b.i, gain:b.gain, text:
+      `Stops ${b.i + 1} and ${b.i + 2} look swapped — ${c.name} before ${a.name} saves about ${fmtM(b.gain)}.` });
+  });
+  const dow = planDow(day);
+  if (dow) stops.forEach((s, i) => {
+    if (s.place && closedDays(s.place.meta).indexOf(dow) >= 0) out.push({ kind:"closed", i, text:
+      `${s.place.name} is shut on a ${DOW_LABEL[dow]} — the note says "${s.place.meta}".` });
+  });
+  // hardest problems first
+  const rank = { unknown:0, city:1, closed:2, order:3 };
+  return out.sort((a, b) => rank[a.kind] - rank[b.kind]);
+}
+
+/** The handoff. rideLine is an optional (place) -> string for the ride from the hotel,
+    which lives outside this block because it needs the memoised journey engine. */
+function planBriefMarkdown(plan, stops, href, rideLine){
+  const st = planStats(stops), lines = [];
+  const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
+  const head = [plan.title || "Day plan", "—", cityLabel].join(" ");
+  lines.push(`# ${head}${plan.day ? ` · ${plan.day}` : ""}`);
+  const bits = [`${st.resolved} stop${st.resolved === 1 ? "" : "s"}`];
+  if (st.walkM) bits.push(`~${fmtM(st.walkM)} of walking between them`);
+  if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} you would ride`);
+  lines.push(bits.join(" · "));
+  if (href) lines.push(`Source: ${href}`);
+  lines.push("");
+  stops.forEach((s, i) => {
+    const p = s.place;
+    if (!p){ lines.push(`${i + 1}. _unknown id \`${s.id}\`_`); lines.push(""); return; }
+    const c = CATS[p.cat] || { label:p.cat, emoji:"" };
+    lines.push(`${i + 1}. **${p.name}** — ${c.emoji} ${c.label} · ${p.cluster}`);
+    lines.push(`   ${p.lat}, ${p.lng}`);
+    if (p.note) lines.push(`   ${p.note}`);
+    if (p.meta) lines.push(`   Check before you go: "${p.meta}"`);
+    const ride = rideLine && rideLine(p);
+    if (ride) lines.push(`   From the hotel: ${ride}`);
+    const leg = st.legs[i];
+    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot` : `, ${leg.mode}`} · ${leg.naver}`);
+    lines.push("");
+  });
+  const cautions = orderCautions(stops, plan.city, plan.day);
+  if (cautions.length){
+    lines.push("## Worth knowing");
+    cautions.forEach(c => lines.push(`- ${c.text}`));
+    lines.push("");
+  }
+  lines.push("## What this map does not know");
+  lines.push("- How long any hop takes. Rail times between two stops are not computed anywhere:");
+  lines.push("  the routing table only knows routes out from the hotel, so each hop carries a");
+  lines.push("  Naver Maps link instead of an invented number.");
+  lines.push("- Opening hours. Anything above in quotes is prose copied straight from the notes.");
+  lines.push("- How busy anywhere is, or how long the queue runs.");
+  return lines.join("\n");
+}
+/* ==== plan-core:end ==== */
+
+
+/* ---------------- day plan: state, pane and overlay ---------------- */
+/* Everything below here is allowed to touch the page. Everything above the
+   plan-core:end sentinel is not — that is what keeps tools/test-plan.mjs honest. */
+
+let plan = { city:"seoul", ids:[], day:"", title:"", extra:[] };
+let planOver = 0;          // stops a too-long link had to drop, so the pane can say so
+let sideTab = "places";
+let placeQuery = "";
+let planLayer = null, planRenderer = null;
+let planDragging = false, planRenderQueued = false, planDragFrom = -1;
+let urlWritable = true, urlTimer = null, planFull = false;
+
+/* place notes are ours, but a title arrives off the query string, so it is not */
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+const planHas = (id) => plan.ids.indexOf(id) >= 0;
+const planStops = () => resolvePlan(plan.ids, PLACES);
+
+/** The ride from the hotel as plain text, for the brief. routeStripHtml() stays the
+    one that speaks HTML; this one exists so neither has to serve two masters. */
+function planHotelLine(p){
+  const j = journeyFor(p);
+  if (!j) return null;
+  const hops = j.rail.map(l => `${l.label} to ${l.to}`).join(", then ");
+  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m` : `${(j.walk / 1000).toFixed(1)} km`;
+  return `${hops}${hops ? ", then " : ""}${walk} on foot, about ${j.minutes} min door to door`;
+}
+
+/* Debounced, because Safari throttles replaceState at 100 calls in 30 seconds and
+   typing a title would spend that in a sentence. Wrapped, because file:// refuses it
+   outright — losing the bookmarkable URL is a shame, not a reason to stop working. */
+function syncPlanUrl(){
+  if (!urlWritable) return;
+  clearTimeout(urlTimer);
+  urlTimer = setTimeout(() => {
+    try {
+      history.replaceState(null, "", encodePlanQuery(plan) || location.pathname);
+    } catch (e){
+      urlWritable = false;
+      renderPlan();
+    }
+  }, 400);
+}
+
+function afterPlanChange(){
+  syncPlanUrl();
+  renderPlan();
+  drawPlanOverlay();
+  refreshPlanControls();
+  const c = document.getElementById("planCount");
+  if (c) c.textContent = plan.ids.length || "";
+}
+
+function planAdd(id, at){
+  if (planHas(id)) return;
+  if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
+  planFull = false;
+  const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
+  plan.ids.splice(i, 0, id);
+  afterPlanChange();
+}
+function planRemove(id){
+  const i = plan.ids.indexOf(id);
+  if (i < 0) return;
+  plan.ids.splice(i, 1);
+  planOver = 0; planFull = false;
+  afterPlanChange();
+}
+function planToggle(id){ planHas(id) ? planRemove(id) : planAdd(id); }
+function planMove(from, to){
+  if (from === to || from < 0 || to < 0 || from >= plan.ids.length || to >= plan.ids.length) return;
+  plan.ids.splice(to, 0, plan.ids.splice(from, 1)[0]);
+  afterPlanChange();
+}
+function planReorder(order){
+  plan.ids = order.map(i => plan.ids[i]);
+  afterPlanChange();
+}
+function planClear(){
+  plan.ids = [];
+  afterPlanChange();
+}
+
+/** The add buttons are updated in place rather than by re-rendering the list: a
+    re-render would throw away the list's scroll position and the search box's focus. */
+function refreshPlanControls(){
+  document.querySelectorAll("[data-plan-add]").forEach(b => {
+    const on = planHas(b.dataset.planAdd);
+    b.classList.toggle("on", on);
+    b.textContent = on ? "✓" : "+";
+    b.title = on ? "Remove from the day" : "Add to the day";
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  const cp = document.getElementById("cardPlan");
+  if (cp && selectedId){
+    const on = planHas(selectedId);
+    cp.classList.toggle("done", on);
+    cp.textContent = on ? "✓ In the day" : "+ Add to the day";
+  }
+}
+
+function setSideTab(t){
+  sideTab = t;
+  document.getElementById("side").dataset.sidetab = t;
+  [["tabPlaces","places"],["tabPlan","plan"]].forEach(([id, v]) => {
+    const b = document.getElementById(id);
+    if (b){ b.classList.toggle("on", t === v); b.setAttribute("aria-pressed", t === v ? "true" : "false"); }
+  });
+  if (t === "plan") renderPlan();
+}
+
+/* ---------------- the plan pane ---------------- */
+
+function planStopHtml(s, i, n){
+  const p = s.place;
+  const c = p ? (CATS[p.cat] || {}) : {};
+  const body = p
+    ? `<span class="pname">${p.name}</span>
+       <span class="phood">${p.cluster}</span>
+       ${p.note ? `<span class="pnote">${p.note}</span>` : ""}
+       ${p.meta ? `<span class="pmetaline">${p.meta}</span>` : ""}`
+    : `<span class="pname">unknown spot “${esc(s.id)}”</span>
+       <span class="phood">this link names an id the map no longer has</span>`;
+  return `<div class="pstop${p ? "" : " gone"}" data-i="${i}">
+    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</button>
+    <span class="pnum-i" style="background:${p ? (c.color || "#888") : "#888"}">${i + 1}</span>
+    <button class="pbody" data-focus="${p ? p.id : ""}">${body}</button>
+    <span class="pctrl">
+      <button class="pmove" data-up="${i}" ${i === 0 ? "disabled" : ""} title="Move up" aria-label="Move up">▲</button>
+      <button class="pmove" data-down="${i}" ${i === n - 1 ? "disabled" : ""} title="Move down" aria-label="Move down">▼</button>
+      <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove">✕</button>
+    </span>
+  </div>`;
+}
+
+function planHopHtml(leg){
+  if (!leg) return "";
+  const how = leg.walkable
+    ? `about ${leg.walkMin} min on foot`
+    : (leg.mode === "car" ? "worth driving" : "worth riding");
+  return `<div class="phop"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
+    <a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
+}
+
+function renderPlan(){
+  // a re-render mid-drag would yank the row out from under the pointer
+  if (planDragging){ planRenderQueued = true; return; }
+  const el = document.getElementById("planpane");
+  if (!el) return;
+  const stops = planStops();
+  const st = planStats(stops);
+  const cautions = orderCautions(stops, plan.city, plan.day);
+  const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
+  const out = [];
+
+  const bits = [`<b>${st.resolved}</b> stop${st.resolved === 1 ? "" : "s"}`];
+  if (st.walkM) bits.push(`${fmtM(st.walkM)} on foot`);
+  if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} to ride`);
+  out.push(`<div class="phead">
+    <input class="ptitle" id="planTitle" placeholder="Name this day" maxlength="${PLAN_TITLE_MAX}" value="${esc(plan.title)}" />
+    <input class="pdate" id="planDate" type="date" value="${esc(plan.day)}" aria-label="Date, used only to check weekday closures" />
+    <div class="pmeta">${cityLabel} · ${bits.join(" · ")}</div>
+  </div>`);
+
+  if (!plan.ids.length){
+    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.</div>`);
+  } else {
+    out.push(`<div class="pacts">
+      <button class="pact" id="planFit">Frame the day</button>
+      <button class="pact" id="planBrief">Copy briefing</button>
+      <button class="pact" id="planLink">Copy link</button>
+      <button class="pact" id="planWipe">Clear</button>
+    </div>`);
+    if (planOver) out.push(`<div class="pcaution">That link named ${planOver} more stop${planOver > 1 ? "s" : ""} than a day holds, so the last ${planOver === 1 ? "one was" : "ones were"} left off. A day tops out at ${PLAN_MAX_STOPS}.</div>`);
+    if (planFull) out.push(`<div class="pcaution">This day is full at ${PLAN_MAX_STOPS} stops. Drop one to add another.</div>`);
+    if (!urlWritable) out.push(`<div class="pcaution">This browser will not let the page rewrite its address, so the link above is the one to copy by hand. Everything else works.</div>`);
+    if (currentTab !== plan.city) out.push(`<div class="pcaution">This day is in ${cityLabel}, and you are looking at ${(LEGS.find(l => l.id === currentTab) || {}).label}. <button class="pcaution-fix" id="planGoCity">Show ${cityLabel}</button></div>`);
+
+    cautions.forEach((c, k) => {
+      const fix = c.kind === "order"
+        ? `<button class="pcaution-fix" data-swap="${c.i}">Swap them</button>` : "";
+      out.push(`<div class="pcaution ${c.kind}">${esc(c.text)}${fix}</div>`);
+    });
+    const ro = reorderByProximity(stops);
+    if (ro.gain_m > SWAP_GAIN_M) out.push(`<div class="pcaution">
+      Walked in a different order this day is about ${fmtM(ro.gain_m)} shorter.
+      <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
+
+    stops.forEach((s, i) => {
+      out.push(planStopHtml(s, i, stops.length));
+      out.push(planHopHtml(st.legs[i]));
+    });
+  }
+
+  const sug = nearbySuggestions(stops, { places: PLACES, city: plan.city, cats: active });
+  if (sug.length){
+    out.push(`<div class="psec"><div class="psec-h">Nearby what you have</div></div>`);
+    sug.forEach(s => {
+      const c = CATS[s.place.cat] || {};
+      const anchor = stops[s.nearIdx] && stops[s.nearIdx].place;
+      out.push(`<button class="psug" data-suggest="${s.place.id}" data-at="${s.insertAt}">
+        <span class="pindot" style="background:${c.color}">${c.emoji}</span>
+        <span class="it-body">
+          <span class="it-name">${s.place.name}</span>
+          <span class="it-note">${s.place.note}</span>
+          <span class="psug-d">${fmtM(s.d)} from ${anchor ? anchor.name : "your plan"}</span>
+        </span></button>`);
+    });
+  }
+  el.innerHTML = out.join("");
+  wirePlanPane(el);
+}
+
+function wirePlanPane(el){
+  const on = (sel, ev, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener(ev, fn));
+  on("[data-focus]", "click", e => { const id = e.currentTarget.dataset.focus; if (id) focus(id); });
+  on("[data-drop]", "click", e => planRemove(e.currentTarget.dataset.drop));
+  on("[data-up]", "click", e => { const i = +e.currentTarget.dataset.up; planMove(i, i - 1); });
+  on("[data-down]", "click", e => { const i = +e.currentTarget.dataset.down; planMove(i, i + 1); });
+  on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
+  on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
+  on("[data-drag]", "pointerdown", planDragStart);
+
+  const t = el.querySelector("#planTitle");
+  if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
+  const d = el.querySelector("#planDate");
+  if (d) d.onchange = () => { plan.day = d.value || ""; afterPlanChange(); };
+
+  const wire = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.onclick = fn; };
+  wire("planFit", fitPlan);
+  wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
+  wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));
+  wire("planGoCity", () => setTab(plan.city));
+  wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planStops(), planHref(), planHotelLine), "Briefing copied"));
+  wire("planLink", e => copyOut(e, planHref(), "Link copied"));
+}
+
+function planHref(){
+  return location.origin + location.pathname + encodePlanQuery(plan);
+}
+
+/* clipboard needs a secure context, which file:// is not — fall back to a selection
+   the person can copy themselves rather than failing silently */
+function copyOut(e, text, okLabel){
+  const btn = e.currentTarget, was = btn.textContent;
+  const done = () => { btn.textContent = okLabel; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = was; btn.classList.remove("done"); }, 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done){
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed; left:-9999px; top:0;";
+  document.body.appendChild(ta);
+  ta.select();
+  let okd = false;
+  try { okd = document.execCommand("copy"); } catch (e){ okd = false; }
+  document.body.removeChild(ta);
+  if (okd) done(); else window.prompt("Copy this:", text);
+}
+
+/* ---------------- dragging a stop ---------------- */
+
+function planDragStart(e){
+  const rows = [].slice.call(document.querySelectorAll("#planpane .pstop"));
+  planDragFrom = +e.currentTarget.dataset.drag;
+  if (planDragFrom < 0 || !rows.length) return;
+  planDragging = true;
+  e.currentTarget.setPointerCapture(e.pointerId);
+  rows[planDragFrom].classList.add("dragging");
+  const move = ev => {
+    let to = rows.length - 1;
+    for (let i = 0; i < rows.length; i++){
+      const r = rows[i].getBoundingClientRect();
+      if (ev.clientY < r.top + r.height / 2){ to = i; break; }
+    }
+    rows.forEach((r, i) => r.classList.toggle("dropbefore", i === to && i !== planDragFrom));
+  };
+  const end = ev => {
+    document.removeEventListener("pointermove", move);
+    ["pointerup","pointercancel","lostpointercapture"].forEach(k => document.removeEventListener(k, end));
+    let to = -1;
+    rows.forEach((r, i) => { if (r.classList.contains("dropbefore")) to = i; });
+    rows.forEach(r => r.classList.remove("dragging", "dropbefore"));
+    planDragging = false;
+    const from = planDragFrom;
+    planDragFrom = -1;
+    if (to >= 0) planMove(from, to > from ? to - 1 : to);
+    else if (planRenderQueued){ planRenderQueued = false; renderPlan(); }
+  };
+  document.addEventListener("pointermove", move);
+  // all three, or a cancelled gesture leaves the pane frozen mid-drag
+  ["pointerup","pointercancel","lostpointercapture"].forEach(k => document.addEventListener(k, end));
+}
+
+/* ---------------- the plan on the map ---------------- */
+
+function drawPlanOverlay(){
+  if (!planLayer) return;
+  planLayer.clearLayers();
+  if (currentTab !== plan.city) return;
+  const stops = planStops().filter(s => s.place);
+  if (!stops.length) return;
+  const casing = night ? "#15120D" : "#ffffff";
+  const accent = cssVar("--accent");
+  for (let i = 0; i < stops.length - 1; i++){
+    const a = stops[i].place, b = stops[i + 1].place;
+    const pts = [[a.lat, a.lng], [b.lat, b.lng]];
+    /* Straight and dashed on purpose. ROUTES only knows routes out from the hotel, so
+       there is no station-to-station geometry to trace between two stops, and a line
+       that curved along the rails here would be claiming a route nobody worked out. */
+    L.polyline(pts, { color: casing, weight: 5, opacity: .5, lineCap: "round",
+      interactive: false, renderer: planRenderer }).addTo(planLayer);
+    L.polyline(pts, { color: accent, weight: 2.5, opacity: .75, dashArray: "2 9",
+      lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
+  }
+  stops.forEach((s, i) => {
+    const p = s.place, c = CATS[p.cat] || {};
+    L.marker([p.lat, p.lng], {
+      pane: "planPane",
+      icon: L.divIcon({ className: "", iconSize: [19, 19], iconAnchor: [-7, 27],
+        html: `<div class="pnum" style="background:${c.color || "#888"}">${i + 1}</div>` }),
+    }).addTo(planLayer).on("click", () => focus(p.id));
+  });
+}
+
+function fitPlan(){
+  if (!map) return;
+  const pts = planStops().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);
+  if (!pts.length) return;
+  if (currentTab !== plan.city) setTab(plan.city);
+  const pad = isMobile() ? 40 : 70;
+  map.fitBounds(L.latLngBounds(pts), { padding: [pad, pad], maxZoom: 15, animate: false });
+}
+
+/* ---------------- boot ---------------- */
+
+function bootPlan(){
+  const got = decodePlanQuery(location.search, LEGS);
+  plan = { city: got.city, ids: got.ids, day: got.day, title: got.title, extra: got.extra };
+  planOver = got.over;
+  currentTab = plan.city;
+  const s = document.getElementById("search");
+  if (s){
+    s.oninput = () => {
+      placeQuery = s.value;
+      document.getElementById("searchClear").classList.toggle("on", !!placeQuery.trim());
+      renderList();
+    };
+    s.onkeydown = e => { if (e.key === "Escape" && s.value){ e.stopPropagation(); s.value = ""; s.oninput(); } };
+  }
+  const sc = document.getElementById("searchClear");
+  if (sc) sc.onclick = () => { s.value = ""; s.oninput(); s.focus(); };
+  document.getElementById("tabPlaces").onclick = () => setSideTab("places");
+  document.getElementById("tabPlan").onclick = () => setSideTab("plan");
+  const c = document.getElementById("planCount");
+  if (c) c.textContent = plan.ids.length || "";
+  if (plan.ids.length) setSideTab("plan");
+  renderPlan();
+}
+
 /* ---------------- tabs ---------------- */
 function setTab(id){
   currentTab = id;
@@ -1303,6 +2216,10 @@ function setTab(id){
   renderList();
   drawRail();
   renderRailLegend();
+  // switching city never discards a day; an empty plan just follows you
+  if (!plan.ids.length) plan.city = id;
+  renderPlan();
+  drawPlanOverlay();
   const hasRail = (RAIL[id] || []).length > 0;
   const rt = document.getElementById("railToggle");
   const rl = document.getElementById("raillegend");
@@ -1320,6 +2237,7 @@ function setTab(id){
 }
 
 /* ---------------- go ---------------- */
+bootPlan();          // reads the link, so currentTab is right before anything renders
 renderLegend();
 renderList();
 
@@ -1327,6 +2245,7 @@ const nightBtn = document.getElementById("nightToggle");
 if (nightBtn) nightBtn.onclick = () => {
   night = !night;
   document.body.classList.toggle("night", night);
+  drawPlanOverlay();          // the connector casing is painted in the page background
   nightBtn.textContent = night ? "☀️ Day" : "🌙 Night";
   setBaseLayer();
   drawRail();

@@ -23,6 +23,7 @@ Roughly in file order:
 | Section | What lives there |
 | --- | --- |
 | `<style>` | Everything. Theme tokens on `:root`, dark overrides under `body.night`, mobile under one media query at 780px |
+| `#plan-url-spec` | A JSON block describing the plan URL, for agents that fetch the page but cannot run it |
 | Data | `CATS`, `CAT_ORDER`, `CLUSTERS`, `PLACES`, `LEGS`, `SUBWAY`, `SUBWAY_BUSAN` |
 | Routing tables | `HOTEL_STATION`, `PLACE_OFF`, `ROUTES`, `STATION_COORDS` |
 | State + list | `active`, `selectedId`, `renderLegend`, `renderList` |
@@ -30,6 +31,7 @@ Roughly in file order:
 | Journey | `railGraph`, `ride`, `buildJourney`, `offStationFor` |
 | Drawing | `showRoute`, `animateRoute`, `revealTo`, `stationDots`, `spaceLabels` |
 | Selection | `select`, `deselect`, `showCard`, `focus` |
+| Day plan | `PLAN_*` constants and the pure core, then the pane, the drag and the overlay |
 
 ## Which data is generated and which is yours
 
@@ -85,10 +87,64 @@ use. Add to `ROUTES` and `STATION_COORDS` when a station is genuinely new.
 Only Seoul draws rides. Busan has line geometry but no station table behind it;
 Jeju has no metro. Both are handled, not broken: the card opens, no ride draws.
 
+## How a day plan is carried
+
+A plan is a list of place ids in the query string and nothing else — no server, no
+`localStorage`:
+
+```
+index.html?city=seoul&day=2026-09-01&stops=novotel,gyeongbok,bukchon&title=Jongno
+```
+
+That grammar is a deliberate choice, not a shortcut. Someone can read the day off the
+link, and so can an agent that fetches the deployed URL and cannot run the script: it
+takes the ids out of `stops`, looks each one up in `PLACES` in the same file, and has
+the whole day with every note attached. `#plan-url-spec` says so in machine-readable
+form, and `check-data.mjs` fails if that block drifts from `PLAN_PARAMS`.
+
+Rotted links degrade rather than break. An id the map no longer has is **kept**, shown
+as its own row and flagged — dropping it would quietly amputate a stop from a link
+someone else shared. Unknown query params ride along untouched.
+
+**There are no travel times between stops, on purpose.** `ROUTES` is keyed by
+destination and rooted at `HOTEL_STATION`, so the page can work out a ride from the
+hotel and genuinely cannot work out one between two spots. Rather than invent a number,
+every hop carries a generated Naver Maps link, and walking distances — which really are
+computable — come from `metres()` through the existing `WALK_BEND`/`WALK_KMH`. The one
+function that builds those links is `naverDirUrl()`; it is the only thing to touch if a
+link stops resolving.
+
+Ordering advice is deterministic and computed here, never asked of anyone:
+`backtracks()` flags an adjacent pair that is shorter the other way round,
+`reorderByProximity()` offers a whole-day reorder and returns the identity order unless
+it genuinely wins, and `nearbySuggestions()` ranks unplanned spots by distance to what
+you already have. `closedDays()` reads the handful of `Closed Mon` shapes that actually
+occur in `meta` — it is not an hours parser and must not become one. Everything else in
+`meta` is shown verbatim and never interpreted.
+
+### The two sentinels
+
+The planner's pure half is fenced:
+
+```js
+/* ==== plan-core:start ==== */   … no DOM, no map, no page state …   /* ==== plan-core:end ==== */
+```
+
+`tools/test-plan.mjs` slices that block straight out of the file and runs it in Node,
+which works only while it stays pure — a `document` or a `currentTab` inside the fence
+fails the test that checks for exactly that. Anything that touches the page goes below
+`plan-core:end`. `geo-core` fences `metres()` for the same reason: the tests measure
+with the page's own arithmetic rather than a near-copy.
+
+One related rule: declare constants **one per statement**. `tools/lib.mjs` finds a
+constant by searching for the literal text `const NAME = `, so a name that only ever
+appears after a comma is invisible to every checker.
+
 ## Before you push
 
 ```sh
 node tools/check-data.mjs      # data consistency; exits non-zero on a problem
+node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 ```
 
@@ -102,9 +158,13 @@ python3 -m http.server 8000
 
 Then with Playwright: load the page, call `focus('<place id>')`, wait for the
 draw, and assert on the DOM and on Leaflet's own state (`map.getCenter()`,
-`routeDraw`, `.rs-tip` rects). Screenshot and look at it. Past regressions that
-only a real browser caught: station labels colliding, the route drawing beneath
-the card, a route framed off-screen, the map moving mid-draw.
+`routeDraw`, `planLayer.getLayers()`, `.rs-tip` rects). Screenshot and look at it. Past
+regressions that only a real browser caught: station labels colliding, the route drawing
+beneath the card, a route framed off-screen, the map moving mid-draw, and plan rows
+whose lines ran together because their spans were never made block.
+
+Install Playwright outside the repo — a scratch directory, not here. This project has no
+`package.json` and no `node_modules`, and that is worth keeping.
 
 ## Conventions worth keeping
 

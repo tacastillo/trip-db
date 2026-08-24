@@ -10,7 +10,7 @@
    Most of these catch a failure the page itself will not report: a spot with a
    typo'd cluster still drops its pin, but never appears in the list. */
 
-import { readIndex, readConst, metres, distToPath } from "./lib.mjs";
+import { readIndex, readConst, sliceBetween, metres, distToPath } from "./lib.mjs";
 
 const src = readIndex();
 const K = (n) => readConst(src, n);
@@ -18,6 +18,8 @@ const [CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, SUBWAY, SUBWAY_BUSAN, ROUTES, PL
        STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX] =
   ["CATS","CAT_ORDER","CLUSTERS","PLACES","LEGS","SUBWAY","SUBWAY_BUSAN","ROUTES","PLACE_OFF",
    "STATION_COORDS","HOTEL_STATION","AUTO_WALK_MAX"].map(K);
+
+const PLAN_PARAMS = K("PLAN_PARAMS"), PLAN_MAX_STOPS = K("PLAN_MAX_STOPS");
 
 const RAIL = { seoul: SUBWAY, busan: SUBWAY_BUSAN, jeju: [] };
 const CITY_BOX = {                      // generous, just to catch a transposed pair
@@ -159,6 +161,49 @@ const walks = PLACES.filter(p => !PLACE_OFF[p.id] && offFor(p))
   .map(p => metres([p.lat, p.lng], STATION_COORDS[offFor(p)]));
 if (walks.length)
   console.log(`  ${walks.length} of those picked a station automatically; longest walk ${Math.round(Math.max(...walks))}m of ${AUTO_WALK_MAX}m allowed`);
+
+/* ---------- what the day planner leans on ---------- */
+/* A plan is a list of place ids in the query string, so an id has to survive being
+   written there verbatim — that is what keeps the link readable to a person and to
+   an agent that cannot run the page. */
+for (const p of PLACES){
+  if (p.id && !/^[a-z0-9-]+$/.test(p.id))
+    err(`${p.id}: plan ids go into the URL as-is, so they must be lowercase letters, digits and dashes`);
+}
+
+/* Every leg needs exactly one hotel: it is what the planner offers as a day's start. */
+for (const leg of LEGS){
+  const hotels = PLACES.filter(p => p.city === leg.id && p.cat === "hotel");
+  if (hotels.length !== 1)
+    err(`${leg.id} has ${hotels.length} hotels; a day starts at the one hotel for its leg`);
+}
+
+/* The longest plan anyone can build still has to be a link you can paste. */
+const widest = PLACES.map(p => p.id.length).sort((a, b) => b - a)
+  .slice(0, PLAN_MAX_STOPS).reduce((a, b) => a + b + 1, 0);
+if (widest > 1500) err(`${PLAN_MAX_STOPS} of the longest ids is ${widest} characters of query string`);
+
+/* tools/test-plan.mjs lifts the planner core out from between these. A missing
+   sentinel means it tests an empty string and passes, which is worse than failing. */
+for (const [a, b] of [["/* ==== plan-core:start ==== */", "/* ==== plan-core:end ==== */"],
+                      ["/* ==== geo-core:start ==== */",  "/* ==== geo-core:end ==== */"]]){
+  try {
+    if (!sliceBetween(src, a, b).trim()) err(`nothing between ${a} and ${b}`);
+  } catch (e){ err(e.message); }
+}
+
+/* The spec block is what an agent reads when it cannot run the page. A spec that has
+   drifted from the code is worse than no spec at all. */
+const spec = /<script type="application\/json" id="plan-url-spec">([\s\S]*?)<\/script>/.exec(src);
+if (!spec) err("no #plan-url-spec block in index.html");
+else {
+  try {
+    const documented = Object.keys(JSON.parse(spec[1]).params || {}).sort().join();
+    const real = Object.values(PLAN_PARAMS).sort().join();
+    if (documented !== real)
+      err(`#plan-url-spec documents ${documented} but PLAN_PARAMS is ${real}`);
+  } catch (e){ err(`#plan-url-spec is not valid JSON: ${e.message}`); }
+}
 
 /* ---------- verdict ---------- */
 console.log();
