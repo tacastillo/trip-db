@@ -115,16 +115,16 @@ npm run dev        # http://localhost:4321/trip-db/
 
 ## Deploying
 
-GitHub Pages serves the `main` branch from `/docs` (Settings → Pages → *Deploy from
-a branch* → `main` / `/docs`). `docs/` is the Astro build output and is **committed**,
-so the deploy is whatever was last built:
+Pushing to `main` publishes. `.github/workflows/deploy.yml` runs the data checks and
+both test scripts, builds the site, and hands the output to GitHub Pages; nothing
+deploys if a check fails. No build output lives in the repository — `dist/` is
+gitignored. `public/.nojekyll` lands in the output and keeps Jekyll away from Astro's
+`_astro/` directory.
 
-```sh
-npm run build      # writes docs/
-git add docs && git commit
-```
+The same workflow runs on pull requests, minus the deploy.
 
-A stale `docs/` ships stale — build before you push. `public/.nojekyll` lands in the
-output and keeps Jekyll away from Astro's `_astro/` directory.
+One setting has to be right for any of this to land: **Settings → Pages → Source →
+GitHub Actions**. On *Deploy from a branch* the build still runs and the deploy step
+fails.
 
 Live site: https://tacastillo.github.io/trip-db/

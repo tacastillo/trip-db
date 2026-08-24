@@ -2,17 +2,17 @@
 
 A field map for one trip to Korea: Seoul, Jeju, Busan. It is an [Astro][] site with
 no framework and no islands: `.astro` files carry the markup, plain CSS carries the
-look, and the behaviour is a handful of ES modules under `src/client/`. The built
-site is committed to `docs/` and served from there by GitHub Pages.
+look, and the behaviour is a handful of ES modules under `src/client/`. GitHub
+Actions builds it on every push to `main` and hands the output to GitHub Pages.
 
 [Astro]: https://astro.build
 
 ## The shape of it
 
 ```
-astro.config.mjs        base:'/trip-db/', outDir:'./docs'
+.github/workflows/      the checks, the build and the Pages deploy
+astro.config.mjs        base:'/trip-db/'; output goes to dist/, which is gitignored
 public/                 copied verbatim: vendor/ (Leaflet, fonts) and .nojekyll
-docs/                   the build output, committed — this is what Pages serves
 src/
   pages/index.astro     the one page; there is no router and no second page
   layouts/FieldMap.astro  <head>, the @font-face block, leaflet's css and js
@@ -24,11 +24,13 @@ src/
 tools/                  maintenance scripts; not part of the build
 ```
 
-**There is a build step, and `docs/` is committed.** `npm run build` before you push,
-or what is deployed is not what you wrote. There is no CI to catch it. Two things
-follow from the bundler that did not use to be true: the page no longer opens from
-`file://` (bundled ES modules need a real origin — serve it), and nothing is a global
-any more (see *Driving the page* below).
+**There is a build step, and it runs in CI.** No build output is committed — pushing to
+`main` is the deploy, and `.github/workflows/deploy.yml` runs the three checks and the
+build before it publishes anything. Still build locally before you push: CI tells you
+it broke, which is slower than being told now. Two things follow from the bundler that
+did not use to be true: the page no longer opens from `file://` (bundled ES modules
+need a real origin — serve it), and nothing is a global any more (see *Driving the
+page* below).
 
 ## src/client — who owns what
 
@@ -178,11 +180,15 @@ statement**. `tools/lib.mjs` finds a constant by searching for the literal text
 ## Before you push
 
 ```sh
-npm run build                  # docs/ is committed; a stale docs/ is what ships
+npm run build                  # that it compiles at all
 node tools/check-data.mjs      # data consistency, and the src/lib fence
 node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 ```
+
+CI runs all four on every push and pull request, and nothing deploys unless they pass.
+That is a backstop, not the plan: none of them see the page, so a green run says only
+that the data agrees with itself and the bundle built.
 
 For anything that changes behaviour or layout, **drive the real page** — this is
 a map, and unit checks do not see a route drawn under a card or a label off the

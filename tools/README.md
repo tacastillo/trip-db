@@ -4,10 +4,11 @@ Maintenance scripts for the data vendored under `src/data/`. Plain Node (18+),
 no dependencies of their own — they import the data modules directly, so they run
 against a fresh clone with nothing installed.
 
-**These are not part of the build.** The page ships with its data inside it and
-never runs any of this at load time. The scripts exist so the vendored data can be
-*regenerated* instead of hand-patched, which is the only way it stays consistent as
-lines extend and stations move.
+**The page never runs any of this.** It ships with its data inside it; the scripts
+exist so the vendored data can be *regenerated* instead of hand-patched, which is the
+only way it stays consistent as lines extend and stations move. The three offline ones
+do run in CI, ahead of the build, so a table that disagrees with itself fails the pull
+request rather than the trip.
 
 | Script | Network | What it does |
 | --- | --- | --- |
