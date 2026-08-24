@@ -26,8 +26,10 @@ no metro to ride.
 ## Planning a day
 
 The sidebar has a second tab. Add spots from the map card or from the list — there is a
-search box now — and they stack up into an ordered day: category-coloured, numbered on
-the map, joined by dashed connectors, draggable into a different order.
+search box now — and they stack up into an ordered day, draggable into a different
+order. On the map a planned stop keeps its category colour but carries its number
+instead of its emoji, and everything else fades back, so the day reads on its own
+without a line drawn through it. Hovering a hop in the list shows that one link.
 
 The day lives entirely in the address bar, so a bookmark is the whole save mechanism:
 
@@ -36,7 +38,9 @@ index.html?city=seoul&day=2026-09-01&stops=novotel,gyeongbok,bukchon&title=Jongn
 ```
 
 Between every pair of stops it gives you the distance, a walking estimate when walking
-is sensible, and a **Naver Maps** link for the actual directions. It does not tell you
+is sensible, and a **Naver Maps** link for the actual directions. Where both stops sit
+on one subway line it names it — "Line 5 · Dongdaemun History & Culture Park → Jongno
+3-ga" — and where they do not, it says nothing rather than guessing a transfer. It does not tell you
 how long a hop takes, and that is deliberate: the routing tables only know rides out
 from the hotel, so a station-to-station time does not exist anywhere in this project and
 guessing one would be worse than the link.

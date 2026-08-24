@@ -29,15 +29,18 @@ const geo  = sliceBetween(src, GEO_A, GEO_B);
 const EXPORTS = ["decodePlanQuery","encodePlanQuery","resolvePlan","matchesQuery","hopMetres",
   "hopWalk","planLegs","planStats","pathLen","naverMode","naverDirUrl","naverAppUrl","backtracks",
   "reorderByProximity","nearbySuggestions","orderCautions","planBriefMarkdown","closedDays",
-  "planDow","fmtM","metres","PLAN_MAX_STOPS","PLAN_PARAMS","NEAR_MAX","NEAR_RADIUS_M",
-  "SWAP_GAIN_M","HOP_WALKABLE_M"];
+  "planDow","fmtM","metres","hopLine","stationLines","PLAN_MAX_STOPS","PLAN_PARAMS","NEAR_MAX",
+  "NEAR_RADIUS_M","SWAP_GAIN_M","HOP_WALKABLE_M","STATION_ON_LINE_M"];
 
 /* The page's own metres() goes in, not lib.mjs's: lib is haversine, the page is
    equirectangular, and every threshold below is a distance comparison. */
-const core = new Function("PLACES","CATS","CLUSTERS","LEGS","WALK_KMH","WALK_BEND",
+// RAIL is built from two constants in the page, so it is rebuilt the same way here
+const RAIL = { seoul: readConst(src,"SUBWAY"), busan: readConst(src,"SUBWAY_BUSAN"), jeju: [] };
+const core = new Function("PLACES","CATS","CLUSTERS","LEGS","WALK_KMH","WALK_BEND","RAIL","STATION_COORDS",
   `${geo}\n${body}\nreturn {${EXPORTS.join(",")}};`)(
     readConst(src,"PLACES"), readConst(src,"CATS"), readConst(src,"CLUSTERS"),
-    readConst(src,"LEGS"), readConst(src,"WALK_KMH"), readConst(src,"WALK_BEND"));
+    readConst(src,"LEGS"), readConst(src,"WALK_KMH"), readConst(src,"WALK_BEND"),
+    RAIL, readConst(src,"STATION_COORDS"));
 
 const PLACES = readConst(src, "PLACES");
 const seoul = PLACES.filter(p => p.city === "seoul");
@@ -196,6 +199,36 @@ const md2 = core.planBriefMarkdown({city:"seoul", ids:["NOPE"], day:"", title:""
 ok("an unknown id degrades in the brief too", md2.indexOf("unknown id") > 0 && !/undefined/.test(md2));
 ok("a rideLine callback is used when given",
   core.planBriefMarkdown(plan, R(plan.ids), "", () => "Line 4 -> Dongdaemun").indexOf("From the hotel: Line 4") > 0);
+
+/* ---------- which line carries a hop ---------- */
+
+group("naming the line for a hop");
+const SC = readConst(src, "STATION_COORDS");
+const stns = Object.keys(SC);
+ok("every station resolves to at least one line",
+  stns.every(st => core.stationLines(st, "seoul").length > 0),
+  stns.filter(st => !core.stationLines(st, "seoul").length).join(", "));
+const onLine3 = stns.filter(st => core.stationLines(st, "seoul").indexOf("3") >= 0);
+ok("two stations on one line name it",
+  onLine3.length > 1 && (core.hopLine(onLine3[0], onLine3[1], "seoul") || {}).ref === "3");
+ok("a station with itself names nothing", core.hopLine("Anguk", "Anguk", "seoul") === null);
+ok("a missing station names nothing", core.hopLine("Anguk", "Nowhere", "seoul") === null);
+/* The case that made a routing engine the wrong answer: these two are 1.3 km apart,
+   share no line in this table, and the interchange you would really use is not in it.
+   Naming a line here would mean inventing a transfer. */
+ok("stations that share no line are left to Naver",
+  core.hopLine("Hongik Univ.", "Mangwon", "seoul") === null);
+let bogus = 0;
+for (const a of stns) for (const b of stns){
+  const h = core.hopLine(a, b, "seoul");
+  if (!h) continue;
+  if (core.stationLines(a,"seoul").indexOf(h.ref) < 0 || core.stationLines(b,"seoul").indexOf(h.ref) < 0) bogus++;
+}
+ok("a named line always actually serves both ends", bogus === 0);
+ok("legs carry the line when an offFor is given",
+  core.planLegs(R([pick("gyeongbok").id, pick("novotel").id]), p => ({gyeongbok:"Gyeongbokgung", novotel:"Dongdaemun History & Culture Park"})[p.id])
+    .every(l => l === null || "line" in l));
+ok("and carry none when it is not", core.planLegs(R([pick("gyeongbok").id, pick("novotel").id]))[0].line === null);
 
 /* ---------- the two metres() ---------- */
 

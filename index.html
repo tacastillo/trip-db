@@ -116,6 +116,12 @@
   .pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid #fff; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
     display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.32);}
   .pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
+  .pin-n{font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:14px; color:#fff;}
+  /* With a day up, the day is the subject and the other seventy-odd spots are context. */
+  body.planning .leaflet-marker-icon{opacity:.26; transition:opacity .18s;}
+  body.planning .leaflet-marker-icon:hover{opacity:1;}
+  body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
+  .pin.plan .pin-b{border-width:3px; box-shadow:0 3px 9px rgba(0,0,0,.45);}
 
   /* The place card sits at the top of the map rather than on a pin, so the ride
      below it is never underneath it and the map can be dragged out from under it. */
@@ -223,6 +229,9 @@
   .phop-r{width:1px; height:11px; background:var(--line); margin-left:-14px;}
   .phop-a{color:var(--accent); text-decoration:none; font-weight:600; border:1px solid var(--line);
     border-radius:20px; padding:2px 8px;}
+  .phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10px;}
+  .phop-s{color:var(--muted);}
+  .phop:focus-visible{outline:2px solid var(--accent); outline-offset:-2px; border-radius:6px;}
   .phop-a:hover{border-color:var(--accent);}
 
   .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
@@ -963,18 +972,20 @@ function railSegments(path){
   return segs;
 }
 
+/* the day has to read against thirteen coloured lines, so they step back for it */
+function railFade(){ return document.body.classList.contains("planning") ? 0.3 : 1; }
 function drawRail(){
   if (!railLayer || !window.L) return;
   railLayer.clearLayers();
   const casing = night ? "#15120D" : "#ffffff";
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
     railSegments(pa).forEach(function(sg){
-      L.polyline(sg.pts, { renderer: railRenderer, color: casing, weight: 6, opacity: 0.5 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+      L.polyline(sg.pts, { renderer: railRenderer, color: casing, weight: 6, opacity: 0.5 * sg.fade * railFade(), lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
     });
   }); });
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
     railSegments(pa).forEach(function(sg){
-      L.polyline(sg.pts, { renderer: railRenderer, color: ln.color, weight: 3, opacity: 0.92 * sg.fade, lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
+      L.polyline(sg.pts, { renderer: railRenderer, color: ln.color, weight: 3, opacity: 0.92 * sg.fade * railFade(), lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
     });
   }); });
 }
@@ -1006,7 +1017,6 @@ function metres(a, b){
   const dx = (b[1] - a[1]) * DEG * EARTH_R * Math.cos((a[0] + b[0]) / 2 * DEG);
   return Math.hypot(dx, dy);
 }
-/* ==== geo-core:end ==== */
 function lerpPt(a, b, t){ return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
 /* closest point on segment a–b to c — stations sit between vertices far more
    often than on one, so projecting is what keeps the ride ending at the label */
@@ -1019,6 +1029,7 @@ function projectOnSeg(c, a, b){
   const pt = lerpPt(a, b, t);
   return { pt, d: metres(c, pt) };
 }
+/* ==== geo-core:end ==== */
 const railGraphs = {};
 function railGraph(city, ref){
   const key = city + "/" + ref;
@@ -1408,20 +1419,16 @@ function initMap(){
   });
 
   PLACES.forEach(p => {
-    const c = CATS[p.cat];
-    const icon = L.divIcon({
-      className: "",
-      html: `<div class="pin" style="--pin:${c.color}">
-               <div class="pin-b"><span>${c.emoji}</span></div></div>`,
-      iconSize: [30, 30], iconAnchor: [15, 30],
-    });
-    const m = L.marker([p.lat, p.lng], { icon });
+    const m = L.marker([p.lat, p.lng], { icon: pinIcon(p, null) });
     m.on("click", () => select(p.id));
     markers[p.id] = m;
     if (p.city === currentTab) m.addTo(map);
     if (selectedId === p.id) markPin(p.id, true);
   });
 
+  // a day restored from the link has to reach the pins before they are first drawn
+  syncMarkers();
+  if (document.body.classList.contains("planning")) drawRail();
   // opening a plan link and landing on the whole city hides the very thing the link
   // was for, so a day in the URL frames itself instead
   if (planStops().some(s => s.place)) fitPlan(); else fitCity();
@@ -1445,10 +1452,35 @@ function showTileBanner(){
   b.style.display = "block";
 }
 
+/* The pin a planned stop gets: the same shape and category colour, carrying its place
+   in the day instead of its emoji. One marker per stop, not a pin plus a chip beside it. */
+function pinIcon(p, n){
+  const c = CATS[p.cat] || {};
+  return L.divIcon({
+    className: "",
+    html: `<div class="pin${n ? " plan" : ""}" style="--pin:${c.color}">
+             <div class="pin-b"><span${n ? ' class="pin-n"' : ""}>${n || c.emoji}</span></div></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30],
+  });
+}
+
 function syncMarkers(){
   if (!map) return;
+  const order = {};
+  planStops().forEach((s, i) => { if (s.place) order[s.id] = i + 1; });
+  document.body.classList.toggle("planning",
+    currentTab === plan.city && Object.keys(order).length > 0);
   PLACES.forEach(p => {
     const m = markers[p.id]; if (!m) return;
+    const n = order[p.id] || null;
+    // setIcon rebuilds the element, so only touch it when the number actually changed
+    if (m._planN !== n){
+      m._planN = n;
+      m.setIcon(pinIcon(p, n));
+      if (selectedId === p.id) markPin(p.id, true);
+    }
+    const el = m.getElement();
+    if (el) el.classList.toggle("mk-plan", !!n);
     // a planned stop stays on the map whatever the chips say — otherwise its number
     // in the plan points at a pin that isn't there
     if (p.city === currentTab && (active[p.cat] || planHas(p.id))) { if (!map.hasLayer(m)) m.addTo(map); }
@@ -1525,6 +1557,44 @@ const HOP_WALKABLE_M = 1200;
 const DOW = ["mon","tue","wed","thu","fri","sat","sun"];
 const DOW_LABEL = { mon:"Monday", tue:"Tuesday", wed:"Wednesday", thu:"Thursday",
                     fri:"Friday", sat:"Saturday", sun:"Sunday" };
+
+/* A station should sit on the line that serves it; check-data.mjs holds the tables to
+   the same 400m. */
+const STATION_ON_LINE_M = 400;
+
+const stationLineMemo = {};
+/** Which lines run through a station, worked out from the geometry rather than stored. */
+function stationLines(st, city, rail, coords){
+  const key = city + "/" + st;
+  if (stationLineMemo[key]) return stationLineMemo[key];
+  const c = (coords || STATION_COORDS)[st];
+  const out = [];
+  if (c) (rail || RAIL)[city].forEach(l => {
+    const near = l.paths.some(path => {
+      for (let i = 1; i < path.pts.length; i++)
+        if (projectOnSeg(c, path.pts[i - 1], path.pts[i]).d <= STATION_ON_LINE_M) return true;
+      return false;
+    });
+    if (near) out.push(l.ref);
+  });
+  return (stationLineMemo[key] = out);
+}
+
+/** The one line that carries you between two stations without changing, or null.
+    Only the no-transfer case is ever answered. A transfer would mean picking an
+    interchange out of STATION_COORDS, which holds the thirty-odd stops the routes
+    happen to use rather than the network — routing through it sends you Hongik Univ
+    to Mangwon the long way round, 17km for a walk of one. Naver can answer the rest;
+    this only says what the geometry already proves. */
+function hopLine(stA, stB, city, rail, coords){
+  if (!stA || !stB || stA === stB) return null;
+  const R = (rail || RAIL)[city] || [];
+  const bs = stationLines(stB, city, rail, coords);
+  const ref = stationLines(stA, city, rail, coords).find(r => bs.indexOf(r) >= 0);
+  if (!ref) return null;
+  const l = R.find(x => x.ref === ref);
+  return l ? { ref, label: l.label, color: l.color, from: stA, to: stB } : null;
+}
 
 /** Metres as the rest of the page words them. */
 function fmtM(m){
@@ -1652,15 +1722,18 @@ function naverAppUrl(a, b, mode){
   return `nmap://route/${m === "transit" ? "public" : m}?${q}`;
 }
 
-/** One entry per gap between consecutive stops; null where an end is unresolved. */
-function planLegs(stops){
+/** One entry per gap between consecutive stops; null where an end is unresolved.
+    offFor maps a place to the station you get off at — passed in rather than reached
+    for, so this stays runnable outside the page. */
+function planLegs(stops, offFor){
   const legs = [];
   for (let i = 0; i < stops.length - 1; i++){
     const a = stops[i].place, b = stops[i + 1].place;
     if (!a || !b){ legs.push(null); continue; }
     const mode = naverMode(a, b), w = hopWalk(a, b);
+    const line = (mode !== "walk" && offFor) ? hopLine(offFor(a), offFor(b), a.city) : null;
     legs.push({ i, a, b, metres: hopMetres(a, b), mode, walkable: mode === "walk",
-                walkM: w.m, walkMin: w.minutes,
+                walkM: w.m, walkMin: w.minutes, line,
                 naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode) });
   }
   return legs;
@@ -1677,8 +1750,8 @@ function pathLen(stops){
   return t;
 }
 
-function planStats(stops){
-  const legs = planLegs(stops);
+function planStats(stops, offFor){
+  const legs = planLegs(stops, offFor);
   let total = 0, walkM = 0, walkMin = 0, rides = 0;
   legs.forEach(l => {
     if (!l) return;
@@ -1801,8 +1874,8 @@ function orderCautions(stops, city, day){
 
 /** The handoff. rideLine is an optional (place) -> string for the ride from the hotel,
     which lives outside this block because it needs the memoised journey engine. */
-function planBriefMarkdown(plan, stops, href, rideLine){
-  const st = planStats(stops), lines = [];
+function planBriefMarkdown(plan, stops, href, rideLine, offFor){
+  const st = planStats(stops, offFor), lines = [];
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const head = [plan.title || "Day plan", "—", cityLabel].join(" ");
   lines.push(`# ${head}${plan.day ? ` · ${plan.day}` : ""}`);
@@ -1823,7 +1896,8 @@ function planBriefMarkdown(plan, stops, href, rideLine){
     const ride = rideLine && rideLine(p);
     if (ride) lines.push(`   From the hotel: ${ride}`);
     const leg = st.legs[i];
-    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot` : `, ${leg.mode}`} · ${leg.naver}`);
+    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot`
+      : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`} · ${leg.naver}`);
     lines.push("");
   });
   const cautions = orderCautions(stops, plan.city, plan.day);
@@ -1862,6 +1936,12 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
 const planHas = (id) => plan.ids.indexOf(id) >= 0;
 const planStops = () => resolvePlan(plan.ids, PLACES);
 
+/* offStationFor() gives a hotel nothing, because a hotel is where a ride starts rather
+   than somewhere you ride to. A hop out of one still leaves from a platform, though. */
+function planOffFor(p){
+  return p.cat === "hotel" ? (p.city === "seoul" ? HOTEL_STATION : null) : offStationFor(p);
+}
+
 /** The ride from the hotel as plain text, for the brief. routeStripHtml() stays the
     one that speaks HTML; this one exists so neither has to serve two masters. */
 function planHotelLine(p){
@@ -1891,6 +1971,8 @@ function syncPlanUrl(){
 function afterPlanChange(){
   syncPlanUrl();
   renderPlan();
+  syncMarkers();
+  drawRail();
   drawPlanOverlay();
   refreshPlanControls();
   const c = document.getElementById("planCount");
@@ -1984,8 +2066,13 @@ function planHopHtml(leg){
   const how = leg.walkable
     ? `about ${leg.walkMin} min on foot`
     : (leg.mode === "car" ? "worth driving" : "worth riding");
-  return `<div class="phop"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
-    <a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
+  // named only where the geometry proves it: one line, both stations, no transfer guessed
+  const line = leg.line
+    ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
+       <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
+    : "";
+  return `<div class="phop" data-hop="${leg.i}" tabindex="0"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
+    ${line}<a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
 }
 
 function renderPlan(){
@@ -1994,7 +2081,7 @@ function renderPlan(){
   const el = document.getElementById("planpane");
   if (!el) return;
   const stops = planStops();
-  const st = planStats(stops);
+  const st = planStats(stops, planOffFor);
   const cautions = orderCautions(stops, plan.city, plan.day);
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const out = [];
@@ -2066,6 +2153,11 @@ function wirePlanPane(el){
   on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
   on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
   on("[data-drag]", "pointerdown", planDragStart);
+  // the link between two stops appears while you are looking at that hop, and not before
+  on("[data-hop]", "mouseenter", e => showHop(+e.currentTarget.dataset.hop));
+  on("[data-hop]", "mouseleave", hideHop);
+  on("[data-hop]", "focusin", e => showHop(+e.currentTarget.dataset.hop));
+  on("[data-hop]", "focusout", hideHop);
 
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
@@ -2077,7 +2169,7 @@ function wirePlanPane(el){
   wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
   wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));
   wire("planGoCity", () => setTab(plan.city));
-  wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planStops(), planHref(), planHotelLine), "Briefing copied"));
+  wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planStops(), planHref(), planHotelLine, planOffFor), "Briefing copied"));
   wire("planLink", e => copyOut(e, planHref(), "Link copied"));
 }
 
@@ -2143,35 +2235,31 @@ function planDragStart(e){
 
 /* ---------------- the plan on the map ---------------- */
 
+/* Nothing is drawn between the stops at rest, and that is the point. The numbered pins
+   carry the order on their own once everything else steps back, and a permanent line
+   between them was only ever a straight streak across a city it says nothing true
+   about: ROUTES is rooted at the hotel, so there is no station-to-station geometry to
+   trace between two stops. Hovering a hop in the pane draws that one link, on demand. */
 function drawPlanOverlay(){
   if (!planLayer) return;
   planLayer.clearLayers();
-  if (currentTab !== plan.city) return;
-  const stops = planStops().filter(s => s.place);
-  if (!stops.length) return;
-  const casing = night ? "#15120D" : "#ffffff";
-  const accent = cssVar("--accent");
-  for (let i = 0; i < stops.length - 1; i++){
-    const a = stops[i].place, b = stops[i + 1].place;
-    const pts = [[a.lat, a.lng], [b.lat, b.lng]];
-    /* Straight and dashed on purpose. ROUTES only knows routes out from the hotel, so
-       there is no station-to-station geometry to trace between two stops, and a line
-       that curved along the rails here would be claiming a route nobody worked out. */
-    L.polyline(pts, { color: casing, weight: 5, opacity: .5, lineCap: "round",
-      interactive: false, renderer: planRenderer }).addTo(planLayer);
-    L.polyline(pts, { color: accent, weight: 2.5, opacity: .75, dashArray: "2 9",
-      lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
-  }
-  stops.forEach((s, i) => {
-    const p = s.place, c = CATS[p.cat] || {};
-    L.marker([p.lat, p.lng], {
-      pane: "planPane",
-      icon: L.divIcon({ className: "", iconSize: [19, 19], iconAnchor: [-7, 27],
-        html: `<div class="pnum" style="background:${c.color || "#888"}">${i + 1}</div>` }),
-    }).addTo(planLayer).on("click", () => focus(p.id));
-  });
 }
 
+/** The single hop between stop i and i+1, while the pane row for it is under the
+    pointer. Drawn as a thread, not a route — see the note above. */
+function showHop(i){
+  if (!planLayer || currentTab !== plan.city) return;
+  const stops = planStops();
+  const a = stops[i] && stops[i].place, b = stops[i + 1] && stops[i + 1].place;
+  planLayer.clearLayers();
+  if (!a || !b) return;
+  const pts = [[a.lat, a.lng], [b.lat, b.lng]];
+  L.polyline(pts, { color: night ? "#15120D" : "#ffffff", weight: 6, opacity: .5,
+    lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
+  L.polyline(pts, { color: cssVar("--accent"), weight: 2.5, opacity: .95, dashArray: "2 8",
+    lineCap: "round", interactive: false, renderer: planRenderer }).addTo(planLayer);
+}
+function hideHop(){ if (planLayer) planLayer.clearLayers(); }
 function fitPlan(){
   if (!map) return;
   const pts = planStops().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);

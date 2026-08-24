@@ -106,6 +106,18 @@ Rotted links degrade rather than break. An id the map no longer has is **kept**,
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
 
+Nothing is drawn between the stops on the map, and that is deliberate. A planned stop
+takes its number onto its own pin and everything else steps back — `body.planning` fades
+the other markers and `railFade()` drops the lines — so the order reads without a line
+through it. A permanent connector was only ever a straight streak across a city it said
+nothing true about. Hovering a hop row calls `showHop()` for that one link.
+
+`hopLine()` names the line for a hop, but only when both stations sit on one line and no
+transfer has to be guessed. That restraint is the whole point: `STATION_COORDS` holds the
+thirty-odd stops the routes happen to use, not the network, so routing through it sends
+you Hongik Univ to Mangwon the long way round — 17km for a walk of one. `test-plan.mjs`
+pins that case.
+
 **There are no travel times between stops, on purpose.** `ROUTES` is keyed by
 destination and rooted at `HOTEL_STATION`, so the page can work out a ride from the
 hotel and genuinely cannot work out one between two spots. Rather than invent a number,
