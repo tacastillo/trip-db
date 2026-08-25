@@ -1,0 +1,53 @@
+name: build and deploy
+
+# The site is built here and published straight to Pages: nothing about the build
+# output lives in the repository. Pushing to main is the whole deploy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A Pages deployment is a singleton. Queue them rather than cancelling, so a push
+# that lands mid-deploy still ends up published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # These three need no dependencies of their own — they import src/data/ and
+      # src/lib/ directly — but they are what stops a bad table or a broken planner
+      # from reaching the site, so they run before the build rather than after it.
+      - run: node tools/check-data.mjs
+      - run: node tools/test-plan.mjs
+      - run: node tools/test-pipeline.mjs
+
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write         # publish the artifact
+      id-token: write      # the OIDC token deploy-pages verifies
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - id: pages
+        uses: actions/deploy-pages@v5

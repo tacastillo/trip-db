@@ -1,7 +1,7 @@
 # trip-db
 
-Seoul field map for our Korea trip — a single self-contained page (`index.html`)
-built on [Leaflet](https://leafletjs.com/), with a place list, filters, and a night mode.
+Seoul field map for our Korea trip — one page built with [Astro](https://astro.build)
+and [Leaflet](https://leafletjs.com/), with a place list, filters, and a night mode.
 
 Picking a spot draws the ride there from the hotel along the subway lines
 themselves: every transfer station marked with the line you change onto, the
@@ -13,11 +13,11 @@ does not move when you pick a spot — the opening view already frames the city,
 and a ride that draws while the view is still flying is two animations fighting.
 
 A spot with no entry in `PLACE_OFF` gets off at the nearest station that has a
-route, so adding a place to `PLACES` is usually the whole job; `PLACE_OFF` is
-the override for when the nearest station isn't the one you'd actually use, and
-`ROUTES` is where the lines and transfers live. Both are hand-editable — see the
-block above them in `index.html`. The geometry between two stations is traced
-from the line data at load, not stored.
+route, so adding a place to `src/data/places.js` is usually the whole job;
+`PLACE_OFF` is the override for when the nearest station isn't the one you'd
+actually use, and `ROUTES` is where the lines and transfers live. Both are
+hand-editable, in `src/data/routing.js`. The geometry between two stations is
+traced from the line data at load, not stored.
 
 Seoul is the only leg with a station table, so it is the only leg that draws a
 ride: Busan has its lines on the map but no stations behind them, and Jeju has
@@ -53,21 +53,32 @@ whether anything on the list is shut that weekday.
 
 **Copy briefing** puts the day on your clipboard as markdown: every stop with its notes,
 coordinates, hours prose and hop links, plus a plain statement of what the map does not
-know. Paste it into a chat, or just hand over the link — `#plan-url-spec` inside the page
-tells an agent that fetches the URL how to decode the query string and where the place
-data is, so it can read the day without running any JavaScript, then add the things this
-map genuinely cannot: how busy somewhere gets, how long the queue runs, what to order.
+know. Paste it into a chat, or just hand over the link — `#plan-url-spec` inside the page tells
+an agent that fetches the URL how to decode the query string, and `#trip-data` next to it
+publishes the places themselves, so it can read the day without running any JavaScript,
+then add the things this map genuinely cannot: how busy somewhere gets, how long the
+queue runs, what to order.
+
+## How it is put together
+
+`src/pages/index.astro` composes four components — the header, the sidebar, the map
+pane and the two JSON blocks — over a layout that carries the `<head>`. The look is
+plain global CSS in `src/styles/`, imported in cascade order; nothing is scoped,
+because the whole sheet hangs off state classes on `<body>`. The behaviour is ES
+modules: `src/lib/` is pure and gets imported straight into node by the tests,
+`src/client/` is everything that touches the page. `src/data/` holds the trip and the
+vendored OpenStreetMap geometry. See [`CLAUDE.md`](CLAUDE.md) for the module map.
 
 ## Dependencies
 
-Leaflet and both fonts are vendored into `vendor/`, so the page pulls nothing
-from a CDN at load time:
+Astro is the only dependency, and it only runs at build time. Leaflet and both fonts
+are vendored into `public/vendor/`, so the page pulls nothing from a CDN at load time:
 
 | Path | What | License |
 | --- | --- | --- |
-| `vendor/leaflet/` | Leaflet 1.9.4 (js, css, control images) | BSD-2-Clause |
-| `vendor/fonts/inter-*.woff2` | Inter Variable (latin, latin-ext) | SIL OFL 1.1 |
-| `vendor/fonts/bricolage-*.woff2` | Bricolage Grotesque Variable (latin, latin-ext) | SIL OFL 1.1 |
+| `public/vendor/leaflet/` | Leaflet 1.9.4 (js, css, control images) | BSD-2-Clause |
+| `public/vendor/fonts/inter-*.woff2` | Inter Variable (latin, latin-ext) | SIL OFL 1.1 |
+| `public/vendor/fonts/bricolage-*.woff2` | Bricolage Grotesque Variable (latin, latin-ext) | SIL OFL 1.1 |
 
 Updating one means replacing the file by hand — that is the trade for not
 depending on someone else's uptime.
@@ -76,12 +87,13 @@ The one thing still fetched live is the street tiles, from CARTO. Without them
 the map degrades to pins and subway lines on a blank canvas, and says so in a
 banner; the list, filters, notes and popups are unaffected. Note that the page
 itself is not offline-installable — with no connection at all, the browser has
-to have `index.html` in its HTTP cache to open it. A service worker would fix
-that.
+to have the page in its HTTP cache to open it. A service worker would fix that.
+It also cannot be opened straight off the disk any more: the scripts are ES
+modules, which browsers refuse over `file://`. Serve it.
 
 ## Maintaining the data
 
-The subway geometry and station coordinates inside `index.html` come from
+The subway geometry and station coordinates under `src/data/` come from
 OpenStreetMap, and `tools/` is how they get refreshed — plus a checker that
 holds the hand-written tables and the generated ones to each other:
 
@@ -91,20 +103,28 @@ node tools/test-plan.mjs       # the day planner's pure core
 node tools/fetch-rail.mjs      # rebuild the line geometry (add --write to apply)
 ```
 
-None of it runs at page load; see [`tools/README.md`](tools/README.md) for the
+None of it is part of the build; see [`tools/README.md`](tools/README.md) for the
 rest, and [`CLAUDE.md`](CLAUDE.md) for how the pieces fit together.
-
-## Deploying
-
-GitHub Pages serves the `main` branch from the repository root (Settings →
-Pages → *Deploy from a branch*). Pushing to `main` publishes; there is no build
-step, and `.nojekyll` keeps Jekyll from touching the files.
-
-Live site: https://tacastillo.github.io/trip-db/
 
 ## Local preview
 
 ```sh
-python3 -m http.server 8000
-# then open http://localhost:8000
+npm install
+npm run dev        # http://localhost:4321/trip-db/
 ```
+
+## Deploying
+
+Pushing to `main` publishes. `.github/workflows/deploy.yml` runs the data checks and
+both test scripts, builds the site, and hands the output to GitHub Pages; nothing
+deploys if a check fails. No build output lives in the repository — `dist/` is
+gitignored. `public/.nojekyll` lands in the output and keeps Jekyll away from Astro's
+`_astro/` directory.
+
+The same workflow runs on pull requests, minus the deploy.
+
+One setting has to be right for any of this to land: **Settings → Pages → Source →
+GitHub Actions**. On *Deploy from a branch* the build still runs and the deploy step
+fails.
+
+Live site: https://tacastillo.github.io/trip-db/

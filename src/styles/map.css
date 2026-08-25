@@ -1,0 +1,35 @@
+/* pins */
+.pin{width:30px; height:30px;}
+.pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid #fff; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+  display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.32);}
+.pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
+.pin-n{font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:14px; color:#fff;}
+/* With a day up, the day is the subject and the other seventy-odd spots are context. */
+body.planning .leaflet-marker-icon{opacity:.26; transition:opacity .18s;}
+body.planning .leaflet-marker-icon:hover{opacity:1;}
+body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
+.pin.plan .pin-b{border-width:3px; box-shadow:0 3px 9px rgba(0,0,0,.45);}
+
+/* The place card sits at the top of the map rather than on a pin, so the ride
+   below it is never underneath it and the map can be dragged out from under it. */
+.card{position:absolute; top:14px; right:14px; z-index:600; width:332px; max-width:calc(100% - 28px);
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 14px 36px rgba(28,26,23,.18); padding:13px 16px 14px; line-height:1.4; display:none;}
+.card.show{display:block; animation:cardIn .2s ease-out;}
+@keyframes cardIn{from{opacity:0; transform:translateY(-9px);} to{opacity:1; transform:none;}}
+.card-x{position:absolute; top:7px; right:7px; width:28px; height:28px; border:none; background:none;
+  cursor:pointer; color:var(--muted); font-size:16px; line-height:1; border-radius:7px; padding:0;}
+.card-x:hover{background:var(--line-2); color:var(--ink);}
+.pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+.pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px; padding-right:22px;}
+.pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
+.pop-note{font-size:12.5px; color:var(--ink);}
+.pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
+.card-plan{margin-top:10px;}
+
+/* tile fallback banner */
+.tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
+  background:rgba(28,26,23,.86); color:#F6F2EA; font-size:12px; line-height:1.4; padding:9px 14px; border-radius:9px;
+  box-shadow:0 6px 20px rgba(0,0,0,.25); display:none; text-align:center;}
+
+

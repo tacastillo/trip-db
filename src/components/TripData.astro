@@ -1,0 +1,10 @@
+---
+/* The place data used to be readable straight off the page, because the page was one
+   file with one script in it. It is a bundled module now, so the same data is published
+   here as JSON instead — that is what #plan-url-spec points an agent at, and dropping
+   it would quietly break reading a shared link without running any JavaScript. */
+import { CATS, CAT_ORDER, CLUSTERS, LEGS, PLACES } from "../data/places.js";
+
+const data = { legs: LEGS, cats: CATS, catOrder: CAT_ORDER, clusters: CLUSTERS, places: PLACES };
+---
+<script type="application/json" id="trip-data" set:html={JSON.stringify(data)}></script>

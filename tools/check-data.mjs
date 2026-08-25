@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Check that everything in index.html still agrees with everything else.
+/* Check that everything in src/ still agrees with everything else.
 
      node tools/check-data.mjs
 
@@ -10,18 +10,16 @@
    Most of these catch a failure the page itself will not report: a spot with a
    typo'd cluster still drops its pin, but never appears in the list. */
 
-import { readIndex, readConst, sliceBetween, metres, distToPath } from "./lib.mjs";
-
-const src = readIndex();
-const K = (n) => readConst(src, n);
-const [CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, SUBWAY, SUBWAY_BUSAN, ROUTES, PLACE_OFF,
-       STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX] =
-  ["CATS","CAT_ORDER","CLUSTERS","PLACES","LEGS","SUBWAY","SUBWAY_BUSAN","ROUTES","PLACE_OFF",
-   "STATION_COORDS","HOTEL_STATION","AUTO_WALK_MAX"].map(K);
-
-const PLAN_PARAMS = K("PLAN_PARAMS"), PLAN_MAX_STOPS = K("PLAN_MAX_STOPS");
-
-const RAIL = { seoul: SUBWAY, busan: SUBWAY_BUSAN, jeju: [] };
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { ROOT, metres, distToPath } from "./lib.mjs";
+import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS } from "../src/data/places.js";
+import { SUBWAY } from "../src/data/subway.js";
+import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
+import { RAIL } from "../src/data/rail.js";
+import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
+import { PLAN_PARAMS, PLAN_MAX_STOPS } from "../src/lib/plan-core.js";
+import SPEC from "../src/data/plan-url-spec.json" with { type: "json" };
 const CITY_BOX = {                      // generous, just to catch a transposed pair
   seoul: [37.2, 126.6, 37.9, 127.5],
   busan: [34.9, 128.7, 35.5, 129.4],
@@ -136,7 +134,7 @@ for (const s of Object.keys(STATION_COORDS))
     warn(`STATION_COORDS has "${s}", which no route uses — the nearest-station fallback ignores it`);
 
 /* ---------- what actually gets a ride ---------- */
-const offFor = (p) => {                 // mirrors offStationFor() in index.html
+const offFor = (p) => {                 // mirrors offStationFor() in src/lib/journey.js
   if (PLACE_OFF[p.id]) return PLACE_OFF[p.id];
   if (p.cat === "hotel") return null;
   let best = null;
@@ -183,27 +181,24 @@ const widest = PLACES.map(p => p.id.length).sort((a, b) => b - a)
   .slice(0, PLAN_MAX_STOPS).reduce((a, b) => a + b + 1, 0);
 if (widest > 1500) err(`${PLAN_MAX_STOPS} of the longest ids is ${widest} characters of query string`);
 
-/* tools/test-plan.mjs lifts the planner core out from between these. A missing
-   sentinel means it tests an empty string and passes, which is worse than failing. */
-for (const [a, b] of [["/* ==== plan-core:start ==== */", "/* ==== plan-core:end ==== */"],
-                      ["/* ==== geo-core:start ==== */",  "/* ==== geo-core:end ==== */"]]){
-  try {
-    if (!sliceBetween(src, a, b).trim()) err(`nothing between ${a} and ${b}`);
-  } catch (e){ err(e.message); }
+/* src/lib/ is the half of the code the node tests can run, and it can only stay that
+   way while nothing in it reaches for the page. The single-file page fenced this off
+   with a pair of sentinel comments; a directory does it better, but only if someone
+   checks — nothing else would notice a document. creeping in here. */
+const IMPURE = /(?<![.\w])(document|window|location|history|localStorage|navigator)\b/g;
+for (const f of readdirSync(join(ROOT, "src/lib"))){
+  const text = readFileSync(join(ROOT, "src/lib", f), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const hits = [...new Set(text.match(IMPURE) || [])];
+  if (hits.length) err(`src/lib/${f} touches the page (${hits.join(", ")}) — that belongs in src/client/`);
 }
 
-/* The spec block is what an agent reads when it cannot run the page. A spec that has
-   drifted from the code is worse than no spec at all. */
-const spec = /<script type="application\/json" id="plan-url-spec">([\s\S]*?)<\/script>/.exec(src);
-if (!spec) err("no #plan-url-spec block in index.html");
-else {
-  try {
-    const documented = Object.keys(JSON.parse(spec[1]).params || {}).sort().join();
-    const real = Object.values(PLAN_PARAMS).sort().join();
-    if (documented !== real)
-      err(`#plan-url-spec documents ${documented} but PLAN_PARAMS is ${real}`);
-  } catch (e){ err(`#plan-url-spec is not valid JSON: ${e.message}`); }
-}
+/* The spec is what an agent reads when it cannot run the page. One that has drifted
+   from the code is worse than no spec at all. */
+const documented = Object.keys(SPEC.params || {}).sort().join();
+const real = Object.values(PLAN_PARAMS).sort().join();
+if (documented !== real)
+  err(`plan-url-spec.json documents ${documented} but PLAN_PARAMS is ${real}`);
 
 /* ---------- verdict ---------- */
 console.log();

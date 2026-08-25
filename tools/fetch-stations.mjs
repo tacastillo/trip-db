@@ -12,7 +12,7 @@
    station it cannot match is reported and left exactly as it was — the tables
    stay valid and you decide what to do. */
 
-import { readIndex, saveIndex, readConst, writeConst, serializeStations,
+import { readSource, saveSource, sourceFor, readConst, writeConst, serializeStations,
          overpass, metres, argv, flag } from "./lib.mjs";
 
 const MOVED_M = 40;   // report a station that has shifted further than this
@@ -56,7 +56,8 @@ out tags center;`;
   }
   console.log(`  ${found.size} stations found\n`);
 
-  const src = readIndex();
+  const file = sourceFor("STATION_COORDS");
+  const src = readSource(file);
   const coords = readConst(src, "STATION_COORDS");
   const routes = readConst(src, "ROUTES");
   const next = {}, moved = [], missing = [], added = [];
@@ -97,11 +98,11 @@ out tags center;`;
   if (orphaned.length) throw new Error(`refusing to write: ROUTES needs ${orphaned.join(", ")}`);
 
   if (flag("write")){
-    saveIndex(writeConst(src, "STATION_COORDS", serializeStations(next)));
-    console.log(`index.html updated — ${Object.keys(next).length} stations. `
+    saveSource(file, writeConst(src, "STATION_COORDS", serializeStations(next)));
+    console.log(`${file} updated — ${Object.keys(next).length} stations. `
       + `Run \`node tools/check-data.mjs\`, then diff it.`);
   } else {
-    console.log("Nothing written. Re-run with --write to update index.html.");
+    console.log(`Nothing written. Re-run with --write to update ${file}.`);
   }
 }
 

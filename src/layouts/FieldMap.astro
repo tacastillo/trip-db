@@ -1,0 +1,58 @@
+---
+/* There is one page and no router: this layout is what index.html's <head> was.
+   The stylesheets are imported in the order the single <style> block had them, so
+   the cascade is the one the page was written against. */
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/header.css";
+import "../styles/sidebar.css";
+import "../styles/map.css";
+import "../styles/plan.css";
+import "../styles/ride.css";
+import "../styles/mobile.css";
+
+const base = import.meta.env.BASE_URL;
+
+/* Fonts live in public/vendor/ so the page needs nothing from Google to render.
+   Both are variable (weight axis), so one file per subset covers every weight used.
+   The -ext subsets exist for ₩ and friends; browsers skip them unless a glyph needs them.
+   This one sheet stays inline: its url()s point into the published vendor/ directory
+   rather than at anything the bundler should fingerprint. */
+const FONTS = `
+@font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url(${base}vendor/fonts/inter-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url(${base}vendor/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+  src:url(${base}vendor/fonts/bricolage-grotesque-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+  src:url(${base}vendor/fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+`;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark light" />
+<meta name="theme-color" content="#15120D" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
+<title>Tim &amp; Marisa · Korea — Seoul field map</title>
+
+<link rel="stylesheet" href={`${base}vendor/leaflet/leaflet.css`} />
+<style is:inline set:html={FONTS}></style>
+</head>
+
+<body class="night">
+<slot />
+
+<!-- Leaflet ships in this repo, so there is no CDN to fall back to and no reason to
+     wait: a classic script here runs before the deferred module that needs window.L. -->
+<script is:inline src={`${base}vendor/leaflet/leaflet.js`}></script>
+<script>import "../client/main.js";</script>
+</body>
+</html>

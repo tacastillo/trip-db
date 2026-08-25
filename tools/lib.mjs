@@ -5,14 +5,30 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-export const INDEX = join(dirname(fileURLToPath(import.meta.url)), "..", "index.html");
+export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-export const readIndex = () => readFileSync(INDEX, "utf8");
-export const saveIndex = (text) => writeFileSync(INDEX, text);
+/* Which module holds each constant the fetchers rewrite. Everything else imports
+   these modules directly; only the two fetch scripts edit them as text, because
+   rewriting a literal in place is what keeps the diff readable. */
+export const SOURCES = {
+  SUBWAY: "src/data/subway.js",
+  SUBWAY_BUSAN: "src/data/subway-busan.js",
+  STATION_COORDS: "src/data/routing.js",
+  ROUTES: "src/data/routing.js",
+  PLACE_OFF: "src/data/routing.js",
+};
 
-/* ---------- reading the constants out of index.html ----------
-   They are plain JS literals, so the honest way to read them is to let JS read
-   them. Everything here is our own file, never anything fetched. */
+export const sourceFor = (name) => {
+  const f = SOURCES[name];
+  if (!f) throw new Error(`no source file registered for ${name}`);
+  return f;
+};
+export const readSource = (file) => readFileSync(join(ROOT, file), "utf8");
+export const saveSource = (file, text) => writeFileSync(join(ROOT, file), text);
+
+/* ---------- reading a constant back out of its module ----------
+   They are plain JS literals, so the honest way to read one is to let JS read it.
+   Everything here is our own file, never anything fetched. */
 
 /** Span of `const NAME = <literal>;` in the source, or null. */
 export function constSpan(text, name){
@@ -37,14 +53,14 @@ export function constSpan(text, name){
 
 export function readConst(text, name){
   const s = constSpan(text, name);
-  if (!s) throw new Error(`no const ${name} in index.html`);
+  if (!s) throw new Error(`no const ${name} in the source`);
   return new Function(`return (${text.slice(s.valueStart, s.valueEnd)});`)();
 }
 
 /** Replace `const NAME = ...;` with `serialized`, leaving the rest untouched. */
 export function writeConst(text, name, serialized){
   const s = constSpan(text, name);
-  if (!s) throw new Error(`no const ${name} in index.html`);
+  if (!s) throw new Error(`no const ${name} in the source`);
   return text.slice(0, s.valueStart) + serialized + text.slice(s.valueEnd);
 }
 
@@ -262,14 +278,3 @@ export const bbox = (pts) => pts.reduce((b, p) => [
   Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1]),
 ], [90, 180, -90, -180]).map(n => Number(n.toFixed(4)));
 
-/** The text between two marker comments, exclusive. Throws rather than returning
-    nothing, because a silently missing sentinel means a test that asserts on an empty
-    string and passes. */
-export function sliceBetween(text, startMark, endMark){
-  const a = text.indexOf(startMark);
-  if (a < 0) throw new Error(`no ${startMark} in index.html`);
-  const b = text.indexOf(endMark, a + startMark.length);
-  if (b < 0) throw new Error(`no ${endMark} after ${startMark} in index.html`);
-  if (text.indexOf(startMark, a + 1) >= 0) throw new Error(`${startMark} appears more than once`);
-  return text.slice(a + startMark.length, b);
-}

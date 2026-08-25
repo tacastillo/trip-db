@@ -1,0 +1,23 @@
+*{box-sizing:border-box;}
+:root{
+  --paper:#F6F2EA; --surface:#FFFFFF; --ink:#1C1A17; --muted:#7A7062;
+  --line:#E7E0D2; --line-2:#EFEAE0; --accent:#C8432A;
+  /* An input has to read as inset, so it is off --surface rather than on it; and a
+     plan that saves you a kilometre wants a colour that isn't the warning red. */
+  --field:#FBF8F2; --ok:#2E7D52; --warn:#9C5A16;
+}
+
+/* night mode */
+body.night{
+  --paper:#15120D; --surface:#1E1A14; --ink:#F1EBDF; --muted:#9C9081;
+  --line:#342E25; --line-2:#2A241D; --accent:#E2604A;
+  --field:#161310; --ok:#5FBE8B; --warn:#D9A05B;
+}
+body.night #map{background:#0d0b08;}
+body.night .item:hover{background:#241f18;}
+body.night .item.sel{background:#2c2118;}
+body.night .leaflet-container{background:#0d0b08;}
+body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
+body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
+body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
+body.carded .tilebanner{top:auto; bottom:14px;}

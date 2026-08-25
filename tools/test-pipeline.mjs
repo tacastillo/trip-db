@@ -5,11 +5,12 @@
 
    fetch-rail.mjs is two halves: ask Overpass for ways, then turn ways into
    paths. Only the first half needs the internet. This feeds the second half
-   the geometry already in index.html, chopped into pieces and shuffled the way
+   the geometry already in src/data/, chopped into pieces and shuffled the way
    relation members actually arrive, and checks it comes back out intact. */
 
-import { readIndex, readConst, buildLine, stitch, simplify, clipToRadius,
+import { readSource, sourceFor, buildLine, stitch, simplify, clipToRadius,
          metres, pointToSeg, distToPath, serializeRail, writeConst } from "./lib.mjs";
+import { SUBWAY } from "../src/data/subway.js";
 
 let failed = 0;
 const ok = (name, pass, detail = "") => {
@@ -18,8 +19,8 @@ const ok = (name, pass, detail = "") => {
 };
 
 const SEOUL = { centre: [37.5665, 126.9780], clipKm: 40 };
-const src = readIndex();
-const SUBWAY = readConst(src, "SUBWAY");
+const SUBWAY_FILE = sourceFor("SUBWAY");
+const src = readSource(SUBWAY_FILE);
 
 /* Chop a path into ways of 3–9 points, overlapping at the joins like OSM's do,
    then reverse some and shuffle the lot — a relation's members are in no
@@ -141,7 +142,7 @@ console.log("\nround trip through the whole pipeline");
 console.log("\nwriting back");
 {
   const rewritten = writeConst(src, "SUBWAY", serializeRail(SUBWAY));
-  ok("re-serialising the vendored data reproduces index.html exactly", rewritten === src);
+  ok(`re-serialising the vendored data reproduces ${SUBWAY_FILE} exactly`, rewritten === src);
   const bumped = writeConst(src, "SUBWAY", serializeRail(SUBWAY.slice(0, 2)));
   ok("a real change only touches that constant",
      bumped !== src && bumped.split("\n").length === src.split("\n").length);
