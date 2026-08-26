@@ -67,7 +67,7 @@
   .card-plan{min-height:44px; font-size:14px;}
   /* the Naver button is the thing you tap while standing in a street, so it gets the
      whole row and a thumb-sized target rather than sharing a line with the distance */
-  .phop-a{margin-left:0; width:100%; justify-content:center; min-height:44px; font-size:13.5px; margin-top:2px;}
+  .phop-a{width:100%; justify-content:center; min-height:44px; font-size:13.5px; margin-top:2px;}
   .pop-route .phop-a{min-height:44px; font-size:13.5px;}
   .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}

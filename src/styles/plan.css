@@ -92,7 +92,7 @@
   border-left:2px dashed var(--line); padding:7px 0 9px calc(var(--num) / 2 + var(--gap) - 1px);
   display:flex; align-items:center; gap:8px; flex-wrap:wrap;
   font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;}
-.phop-d{flex:none;}
+.phop-d{flex:none; margin-right:2px;}
 .phop-d b{color:var(--ink); font-weight:700;}
 .phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10.5px;}
 .phop-s{color:var(--muted);}
@@ -100,7 +100,7 @@
 /* The Naver link is the only thing here that actually navigates anybody anywhere, and
    it has proved the most trustworthy part of the page, so it is a filled control with
    a real target rather than a footnote in the hop row. Mobile takes it to 44px. */
-.phop-a{margin-left:auto; display:inline-flex; align-items:center; gap:5px; flex:none;
+.phop-a{display:inline-flex; align-items:center; gap:5px; flex:none;
   background:var(--accent); color:#fff; text-decoration:none; font-weight:700; font-size:12px;
   border:1px solid var(--accent); border-radius:20px; padding:7px 14px; min-height:32px; line-height:1;
   box-shadow:0 1px 3px rgba(0,0,0,.14); transition:filter .12s, transform .12s;}

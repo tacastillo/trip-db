@@ -40,8 +40,10 @@ export function naverBtnHtml(href, to, label){
     aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} <span class="phop-a-x">↗</span></a>`;
 }
 
+/* Short enough that the distance, the manner and the Naver button fit on one line in a
+   340px sidebar — a button that wraps onto a line of its own reads as floating. */
 export function hopHow(leg){
-  return leg.walkable ? `about ${leg.walkMin} min on foot`
+  return leg.walkable ? `${leg.walkMin} min walk`
                       : (leg.mode === "car" ? "worth driving" : "worth riding");
 }
 
