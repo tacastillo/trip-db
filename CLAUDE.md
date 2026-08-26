@@ -139,6 +139,13 @@ that is where every morning of this trip actually begins. It is an ordinary stop
 is there: drag it, drop it, and nothing puts it back until the day is empty again. A day
 that arrives off a link is somebody else's and is never touched, seeded or reordered.
 
+**And it ends there too.** `homeLeg()` measures the way back from the last resolved stop
+to the same home base and the pane closes on it — the hop, then a dashed "Ends back at"
+row — and `planBriefMarkdown()` says the same. It is deliberately **not** a stop: `?stops=`
+collapses a repeated id, so a hotel that both opened and closed the day could not survive
+a round trip through the link. Computed instead, it also follows the day around as the
+order changes and costs the URL nothing.
+
 **In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
 page's one answer to "are we planning right now" (`planningMode()`), and while it is on,
 `select()` skips `showRoute()` and the card carries `hopStripHtml()` instead: the hop from
@@ -160,6 +167,14 @@ straight streak across a city that says nothing you can act on. It is not a rout
 walk and not a ride, because `ROUTES` is rooted at the hotel and there is no
 station-to-station geometry to trace. What you can act on lives in the hop row instead —
 the distance, the line where the geometry proves one, and the Naver link.
+
+**The Naver button is the payload, not a footnote.** It is the one control on the page
+that actually navigates a person somewhere, and on the ground it is what gets followed —
+so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
+desktop, full width at 44px on a phone, and full width in the card. Every hop, the walk
+home, the planning card and the hotel-ride card go through that one function, so it looks
+and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
+link stops resolving.
 
 `hopLine()` names the line for a hop, but only when both stations sit on one line and no
 transfer has to be guessed. That restraint is the whole point: `STATION_COORDS` holds the

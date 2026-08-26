@@ -204,6 +204,18 @@ group("the home base");
 });
 ok("a city with no hotel simply has none", core.hotelFor("nowhere", PLACES) === null);
 
+const day = R(["novotel","gwangjang","gyeongbok"]);
+const back = core.homeLeg(day, "seoul", null, PLACES);
+ok("a day gets a hop home from its last stop",
+  !!back && back.home.id === "novotel" && back.a.id === "gyeongbok" && back.naver.includes("map.naver.com"));
+ok("and none when it already ends at the hotel",
+  core.homeLeg(R(["gwangjang","novotel"]), "seoul", null, PLACES) === null);
+ok("and none for an empty day", core.homeLeg(R([]), "seoul", null, PLACES) === null);
+ok("an unknown id at the end does not swallow the hop home",
+  (core.homeLeg(R(["gwangjang","nosuchplace"]), "seoul", null, PLACES) || {}).a?.id === "gwangjang");
+ok("the brief says where the day ends",
+  core.planBriefMarkdown({ city:"seoul", ids:[] }, day, "", null, null).includes("Ends back at **Novotel"));
+
 /* ---------- the two metres() ---------- */
 
 group("the geometry the page ships");

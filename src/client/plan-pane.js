@@ -5,7 +5,7 @@ import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, homeLeg, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
@@ -32,18 +32,39 @@ export function planStopHtml(s, i, n){
   </div>`;
 }
 
-export function planHopHtml(leg){
+/** The one thing on this page that actually navigates you somewhere, so it is a
+    control rather than a footnote: filled, labelled, and a 44px target on a phone.
+    Every hop, the walk home and the card all use this same button. */
+export function naverBtnHtml(href, to, label){
+  return `<a class="phop-a" href="${href}" target="_blank" rel="noopener noreferrer"
+    aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} <span class="phop-a-x">↗</span></a>`;
+}
+
+export function hopHow(leg){
+  return leg.walkable ? `about ${leg.walkMin} min on foot`
+                      : (leg.mode === "car" ? "worth driving" : "worth riding");
+}
+
+export function planHopHtml(leg, cls){
   if (!leg) return "";
-  const how = leg.walkable
-    ? `about ${leg.walkMin} min on foot`
-    : (leg.mode === "car" ? "worth driving" : "worth riding");
   // named only where the geometry proves it: one line, both stations, no transfer guessed
   const line = leg.line
     ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
        <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
     : "";
-  return `<div class="phop"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
-    ${line}<a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
+  return `<div class="phop${cls ? " " + cls : ""}"><span class="phop-r"></span>
+    <span class="phop-d">${fmtM(leg.metres)} · ${hopHow(leg)}</span>
+    ${line}${naverBtnHtml(leg.naver, leg.b.name)}</div>`;
+}
+
+/** A day ends at the hotel, so the pane says so and hands you the way back. It is a
+    closing row rather than a stop — see homeLeg() for why it cannot be one. */
+export function planHomeHtml(stops){
+  const leg = homeLeg(stops, plan.city, planOffFor, PLACES);
+  if (!leg) return "";
+  return planHopHtml(leg, "home") + `<div class="pend">
+    <span class="pend-i" style="background:${(CATS.hotel || {}).color}">🏨</span>
+    <span class="pend-t">Ends back at ${leg.home.name}</span></div>`;
 }
 
 export function renderPlan(){
@@ -96,6 +117,7 @@ export function renderPlan(){
       out.push(planStopHtml(s, i, stops.length));
       out.push(planHopHtml(st.legs[i]));
     });
+    out.push(planHomeHtml(stops));
   }
 
   const sug = nearbySuggestions(stops, { places: PLACES, city: plan.city, cats: active });

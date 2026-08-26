@@ -79,14 +79,32 @@
 .pdrop:hover{color:var(--accent); background:var(--line-2);}
 
 /* The hop between two stops. There is no rail time here on purpose — see naverDirUrl. */
-.phop{display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:2px 14px 6px 40px; font-size:11px; color:var(--muted);
+.phop{display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:3px 14px 7px 40px; font-size:11px; color:var(--muted);
   font-variant-numeric:tabular-nums;}
 .phop-r{width:1px; height:11px; background:var(--line); margin-left:-14px;}
-.phop-a{color:var(--accent); text-decoration:none; font-weight:600; border:1px solid var(--line);
-  border-radius:20px; padding:2px 8px;}
+.phop-d{flex:none;}
 .phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10px;}
 .phop-s{color:var(--muted);}
-.phop-a:hover{border-color:var(--accent);}
+
+/* The Naver link is the only thing here that actually navigates anybody anywhere, and
+   it has proved the most trustworthy part of the page, so it is a filled control with
+   a real target rather than a footnote in the hop row. Mobile takes it to 44px. */
+.phop-a{margin-left:auto; display:inline-flex; align-items:center; gap:5px; flex:none;
+  background:var(--accent); color:#fff; text-decoration:none; font-weight:700; font-size:11px;
+  border:1px solid var(--accent); border-radius:20px; padding:6px 12px; min-height:30px; line-height:1;
+  box-shadow:0 1px 3px rgba(0,0,0,.14); transition:filter .12s, transform .12s;}
+.phop-a:hover{filter:brightness(1.08);}
+.phop-a:active{transform:scale(.97);}
+.phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.phop-a-x{opacity:.8; font-weight:600;}
+
+/* the walk back, and the line that says the day is over */
+.phop.home .phop-d{color:var(--ink);}
+.pend{display:flex; align-items:center; gap:9px; margin:0 14px 6px; padding:8px 10px; border-radius:9px;
+  background:var(--field); border:1px dashed var(--line); font-size:11.5px; color:var(--muted);}
+.pend-i{width:22px; height:22px; border-radius:50%; flex:none; display:flex; align-items:center;
+  justify-content:center; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+.pend-t{min-width:0;}
 
 .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
   background:var(--field); padding:8px 10px; font-size:11.5px; line-height:1.4; color:var(--ink);}
@@ -147,4 +165,7 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
   border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
 .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+/* in the card there is nothing to sit beside, so it spans the width and reads as the
+   action the card is for */
+.pop-route .phop-a{margin:8px 0 0; width:100%; justify-content:center; min-height:36px; font-size:12px;}
 

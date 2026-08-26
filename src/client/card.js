@@ -2,7 +2,8 @@ import { planHas, planOffFor, planStops, planToggle, planningMode } from "./plan
 import { deselect } from "./selection.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { fmtM, planLegs } from "../lib/plan-core.js";
+import { hopHow, naverBtnHtml } from "./plan-pane.js";
+import { fmtM, hotelFor, naverDirUrl, planLegs } from "../lib/plan-core.js";
 
 /* ---------------- map ---------------- */
 export function cardHtml(p){
@@ -50,16 +51,14 @@ export function hopStripHtml(p){
   if (!from || from.id === p.id) return "";
   const leg = planLegs([{ id:from.id, place:from }, { id:p.id, place:p }], planOffFor)[0];
   if (!leg) return "";
-  const how = leg.walkable ? `about ${leg.walkMin} min on foot`
-            : (leg.mode === "car" ? "worth driving" : "worth riding");
   const line = leg.line
     ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
        <span class="pr-txt">${leg.line.from} <span class="pr-arr">→</span> ${leg.line.to}</span></div>`
     : "";
   const kicker = i > 0 ? `From stop ${i}, ${from.name}` : `From your last stop, ${from.name}`;
   return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
-    <div class="pr-walk">${fmtM(leg.metres)} · ${how} ·
-      <a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div></div>`;
+    <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>
+    ${naverBtnHtml(leg.naver, p.name, "Open in Naver Maps")}</div>`;
 }
 
 export function routeStripHtml(p){
@@ -73,7 +72,10 @@ export function routeStripHtml(p){
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
+  // the traced ride names the platforms; Naver is what you actually follow on the day
+  const home = hotelFor(p.city);
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;
+    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div>
+    ${home ? naverBtnHtml(naverDirUrl(home, p), p.name, "Open in Naver Maps") : ""}</div>`;
 }
 
