@@ -32,11 +32,17 @@
 /* a row is a button, so the add control has to be its sibling, never its child */
 .itemrow{display:flex; align-items:flex-start;}
 .itemrow .item{flex:1; min-width:0;}
-.planbtn{flex:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
-  font-family:inherit; font-size:14px; line-height:1; width:26px; height:26px; border-radius:8px; margin:9px 12px 0 0;
-  display:flex; align-items:center; justify-content:center; padding:0;}
-.planbtn:hover{border-color:var(--accent); color:var(--accent);}
-.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff;}
+/* This is the one control that builds a day, so it is sized and coloured like it:
+   a 34px target that reads as an action at a glance rather than a faint hairline
+   square you have to hunt for. Mobile takes it to 44px below. */
+.planbtn{flex:none; border:1px solid var(--accent); background:var(--line-2); color:var(--accent); cursor:pointer;
+  font-family:inherit; font-size:19px; font-weight:600; line-height:1; width:34px; height:34px; border-radius:9px;
+  margin:7px 12px 0 2px; display:flex; align-items:center; justify-content:center; padding:0;
+  transition:background .12s, color .12s, transform .12s;}
+.planbtn:hover{background:var(--accent); color:#fff;}
+.planbtn:active{transform:scale(.94);}
+.planbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff; font-size:16px;}
 .planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 .planpane{flex:1; min-height:0; overflow-y:auto; padding:2px 0 16px;}
@@ -44,9 +50,6 @@
 .ptitle{width:100%; font-family:'Bricolage Grotesque',sans-serif; font-size:15px; font-weight:700; color:var(--ink);
   background:var(--field); border:1px solid var(--line); border-radius:8px; padding:7px 10px; -webkit-appearance:none;}
 .ptitle:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
-.pdate{font-family:inherit; font-size:12px; color:var(--ink); background:var(--field); border:1px solid var(--line);
-  border-radius:8px; padding:6px 9px; -webkit-appearance:none;}
-.pdate:focus{outline:none; border-color:var(--accent);}
 .pmeta{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
 .pmeta b{color:var(--accent);}
 
@@ -108,6 +111,14 @@
   font-size:11.5px; font-weight:500; border-radius:20px; padding:6px 11px; line-height:1;}
 .pact:hover{border-color:var(--accent); color:var(--accent);}
 .pact.done{border-color:var(--ok); color:var(--ok);}
+
+/* the card's own add control carries the same weight as the one in the list — it is
+   the same job, and on a phone the card is where most of it gets done */
+.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; min-height:38px; font-size:13px;
+  border-color:var(--accent); color:var(--accent); background:var(--line-2);}
+.card-plan:hover{background:var(--accent); color:#fff;}
+.card-plan.done{background:var(--ok); border-color:var(--ok); color:#fff;}
+.card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 
 .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);

@@ -79,6 +79,12 @@ export function hopLine(stA, stB, city, rail, coords){
   return l ? { ref, label: l.label, color: l.color, from: stA, to: stB } : null;
 }
 
+/** The home base for a city, which is where a day starts. The trip has one hotel per
+    leg; the first is the answer, and a city without one simply has no default start. */
+export function hotelFor(city, places){
+  return (places || PLACES).find(p => p.city === city && p.cat === "hotel") || null;
+}
+
 /** Metres as the rest of the page words them. */
 export function fmtM(m){
   return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;

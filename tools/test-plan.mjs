@@ -195,6 +195,15 @@ ok("legs carry the line when an offFor is given",
     .every(l => l === null || "line" in l));
 ok("and carry none when it is not", core.planLegs(R([pick("gyeongbok").id, pick("novotel").id]))[0].line === null);
 
+/* ---------- where a day starts ---------- */
+
+group("the home base");
+["seoul","busan","jeju"].forEach(c => {
+  const h = core.hotelFor(c, PLACES);
+  ok(`${c} has one, and it is a hotel in ${c}`, !!h && h.cat === "hotel" && h.city === c);
+});
+ok("a city with no hotel simply has none", core.hotelFor("nowhere", PLACES) === null);
+
 /* ---------- the two metres() ---------- */
 
 group("the geometry the page ships");

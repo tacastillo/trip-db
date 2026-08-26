@@ -133,6 +133,25 @@ Rotted links degrade rather than break. An id the map no longer has is **kept**,
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
 
+**A day starts at the hotel.** The first stop added to an empty day puts the leg's home
+base in front of it first — `planSeedStart()` in `plan-state.js`, off `hotelFor()` — because
+that is where every morning of this trip actually begins. It is an ordinary stop once it
+is there: drag it, drop it, and nothing puts it back until the day is empty again. A day
+that arrives off a link is somebody else's and is never touched, seeded or reordered.
+
+**In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
+page's one answer to "are we planning right now" (`planningMode()`), and while it is on,
+`select()` skips `showRoute()` and the card carries `hopStripHtml()` instead: the hop from
+the stop before this one — its distance, its line where the geometry proves one, its Naver
+link — or, for a spot not in the day yet, the same measured from the last stop there is,
+which is what you are weighing before you tap add. The hotel ride is the wrong answer
+mid-plan, and its red streak buries the numbered pins the plan is being read off.
+
+**There is no date field.** `day` is still decoded, re-encoded and honoured — a shared link
+that carries one still gets its `closedDays()` cautions — but nothing on the page asks for
+one. Weekday closures are worth catching when a link states the day; asking someone to
+type a date to build a list of stops is not.
+
 **Nothing is ever drawn between two stops on the map.** A planned stop takes its number
 onto its own pin and everything else steps back — `body.planning` fades the other markers
 and `railFade()` drops the rail — so the order reads on its own. There is no connector,

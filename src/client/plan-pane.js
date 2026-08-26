@@ -1,11 +1,11 @@
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
-import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
+import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planSeedStart, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
@@ -62,12 +62,14 @@ export function renderPlan(){
   if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} to ride`);
   out.push(`<div class="phead">
     <input class="ptitle" id="planTitle" placeholder="Name this day" maxlength="${PLAN_TITLE_MAX}" value="${esc(plan.title)}" />
-    <input class="pdate" id="planDate" type="date" value="${esc(plan.day)}" aria-label="Date, used only to check weekday closures" />
     <div class="pmeta">${cityLabel} · ${bits.join(" · ")}</div>
   </div>`);
 
   if (!plan.ids.length){
-    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.</div>`);
+    const h = hotelFor(plan.city, PLACES);
+    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.
+      ${h ? `<br />The day starts at ${h.name}; the first spot you add puts it in front.` : ""}</div>`);
+    if (h) out.push(`<div class="pacts"><button class="pact" id="planStart">Start at ${h.name}</button></div>`);
   } else {
     out.push(`<div class="pacts">
       <button class="pact" id="planFit">Frame the day</button>
@@ -127,10 +129,8 @@ export function wirePlanPane(el){
 
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
-  const d = el.querySelector("#planDate");
-  if (d) d.onchange = () => { plan.day = d.value || ""; afterPlanChange(); };
-
   const wire = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.onclick = fn; };
+  wire("planStart", () => { planSeedStart(); afterPlanChange(); });
   wire("planFit", fitPlan);
   wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
   wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));

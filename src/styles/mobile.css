@@ -52,7 +52,10 @@
     overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
   .pstop{padding:12px 14px 12px 8px;}
   .planbtn,.pmove,.pdrop,.pdrag{min-width:34px; min-height:34px;}
-  .planbtn{width:34px; height:34px;}
+  /* a thumb, not a cursor: the add control gets the full 44px Apple asks for */
+  .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; font-size:22px; margin:6px 10px 0 2px;}
+  .planbtn.on{font-size:18px;}
+  .card-plan{min-height:44px; font-size:14px;}
   .psug{padding:11px 16px;}
   .it-name{font-size:14.5px;}
   .it-note{font-size:12.5px; margin-top:3px;}
