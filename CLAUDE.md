@@ -168,6 +168,15 @@ walk and not a ride, because `ROUTES` is rooted at the hotel and there is no
 station-to-station geometry to trace. What you can act on lives in the hop row instead —
 the distance, the line where the geometry proves one, and the Naver link.
 
+**Reordering is dragging, and only dragging.** A stop row is one four-column grid —
+grab strip, number, stop, remove — sized off `--grab`/`--num`/`--ctrl`/`--gap` on
+`.planpane`, which `mobile.css` widens to give every target a thumb. The up/down arrows
+are gone: two 9px glyphs stacked in a column were the smallest targets on the page, and
+their space went to the handle, which is now the full height of its row. The hop rows
+hang off a dashed rail drawn down the centre of the number column and indent to the same
+tokens, so numbers, rail and hop text line up in one column instead of each finding its
+own left edge — that alignment is the reason those are tokens and not literals.
+
 **The Naver button is the payload, not a footnote.** It is the one control on the page
 that actually navigates a person somewhere, and on the ground it is what gets followed —
 so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on

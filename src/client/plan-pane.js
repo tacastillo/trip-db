@@ -10,7 +10,7 @@ import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
 
-export function planStopHtml(s, i, n){
+export function planStopHtml(s, i){
   const p = s.place;
   const c = p ? (CATS[p.cat] || {}) : {};
   const body = p
@@ -20,15 +20,15 @@ export function planStopHtml(s, i, n){
        ${p.meta ? `<span class="pmetaline">${p.meta}</span>` : ""}`
     : `<span class="pname">unknown spot “${esc(s.id)}”</span>
        <span class="phood">this link names an id the map no longer has</span>`;
+  // Four columns, the same four on every row, so the eye reads straight down: the grab
+  // strip, the number, the stop, the remove. There are no up/down arrows — two 9px
+  // arrows stacked in a column were the smallest targets on the page and dragging is
+  // the gesture people reach for anyway, so the handle got their space instead.
   return `<div class="pstop${p ? "" : " gone"}" data-i="${i}">
-    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</button>
+    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag ${p ? p.name : s.id} to reorder">⠿</button>
     <span class="pnum-i" style="background:${p ? (c.color || "#888") : "#888"}">${i + 1}</span>
     <button class="pbody" data-focus="${p ? p.id : ""}">${body}</button>
-    <span class="pctrl">
-      <button class="pmove" data-up="${i}" ${i === 0 ? "disabled" : ""} title="Move up" aria-label="Move up">▲</button>
-      <button class="pmove" data-down="${i}" ${i === n - 1 ? "disabled" : ""} title="Move down" aria-label="Move down">▼</button>
-      <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove">✕</button>
-    </span>
+    <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove ${p ? p.name : s.id} from the day">✕</button>
   </div>`;
 }
 
@@ -52,8 +52,8 @@ export function planHopHtml(leg, cls){
     ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
        <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
     : "";
-  return `<div class="phop${cls ? " " + cls : ""}"><span class="phop-r"></span>
-    <span class="phop-d">${fmtM(leg.metres)} · ${hopHow(leg)}</span>
+  return `<div class="phop${cls ? " " + cls : ""}">
+    <span class="phop-d"><b>${fmtM(leg.metres)}</b> · ${hopHow(leg)}</span>
     ${line}${naverBtnHtml(leg.naver, leg.b.name)}</div>`;
 }
 
@@ -114,7 +114,7 @@ export function renderPlan(){
       <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
 
     stops.forEach((s, i) => {
-      out.push(planStopHtml(s, i, stops.length));
+      out.push(planStopHtml(s, i));
       out.push(planHopHtml(st.legs[i]));
     });
     out.push(planHomeHtml(stops));
@@ -143,8 +143,6 @@ export function wirePlanPane(el){
   const on = (sel, ev, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener(ev, fn));
   on("[data-focus]", "click", e => { const id = e.currentTarget.dataset.focus; if (id) focus(id); });
   on("[data-drop]", "click", e => planRemove(e.currentTarget.dataset.drop));
-  on("[data-up]", "click", e => { const i = +e.currentTarget.dataset.up; planMove(i, i - 1); });
-  on("[data-down]", "click", e => { const i = +e.currentTarget.dataset.down; planMove(i, i + 1); });
   on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
   on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
   on("[data-drag]", "pointerdown", planDragStart);
