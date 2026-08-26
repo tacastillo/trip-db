@@ -79,6 +79,12 @@ export function hopLine(stA, stB, city, rail, coords){
   return l ? { ref, label: l.label, color: l.color, from: stA, to: stB } : null;
 }
 
+/** The home base for a city, which is where a day starts. The trip has one hotel per
+    leg; the first is the answer, and a city without one simply has no default start. */
+export function hotelFor(city, places){
+  return (places || PLACES).find(p => p.city === city && p.cat === "hotel") || null;
+}
+
 /** Metres as the rest of the page words them. */
 export function fmtM(m){
   return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
@@ -220,6 +226,21 @@ export function planLegs(stops, offFor){
                 naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode) });
   }
   return legs;
+}
+
+/** The hop home. Every day of this trip ends where it started — you are sleeping at the
+    hotel — so the last thing a day needs is the way back. It is deliberately not a stop:
+    ?stops= collapses a repeated id, so a hotel that both opens and closes the day could
+    not survive a round trip through the link. It is computed from the last resolved stop
+    instead, which means it follows the day around as the order changes and costs the URL
+    nothing. Null when there is no home base, or when you already end at it. */
+export function homeLeg(stops, city, offFor, places){
+  const home = hotelFor(city, places);
+  if (!home) return null;
+  const last = stops.filter(s => s.place).map(s => s.place).pop();
+  if (!last || last.id === home.id) return null;
+  const leg = planLegs([{ id:last.id, place:last }, { id:home.id, place:home }], offFor)[0];
+  return leg ? Object.assign({ home, from:last }, leg) : null;
 }
 
 /** Raw metres end to end. No WALK_BEND: every caller compares two of these, and a
@@ -383,6 +404,13 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
       : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`} · ${leg.naver}`);
     lines.push("");
   });
+  const back = homeLeg(stops, plan.city, offFor);
+  if (back){
+    lines.push(`Ends back at **${back.home.name}** — ${fmtM(back.metres)}${back.walkable
+      ? `, about ${back.walkMin} min on foot` : back.line
+        ? `, ${back.line.label} from ${back.line.from} to ${back.line.to}` : `, ${back.mode}`} · ${back.naver}`);
+    lines.push("");
+  }
   const cautions = orderCautions(stops, plan.city, plan.day);
   if (cautions.length){
     lines.push("## Worth knowing");

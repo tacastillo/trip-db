@@ -1,7 +1,9 @@
-import { planHas, planToggle } from "./plan-state.js";
+import { planHas, planOffFor, planStops, planToggle, planningMode } from "./plan-state.js";
 import { deselect } from "./selection.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
+import { hopHow, naverBtnHtml } from "./plan-pane.js";
+import { fmtM, hotelFor, naverDirUrl, planLegs } from "../lib/plan-core.js";
 
 /* ---------------- map ---------------- */
 export function cardHtml(p){
@@ -13,7 +15,7 @@ export function cardHtml(p){
     <div class="pop-note">${p.note}</div>
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}
     <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
-    ${routeStripHtml(p)}`;
+    ${planningMode() ? hopStripHtml(p) : routeStripHtml(p)}`;
 }
 export const cardEl = document.getElementById("card");
 export function showCard(p){
@@ -32,6 +34,33 @@ export function hideCard(){
 }
 
 
+/* Mid-plan the useful question is not "how do I get here from the hotel" — it is "what
+   is between the stop before this one and this one". That is the same hop the plan pane
+   already words, so it is worded the same way here: the distance, the line only where
+   the geometry proves one without a guessed transfer, and a Naver link for the rest.
+   No time is invented, because ROUTES is rooted at the hotel and cannot answer it.
+   For a spot that is not in the day yet, the hop is measured from the last stop there
+   is — which is exactly what you are weighing up before you tap add. */
+export function hopStripHtml(p){
+  const stops = planStops();
+  const i = stops.findIndex(s => s.id === p.id);
+  if (i === 0) return `<div class="pop-route"><span class="pr-k">Stop 1</span>
+    <div class="pr-walk">Where the day starts.</div></div>`;
+  const from = i > 0 ? stops[i - 1].place
+                     : stops.filter(s => s.place).map(s => s.place).pop();
+  if (!from || from.id === p.id) return "";
+  const leg = planLegs([{ id:from.id, place:from }, { id:p.id, place:p }], planOffFor)[0];
+  if (!leg) return "";
+  const line = leg.line
+    ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
+       <span class="pr-txt">${leg.line.from} <span class="pr-arr">→</span> ${leg.line.to}</span></div>`
+    : "";
+  const kicker = i > 0 ? `From stop ${i}, ${from.name}` : `From your last stop, ${from.name}`;
+  return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
+    <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>
+    ${naverBtnHtml(leg.naver, p.name, "Open in Naver Maps")}</div>`;
+}
+
 export function routeStripHtml(p){
   const j = journeyFor(p);
   if (!j) return "";
@@ -43,7 +72,10 @@ export function routeStripHtml(p){
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
+  // the traced ride names the platforms; Naver is what you actually follow on the day
+  const home = hotelFor(p.city);
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;
+    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div>
+    ${home ? naverBtnHtml(naverDirUrl(home, p), p.name, "Open in Naver Maps") : ""}</div>`;
 }
 

@@ -5,7 +5,7 @@
   "params": {
     "city": "one of the leg ids: seoul | jeju | busan",
     "stops": "comma-separated place ids, in visiting order; duplicates collapse; at most 12",
-    "day": "YYYY-MM-DD. A label, and the only thing that decides which weekday closures apply. No schedule is computed from it.",
+    "day": "YYYY-MM-DD. A label, and the only thing that decides which weekday closures apply. No schedule is computed from it. Read from a link and written back out, but the page itself no longer offers a field for setting one.",
     "title": "percent-encoded free text, at most 60 characters"
   },
   "unknownParamsArePreserved": true,

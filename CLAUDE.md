@@ -133,6 +133,32 @@ Rotted links degrade rather than break. An id the map no longer has is **kept**,
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
 
+**A day starts at the hotel.** The first stop added to an empty day puts the leg's home
+base in front of it first — `planSeedStart()` in `plan-state.js`, off `hotelFor()` — because
+that is where every morning of this trip actually begins. It is an ordinary stop once it
+is there: drag it, drop it, and nothing puts it back until the day is empty again. A day
+that arrives off a link is somebody else's and is never touched, seeded or reordered.
+
+**And it ends there too.** `homeLeg()` measures the way back from the last resolved stop
+to the same home base and the pane closes on it — the hop, then a dashed "Ends back at"
+row — and `planBriefMarkdown()` says the same. It is deliberately **not** a stop: `?stops=`
+collapses a repeated id, so a hotel that both opened and closed the day could not survive
+a round trip through the link. Computed instead, it also follows the day around as the
+order changes and costs the URL nothing.
+
+**In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
+page's one answer to "are we planning right now" (`planningMode()`), and while it is on,
+`select()` skips `showRoute()` and the card carries `hopStripHtml()` instead: the hop from
+the stop before this one — its distance, its line where the geometry proves one, its Naver
+link — or, for a spot not in the day yet, the same measured from the last stop there is,
+which is what you are weighing before you tap add. The hotel ride is the wrong answer
+mid-plan, and its red streak buries the numbered pins the plan is being read off.
+
+**There is no date field.** `day` is still decoded, re-encoded and honoured — a shared link
+that carries one still gets its `closedDays()` cautions — but nothing on the page asks for
+one. Weekday closures are worth catching when a link states the day; asking someone to
+type a date to build a list of stops is not.
+
 **Nothing is ever drawn between two stops on the map.** A planned stop takes its number
 onto its own pin and everything else steps back — `body.planning` fades the other markers
 and `railFade()` drops the rail — so the order reads on its own. There is no connector,
@@ -141,6 +167,23 @@ straight streak across a city that says nothing you can act on. It is not a rout
 walk and not a ride, because `ROUTES` is rooted at the hotel and there is no
 station-to-station geometry to trace. What you can act on lives in the hop row instead —
 the distance, the line where the geometry proves one, and the Naver link.
+
+**Reordering is dragging, and only dragging.** A stop row is one four-column grid —
+grab strip, number, stop, remove — sized off `--grab`/`--num`/`--ctrl`/`--gap` on
+`.planpane`, which `mobile.css` widens to give every target a thumb. The up/down arrows
+are gone: two 9px glyphs stacked in a column were the smallest targets on the page, and
+their space went to the handle, which is now the full height of its row. The hop rows
+hang off a dashed rail drawn down the centre of the number column and indent to the same
+tokens, so numbers, rail and hop text line up in one column instead of each finding its
+own left edge — that alignment is the reason those are tokens and not literals.
+
+**The Naver button is the payload, not a footnote.** It is the one control on the page
+that actually navigates a person somewhere, and on the ground it is what gets followed —
+so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
+desktop, full width at 44px on a phone, and full width in the card. Every hop, the walk
+home, the planning card and the hotel-ride card go through that one function, so it looks
+and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
+link stops resolving.
 
 `hopLine()` names the line for a hop, but only when both stations sit on one line and no
 transfer has to be guessed. That restraint is the whole point: `STATION_COORDS` holds the

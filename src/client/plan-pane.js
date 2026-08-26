@@ -1,16 +1,16 @@
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
-import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
+import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planSeedStart, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, homeLeg, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
 
-export function planStopHtml(s, i, n){
+export function planStopHtml(s, i){
   const p = s.place;
   const c = p ? (CATS[p.cat] || {}) : {};
   const body = p
@@ -20,30 +20,53 @@ export function planStopHtml(s, i, n){
        ${p.meta ? `<span class="pmetaline">${p.meta}</span>` : ""}`
     : `<span class="pname">unknown spot “${esc(s.id)}”</span>
        <span class="phood">this link names an id the map no longer has</span>`;
+  // Four columns, the same four on every row, so the eye reads straight down: the grab
+  // strip, the number, the stop, the remove. There are no up/down arrows — two 9px
+  // arrows stacked in a column were the smallest targets on the page and dragging is
+  // the gesture people reach for anyway, so the handle got their space instead.
   return `<div class="pstop${p ? "" : " gone"}" data-i="${i}">
-    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</button>
+    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag ${p ? p.name : s.id} to reorder">⠿</button>
     <span class="pnum-i" style="background:${p ? (c.color || "#888") : "#888"}">${i + 1}</span>
     <button class="pbody" data-focus="${p ? p.id : ""}">${body}</button>
-    <span class="pctrl">
-      <button class="pmove" data-up="${i}" ${i === 0 ? "disabled" : ""} title="Move up" aria-label="Move up">▲</button>
-      <button class="pmove" data-down="${i}" ${i === n - 1 ? "disabled" : ""} title="Move down" aria-label="Move down">▼</button>
-      <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove">✕</button>
-    </span>
+    <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove ${p ? p.name : s.id} from the day">✕</button>
   </div>`;
 }
 
-export function planHopHtml(leg){
+/** The one thing on this page that actually navigates you somewhere, so it is a
+    control rather than a footnote: filled, labelled, and a 44px target on a phone.
+    Every hop, the walk home and the card all use this same button. */
+export function naverBtnHtml(href, to, label){
+  return `<a class="phop-a" href="${href}" target="_blank" rel="noopener noreferrer"
+    aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} <span class="phop-a-x">↗</span></a>`;
+}
+
+/* Short enough that the distance, the manner and the Naver button fit on one line in a
+   340px sidebar — a button that wraps onto a line of its own reads as floating. */
+export function hopHow(leg){
+  return leg.walkable ? `${leg.walkMin} min walk`
+                      : (leg.mode === "car" ? "worth driving" : "worth riding");
+}
+
+export function planHopHtml(leg, cls){
   if (!leg) return "";
-  const how = leg.walkable
-    ? `about ${leg.walkMin} min on foot`
-    : (leg.mode === "car" ? "worth driving" : "worth riding");
   // named only where the geometry proves it: one line, both stations, no transfer guessed
   const line = leg.line
     ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
        <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
     : "";
-  return `<div class="phop"><span class="phop-r"></span>${fmtM(leg.metres)} · ${how}
-    ${line}<a class="phop-a" href="${leg.naver}" target="_blank" rel="noopener noreferrer">Naver ↗</a></div>`;
+  return `<div class="phop${cls ? " " + cls : ""}">
+    <span class="phop-d"><b>${fmtM(leg.metres)}</b> · ${hopHow(leg)}</span>
+    ${line}${naverBtnHtml(leg.naver, leg.b.name)}</div>`;
+}
+
+/** A day ends at the hotel, so the pane says so and hands you the way back. It is a
+    closing row rather than a stop — see homeLeg() for why it cannot be one. */
+export function planHomeHtml(stops){
+  const leg = homeLeg(stops, plan.city, planOffFor, PLACES);
+  if (!leg) return "";
+  return planHopHtml(leg, "home") + `<div class="pend">
+    <span class="pend-i" style="background:${(CATS.hotel || {}).color}">🏨</span>
+    <span class="pend-t">Ends back at ${leg.home.name}</span></div>`;
 }
 
 export function renderPlan(){
@@ -62,12 +85,14 @@ export function renderPlan(){
   if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} to ride`);
   out.push(`<div class="phead">
     <input class="ptitle" id="planTitle" placeholder="Name this day" maxlength="${PLAN_TITLE_MAX}" value="${esc(plan.title)}" />
-    <input class="pdate" id="planDate" type="date" value="${esc(plan.day)}" aria-label="Date, used only to check weekday closures" />
     <div class="pmeta">${cityLabel} · ${bits.join(" · ")}</div>
   </div>`);
 
   if (!plan.ids.length){
-    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.</div>`);
+    const h = hotelFor(plan.city, PLACES);
+    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.
+      ${h ? `<br />The day starts at ${h.name}; the first spot you add puts it in front.` : ""}</div>`);
+    if (h) out.push(`<div class="pacts"><button class="pact" id="planStart">Start at ${h.name}</button></div>`);
   } else {
     out.push(`<div class="pacts">
       <button class="pact" id="planFit">Frame the day</button>
@@ -91,9 +116,10 @@ export function renderPlan(){
       <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
 
     stops.forEach((s, i) => {
-      out.push(planStopHtml(s, i, stops.length));
+      out.push(planStopHtml(s, i));
       out.push(planHopHtml(st.legs[i]));
     });
+    out.push(planHomeHtml(stops));
   }
 
   const sug = nearbySuggestions(stops, { places: PLACES, city: plan.city, cats: active });
@@ -119,18 +145,14 @@ export function wirePlanPane(el){
   const on = (sel, ev, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener(ev, fn));
   on("[data-focus]", "click", e => { const id = e.currentTarget.dataset.focus; if (id) focus(id); });
   on("[data-drop]", "click", e => planRemove(e.currentTarget.dataset.drop));
-  on("[data-up]", "click", e => { const i = +e.currentTarget.dataset.up; planMove(i, i - 1); });
-  on("[data-down]", "click", e => { const i = +e.currentTarget.dataset.down; planMove(i, i + 1); });
   on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
   on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
   on("[data-drag]", "pointerdown", planDragStart);
 
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
-  const d = el.querySelector("#planDate");
-  if (d) d.onchange = () => { plan.day = d.value || ""; afterPlanChange(); };
-
   const wire = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.onclick = fn; };
+  wire("planStart", () => { planSeedStart(); afterPlanChange(); });
   wire("planFit", fitPlan);
   wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
   wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));

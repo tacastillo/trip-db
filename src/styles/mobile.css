@@ -50,9 +50,26 @@
   .searchbox,.ptitle{font-size:16px;}
   .planpane{padding-bottom:max(18px, env(safe-area-inset-bottom));
     overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
-  .pstop{padding:12px 14px 12px 8px;}
-  .planbtn,.pmove,.pdrop,.pdrag{min-width:34px; min-height:34px;}
-  .planbtn{width:34px; height:34px;}
+  /* every target here is a thumb: the grab strip and the remove button both go to 44,
+     and the rail the hop rows hang off moves with them because it is the same token */
+  .planpane{--px:14px; --gap:10px; --grab:44px; --num:26px; --ctrl:44px;}
+  .pstop{padding:11px 14px;}
+  .pdrag{min-height:52px; font-size:16px;}
+  .pname{font-size:15px;}
+  .phood{font-size:12px;}
+  .pnote{font-size:13px;}
+  .phop{font-size:13px; padding-top:9px; padding-bottom:11px;}
+  .planbtn{min-width:34px; min-height:34px;}
+  .pact{min-height:44px; font-size:13px;}
+  /* a thumb, not a cursor: the add control gets the full 44px Apple asks for */
+  .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; font-size:22px; margin:6px 10px 0 2px;}
+  .planbtn.on{font-size:18px;}
+  .card-plan{min-height:44px; font-size:14px;}
+  /* the Naver button is the thing you tap while standing in a street, so it gets the
+     whole row and a thumb-sized target rather than sharing a line with the distance */
+  .phop-a{width:100%; justify-content:center; min-height:44px; font-size:13.5px; margin-top:2px;}
+  .pop-route .phop-a{min-height:44px; font-size:13.5px;}
+  .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}
   .it-name{font-size:14.5px;}
   .it-note{font-size:12.5px; margin-top:3px;}

@@ -1,10 +1,10 @@
 import { drawRail, syncMarkers } from "./map.js";
 import { renderPlan } from "./plan-pane.js";
-import { selectedId } from "./selection.js";
+import { resyncSelection, selectedId } from "./selection.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, resolvePlan } from "../lib/plan-core.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
    few need a setter rather than a bare live binding. */
@@ -29,6 +29,11 @@ export let urlWritable = true, urlTimer = null, planFull = false;
 /* place notes are ours, but a title arrives off the query string, so it is not */
 export const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+/* body.planning is set in syncMarkers, from the plan and the leg you are looking at.
+   It is the page's one answer to "are we planning right now", so everything that
+   behaves differently mid-plan asks it rather than keeping its own flag. */
+export const planningMode = () => document.body.classList.contains("planning");
 
 export const planHas = (id) => plan.ids.indexOf(id) >= 0;
 export const planStops = () => resolvePlan(plan.ids, PLACES);
@@ -70,16 +75,32 @@ export function afterPlanChange(){
   renderPlan();
   syncMarkers();
   drawRail();
+  // an open card says something different in planning mode, and syncMarkers is what
+  // decides whether we are in it — so the card is caught up after that, not before
+  resyncSelection();
   refreshPlanControls();
   const c = document.getElementById("planCount");
   if (c) c.textContent = plan.ids.length || "";
+}
+
+/* Every day of this trip starts at the hotel — you walk out of it before you do
+   anything else — so the first stop added to an empty day gets the home base put in
+   front of it rather than being left to remember. It is an ordinary stop once there:
+   drag it, drop it, and nothing puts it back until the day is empty again. A day that
+   arrives off a link is somebody else's and is never touched. */
+export function planSeedStart(){
+  if (plan.ids.length) return;
+  const h = hotelFor(plan.city, PLACES);
+  if (h) plan.ids.push(h.id);
 }
 
 export function planAdd(id, at){
   if (planHas(id)) return;
   if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
   planFull = false;
-  const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
+  const seeding = !plan.ids.length && (PLACES.find(p => p.id === id) || {}).cat !== "hotel";
+  if (seeding) planSeedStart();
+  const i = (at == null || at < 0 || at > plan.ids.length || seeding) ? plan.ids.length : at;
   plan.ids.splice(i, 0, id);
   afterPlanChange();
 }

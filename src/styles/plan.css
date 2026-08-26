@@ -32,11 +32,17 @@
 /* a row is a button, so the add control has to be its sibling, never its child */
 .itemrow{display:flex; align-items:flex-start;}
 .itemrow .item{flex:1; min-width:0;}
-.planbtn{flex:none; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer;
-  font-family:inherit; font-size:14px; line-height:1; width:26px; height:26px; border-radius:8px; margin:9px 12px 0 0;
-  display:flex; align-items:center; justify-content:center; padding:0;}
-.planbtn:hover{border-color:var(--accent); color:var(--accent);}
-.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff;}
+/* This is the one control that builds a day, so it is sized and coloured like it:
+   a 34px target that reads as an action at a glance rather than a faint hairline
+   square you have to hunt for. Mobile takes it to 44px below. */
+.planbtn{flex:none; border:1px solid var(--accent); background:var(--line-2); color:var(--accent); cursor:pointer;
+  font-family:inherit; font-size:19px; font-weight:600; line-height:1; width:34px; height:34px; border-radius:9px;
+  margin:7px 12px 0 2px; display:flex; align-items:center; justify-content:center; padding:0;
+  transition:background .12s, color .12s, transform .12s;}
+.planbtn:hover{background:var(--accent); color:#fff;}
+.planbtn:active{transform:scale(.94);}
+.planbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff; font-size:16px;}
 .planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 .planpane{flex:1; min-height:0; overflow-y:auto; padding:2px 0 16px;}
@@ -44,46 +50,73 @@
 .ptitle{width:100%; font-family:'Bricolage Grotesque',sans-serif; font-size:15px; font-weight:700; color:var(--ink);
   background:var(--field); border:1px solid var(--line); border-radius:8px; padding:7px 10px; -webkit-appearance:none;}
 .ptitle:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
-.pdate{font-family:inherit; font-size:12px; color:var(--ink); background:var(--field); border:1px solid var(--line);
-  border-radius:8px; padding:6px 9px; -webkit-appearance:none;}
-.pdate:focus{outline:none; border-color:var(--accent);}
 .pmeta{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums;}
 .pmeta b{color:var(--accent);}
 
-.pstop{display:flex; gap:9px; align-items:flex-start; padding:9px 14px 9px 10px;}
+/* One grid, four columns, the same on every row: grab strip · number · stop · remove.
+   The sizes are tokens because the hop rows below have to line up with the number
+   column, and mobile.css only has to widen the tokens to give every target a thumb. */
+.planpane{--px:12px; --gap:10px; --grab:32px; --num:22px; --ctrl:32px;}
+.pstop{display:grid; grid-template-columns:var(--grab) var(--num) minmax(0,1fr) var(--ctrl);
+  gap:var(--gap); align-items:start; padding:9px var(--px);}
 .pstop.dragging{opacity:.5;}
 .pstop.dropbefore{box-shadow:inset 0 2px 0 var(--accent);}
-.pdrag{flex:none; border:none; background:none; color:var(--muted); cursor:grab; font-size:13px; line-height:1;
-  padding:6px 2px; border-radius:6px; touch-action:none;}
-.pdrag:active{cursor:grabbing;}
-.pnum-i{flex:none; width:21px; height:21px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  font-size:10.5px; font-weight:700; color:#fff; margin-top:1px; box-shadow:0 1px 2px rgba(0,0,0,.2);
-  font-variant-numeric:tabular-nums;}
-.pbody{flex:1; min-width:0; text-align:left; background:none; border:none; padding:0; cursor:pointer;
+
+/* the whole height of the row is the handle: a grab strip is easier to hit than a
+   glyph, and it is the only way to reorder now that the arrows are gone */
+.pdrag{align-self:stretch; min-height:38px; border:none; background:var(--line-2); color:var(--muted);
+  cursor:grab; font-size:14px; line-height:1; padding:0; border-radius:8px; display:flex;
+  align-items:center; justify-content:center; touch-action:none; -webkit-user-select:none; user-select:none;}
+.pdrag:hover{color:var(--ink);}
+.pdrag:active{cursor:grabbing; background:var(--line);}
+.pnum-i{width:var(--num); height:var(--num); border-radius:50%; display:flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:700; color:#fff; margin-top:1px;
+  box-shadow:0 1px 2px rgba(0,0,0,.2); font-variant-numeric:tabular-nums;}
+.pbody{min-width:0; text-align:left; background:none; border:none; padding:0; cursor:pointer;
   color:var(--ink); font-family:inherit; display:block;}
-.pname{display:block; font-size:13.5px; font-weight:600; line-height:1.25;}
-.phood{display:block; font-size:11px; color:var(--muted); margin-top:1px;}
-.pnote{display:block; font-size:11.5px; color:var(--muted); line-height:1.35; margin-top:2px;}
-.pmetaline{display:block; font-size:10.5px; color:var(--accent); font-weight:600; margin-top:3px;}
+.pname{display:block; font-size:14px; font-weight:600; line-height:1.3;}
+.phood{display:block; font-size:11.5px; color:var(--muted); margin-top:2px;}
+.pnote{display:block; font-size:12px; color:var(--muted); line-height:1.4; margin-top:3px;}
+.pmetaline{display:block; font-size:11px; color:var(--accent); font-weight:600; margin-top:4px;}
 .pstop.gone .pname{color:var(--muted); font-style:italic;}
-.pctrl{flex:none; display:flex; flex-direction:column; gap:2px;}
-.pmove{border:none; background:none; color:var(--muted); cursor:pointer; font-size:9px; line-height:1;
-  padding:3px 5px; border-radius:5px;}
-.pmove:hover:not(:disabled){color:var(--ink); background:var(--line-2);}
-.pmove:disabled{opacity:.25; cursor:default;}
-.pdrop{border:none; background:none; color:var(--muted); cursor:pointer; font-size:12px; line-height:1;
-  padding:3px 5px; border-radius:5px;}
+.pdrop{width:var(--ctrl); height:var(--ctrl); border:none; background:none; color:var(--muted); cursor:pointer;
+  font-size:13px; line-height:1; padding:0; border-radius:8px; display:flex; align-items:center;
+  justify-content:center;}
 .pdrop:hover{color:var(--accent); background:var(--line-2);}
 
-/* The hop between two stops. There is no rail time here on purpose — see naverDirUrl. */
-.phop{display:flex; align-items:center; gap:7px; flex-wrap:wrap; padding:2px 14px 6px 40px; font-size:11px; color:var(--muted);
-  font-variant-numeric:tabular-nums;}
-.phop-r{width:1px; height:11px; background:var(--line); margin-left:-14px;}
-.phop-a{color:var(--accent); text-decoration:none; font-weight:600; border:1px solid var(--line);
-  border-radius:20px; padding:2px 8px;}
-.phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10px;}
+/* The hop between two stops. It hangs off a dashed rail drawn down the centre of the
+   number column, so the numbers, the rail and every hop line up in one straight
+   column instead of each finding its own left edge. There is no rail time here on
+   purpose — see naverDirUrl. */
+.phop{margin:0 var(--px) 0 calc(var(--px) + var(--grab) + var(--gap) + var(--num) / 2 - 1px);
+  border-left:2px dashed var(--line); padding:7px 0 9px calc(var(--num) / 2 + var(--gap) - 1px);
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;}
+.phop-d{flex:none; margin-right:2px;}
+.phop-d b{color:var(--ink); font-weight:700;}
+.phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10.5px;}
 .phop-s{color:var(--muted);}
-.phop-a:hover{border-color:var(--accent);}
+
+/* The Naver link is the only thing here that actually navigates anybody anywhere, and
+   it has proved the most trustworthy part of the page, so it is a filled control with
+   a real target rather than a footnote in the hop row. Mobile takes it to 44px. */
+.phop-a{display:inline-flex; align-items:center; gap:5px; flex:none;
+  background:var(--accent); color:#fff; text-decoration:none; font-weight:700; font-size:12px;
+  border:1px solid var(--accent); border-radius:20px; padding:7px 14px; min-height:32px; line-height:1;
+  box-shadow:0 1px 3px rgba(0,0,0,.14); transition:filter .12s, transform .12s;}
+.phop-a:hover{filter:brightness(1.08);}
+.phop-a:active{transform:scale(.97);}
+.phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.phop-a-x{opacity:.8; font-weight:600;}
+
+/* the walk back, and the line that says the day is over — same rail, so the column
+   carries on to the bottom of the day */
+.pend{margin:0 var(--px) 10px calc(var(--px) + var(--grab) + var(--gap) + var(--num) / 2 - 1px);
+  border-left:2px dashed var(--line); padding:0 0 0 calc(var(--num) / 2 + var(--gap) - 1px);
+  display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted);}
+.pend-i{width:var(--num); height:var(--num); border-radius:50%; flex:none; display:flex; align-items:center;
+  justify-content:center; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+.pend-t{min-width:0;}
 
 .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
   background:var(--field); padding:8px 10px; font-size:11.5px; line-height:1.4; color:var(--ink);}
@@ -103,11 +136,22 @@
 .psug .it-note,.psug-d{display:block;}
 .psug-d{font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums; margin-top:2px;}
 .pempty{padding:22px 20px; color:var(--muted); font-size:12.5px; line-height:1.5; text-align:center;}
-.pacts{display:flex; flex-wrap:wrap; gap:6px; padding:12px 14px 4px;}
+/* Four actions in a 2x2 block rather than a wrapping row: a row of pills reflows into
+   a ragged one-and-a-bit lines at every pane width, and these are all the same weight. */
+.pacts{display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:12px var(--px) 6px;}
 .pact{border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:inherit;
-  font-size:11.5px; font-weight:500; border-radius:20px; padding:6px 11px; line-height:1;}
+  font-size:12px; font-weight:600; border-radius:9px; padding:8px 10px; line-height:1; min-height:34px;
+  display:flex; align-items:center; justify-content:center;}
 .pact:hover{border-color:var(--accent); color:var(--accent);}
 .pact.done{border-color:var(--ok); color:var(--ok);}
+
+/* the card's own add control carries the same weight as the one in the list — it is
+   the same job, and on a phone the card is where most of it gets done */
+.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; min-height:38px; font-size:13px;
+  border-color:var(--accent); color:var(--accent); background:var(--line-2);}
+.card-plan:hover{background:var(--accent); color:#fff;}
+.card-plan.done{background:var(--ok); border-color:var(--ok); color:#fff;}
+.card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 
 .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
@@ -136,4 +180,7 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
   border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
 .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+/* in the card there is nothing to sit beside, so it spans the width and reads as the
+   action the card is for */
+.pop-route .phop-a{margin:8px 0 0; width:100%; justify-content:center; min-height:36px; font-size:12px;}
 
