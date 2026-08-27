@@ -6,6 +6,7 @@ import { active, currentTab, map, night, railOn, setMap } from "./state.js";
 import { isMobile } from "./view.js";
 import { CATS, PLACES } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
+import { hotelFor } from "../lib/plan-core.js";
 
 /* Leaflet's own objects. Every one of these is written here and nowhere else,
    so the other modules import them as live bindings and always see the current
@@ -158,8 +159,12 @@ export function syncMarkers(){
   if (!map) return;
   const order = {};
   planStops().forEach((s, i) => { if (s.place) order[s.id] = i + 1; });
-  document.body.classList.toggle("planning",
-    currentTab === plan.city && Object.keys(order).length > 0);
+  const on = currentTab === plan.city && Object.keys(order).length > 0;
+  document.body.classList.toggle("planning", on);
+  // the home base carries no number — it is not a stop — but the day starts and ends
+  // there, so its pin stays lit with the rest of the day rather than fading out
+  const anchor = on ? hotelFor(plan.city, PLACES) : null;
+  const inDay = id => !!order[id] || !!(anchor && anchor.id === id);
   PLACES.forEach(p => {
     const m = markers[p.id]; if (!m) return;
     const n = order[p.id] || null;
@@ -170,15 +175,15 @@ export function syncMarkers(){
       if (selectedId === p.id) markPin(p.id, true);
     }
     const el = m.getElement();
-    if (el) el.classList.toggle("mk-plan", !!n);
+    if (el) el.classList.toggle("mk-plan", inDay(p.id));
     // a planned stop stays on the map whatever the chips say — otherwise its number
     // in the plan points at a pin that isn't there
-    if (p.city === currentTab && (active[p.cat] || planHas(p.id))) { if (!map.hasLayer(m)) m.addTo(map); }
+    if (p.city === currentTab && (active[p.cat] || inDay(p.id))) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
   // filtering the selected pin away shouldn't leave its card and ride stranded
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
-  if (sel && !(sel.city === currentTab && (active[sel.cat] || planHas(sel.id)))) deselect();
+  if (sel && !(sel.city === currentTab && (active[sel.cat] || inDay(sel.id)))) deselect();
 }
 
 export function markPin(id, on){

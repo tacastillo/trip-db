@@ -133,18 +133,32 @@ Rotted links degrade rather than break. An id the map no longer has is **kept**,
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
 
-**A day starts at the hotel.** The first stop added to an empty day puts the leg's home
-base in front of it first — `planSeedStart()` in `plan-state.js`, off `hotelFor()` — because
-that is where every morning of this trip actually begins. It is an ordinary stop once it
-is there: drag it, drop it, and nothing puts it back until the day is empty again. A day
-that arrives off a link is somebody else's and is never touched, seeded or reordered.
+**A day is a loop anchored at the hotel, and the anchor is not a stop.** `plan.ids` holds
+the places you chose and nothing else. The home base opens the day and closes it, drawn
+at both ends from the same `hotelFor()`: `leadLeg()` out to the first stop, `homeLeg()`
+back from the last, each with its own hop row and "Starts at" / "Ends back at" row, and
+`planBriefMarkdown()` says both. Neither end is in the list, which is what makes the two
+ends behave alike — and it is the whole reason the anchor is computed rather than stored.
 
-**And it ends there too.** `homeLeg()` measures the way back from the last resolved stop
-to the same home base and the pane closes on it — the hop, then a dashed "Ends back at"
-row — and `planBriefMarkdown()` says the same. It is deliberately **not** a stop: `?stops=`
-collapses a repeated id, so a hotel that both opened and closed the day could not survive
-a round trip through the link. Computed instead, it also follows the day around as the
-order changes and costs the URL nothing.
+A hotel that *was* a stop could be dragged out of first place, took a number on the map,
+and was offered up for reordering against the places you actually chose: `backtracks()`
+would see two ordinary stops and propose putting a landmark before the bed. It could not
+survive a round trip through the link at both ends either, because `?stops=` collapses a
+repeated id. `test-plan.mjs` pins the old shape's bad advice next to the new shape's
+silence so the reason does not get lost.
+
+A link written before this — or one where somebody added the hotel by hand — carries the
+home base as its first or last id. `stripAnchorStops()` drops it at boot, in
+`plan-boot.js`: the anchor rows already say it. `decodePlanQuery()` itself stays a
+faithful codec, so the round-trip property still holds. A hotel in the **middle** of a day
+is a real stop and is left alone.
+
+**Every ordering question is asked about the loop.** `pathLen()`, `backtracks()` and
+`reorderByProximity()` all take the anchor and measure hotel → stops → hotel, because an
+order that saves 300m between stops and leaves you a kilometre further from your bed has
+saved nothing. With an anchor there is no first stop to pin — the thing the day is pinned
+to is not in the list — so the reorder is free to move every position. `planStats()` counts
+both anchor hops in the day's totals for the same reason.
 
 **In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
 page's one answer to "are we planning right now" (`planningMode()`), and while it is on,

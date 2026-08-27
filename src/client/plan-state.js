@@ -4,7 +4,7 @@ import { resyncSelection, selectedId } from "./selection.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, resolvePlan } from "../lib/plan-core.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
    few need a setter rather than a bare live binding. */
@@ -83,24 +83,11 @@ export function afterPlanChange(){
   if (c) c.textContent = plan.ids.length || "";
 }
 
-/* Every day of this trip starts at the hotel — you walk out of it before you do
-   anything else — so the first stop added to an empty day gets the home base put in
-   front of it rather than being left to remember. It is an ordinary stop once there:
-   drag it, drop it, and nothing puts it back until the day is empty again. A day that
-   arrives off a link is somebody else's and is never touched. */
-export function planSeedStart(){
-  if (plan.ids.length) return;
-  const h = hotelFor(plan.city, PLACES);
-  if (h) plan.ids.push(h.id);
-}
-
 export function planAdd(id, at){
   if (planHas(id)) return;
   if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
   planFull = false;
-  const seeding = !plan.ids.length && (PLACES.find(p => p.id === id) || {}).cat !== "hotel";
-  if (seeding) planSeedStart();
-  const i = (at == null || at < 0 || at > plan.ids.length || seeding) ? plan.ids.length : at;
+  const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
   plan.ids.splice(i, 0, id);
   afterPlanChange();
 }

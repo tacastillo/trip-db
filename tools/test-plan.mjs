@@ -121,11 +121,34 @@ const ro = core.reorderByProximity(zig);
 ok("reorder never lengthens the day", ro.after_m <= ro.before_m + 1e-6);
 ok("reorder returns a permutation",
   eq(ro.order.slice().sort((x,y)=>x-y), zig.map((_,i)=>i)));
-ok("reorder pins the start", ro.order[0] === 0);
+ok("reorder pins the start when there is no anchor", ro.order[0] === 0);
 const fixed = ro.order.map(i => zig[i]);
 const again = core.reorderByProximity(fixed);
 ok("reordering twice changes nothing the second time", again.gain_m === 0 && eq(again.order, fixed.map((_,i)=>i)));
 ok("a plan with an unknown id is left alone", core.reorderByProximity(R([near[0].id,"NOPE",near[1].id])).gain_m === 0);
+
+/* An anchored day is a loop out of the hotel and back into it. Every ordering question
+   is asked about that loop, which is what stops the advice proposing an order that
+   saves metres between stops and strands you a kilometre from your bed. */
+const HOME = core.hotelFor("seoul", PLACES);
+const ordered = core.reorderByProximity(zig, HOME);
+ok("an anchored reorder is free to move the first stop too",
+  ordered.order.length === zig.length && ordered.after_m <= ordered.before_m + 1e-6);
+ok("an anchored reorder is still a permutation",
+  eq(ordered.order.slice().sort((x,y)=>x-y), zig.map((_,i)=>i)));
+const settled = core.reorderByProximity(ordered.order.map(i => zig[i]), HOME);
+ok("and still settles after one pass", settled.gain_m === 0);
+ok("the anchored length counts both ends",
+  Math.abs(core.pathLen(zig, HOME) - (core.pathLen(zig)
+    + core.hopMetres(HOME, zig[0].place) + core.hopMetres(zig[zig.length-1].place, HOME))) < 1e-6);
+
+/* The bug this model exists to kill: with the hotel sitting in the list as stop 1, the
+   swap check saw two ordinary stops and offered to put a landmark before the bed. */
+const withHotel = R(["novotel","ddp","sancheong"]);
+ok("the old shape really did offer to move the hotel out of first place",
+  core.backtracks(withHotel).some(b => b.i === 0));
+ok("the anchored day it became says nothing of the kind",
+  core.backtracks(R(["ddp","sancheong"]), HOME).length === 0);
 
 group("nearby suggestions");
 const stops = R([pick("gwangjang").id]);
@@ -204,17 +227,39 @@ group("the home base");
 });
 ok("a city with no hotel simply has none", core.hotelFor("nowhere", PLACES) === null);
 
-const day = R(["novotel","gwangjang","gyeongbok"]);
+const day = R(["gwangjang","gyeongbok"]);
+const out = core.leadLeg(day, "seoul", null, PLACES);
 const back = core.homeLeg(day, "seoul", null, PLACES);
-ok("a day gets a hop home from its last stop",
-  !!back && back.home.id === "novotel" && back.a.id === "gyeongbok" && back.naver.includes("map.naver.com"));
-ok("and none when it already ends at the hotel",
-  core.homeLeg(R(["gwangjang","novotel"]), "seoul", null, PLACES) === null);
-ok("and none for an empty day", core.homeLeg(R([]), "seoul", null, PLACES) === null);
-ok("an unknown id at the end does not swallow the hop home",
-  (core.homeLeg(R(["gwangjang","nosuchplace"]), "seoul", null, PLACES) || {}).a?.id === "gwangjang");
-ok("the brief says where the day ends",
-  core.planBriefMarkdown({ city:"seoul", ids:[] }, day, "", null, null).includes("Ends back at **Novotel"));
+ok("the day leaves the hotel for its first stop",
+  !!out && out.home.id === "novotel" && out.a.id === "novotel" && out.b.id === "gwangjang");
+ok("and comes back to it from its last",
+  !!back && back.home.id === "novotel" && back.a.id === "gyeongbok" && back.b.id === "novotel"
+  && back.naver.includes("map.naver.com"));
+ok("both ends are null for an empty day",
+  core.leadLeg(R([]), "seoul", null, PLACES) === null && core.homeLeg(R([]), "seoul", null, PLACES) === null);
+ok("an unknown id at an end does not swallow either hop",
+  (core.leadLeg(R(["nope","gwangjang"]), "seoul", null, PLACES) || {}).b?.id === "gwangjang"
+  && (core.homeLeg(R(["gwangjang","nope"]), "seoul", null, PLACES) || {}).a?.id === "gwangjang");
+ok("a day of nothing but the hotel has no hop to either end",
+  core.leadLeg(R(["novotel"]), "seoul", null, PLACES) === null
+  && core.homeLeg(R(["novotel"]), "seoul", null, PLACES) === null);
+
+// a link written when the hotel was a stop still means the same day
+ok("a leading hotel id is dropped", eq(core.stripAnchorStops(["novotel","gwangjang"], "seoul", PLACES), ["gwangjang"]));
+ok("so is a trailing one", eq(core.stripAnchorStops(["gwangjang","novotel"], "seoul", PLACES), ["gwangjang"]));
+ok("but one in the middle of the day is a real stop",
+  eq(core.stripAnchorStops(["gwangjang","novotel","gyeongbok"], "seoul", PLACES),
+     ["gwangjang","novotel","gyeongbok"]));
+ok("another leg's hotel is left alone",
+  eq(core.stripAnchorStops(["parkhyatt","gwangjang"], "seoul", PLACES), ["parkhyatt","gwangjang"]));
+
+const st = core.planStats(day, null, "seoul", PLACES);
+ok("the totals count the two anchor hops",
+  st.lead && st.home && Math.abs(st.total - (core.planStats(day, null).total
+    + st.lead.metres + st.home.metres)) < 1e-6);
+const brief = core.planBriefMarkdown({ city:"seoul", ids:[] }, day, "", null, null);
+ok("the brief says where the day starts and ends",
+  brief.includes("Starts at **Novotel") && brief.includes("Ends back at **Novotel"));
 
 /* ---------- the two metres() ---------- */
 

@@ -1,11 +1,11 @@
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
-import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planSeedStart, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
+import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planStops, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, homeLeg, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtM, hotelFor, nearbySuggestions, orderCautions, planBriefMarkdown, planStats, reorderByProximity } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
@@ -59,14 +59,15 @@ export function planHopHtml(leg, cls){
     ${line}${naverBtnHtml(leg.naver, leg.b.name)}</div>`;
 }
 
-/** A day ends at the hotel, so the pane says so and hands you the way back. It is a
-    closing row rather than a stop — see homeLeg() for why it cannot be one. */
-export function planHomeHtml(stops){
-  const leg = homeLeg(stops, plan.city, planOffFor, PLACES);
+/** The two ends of the day, drawn the same way at both ends: a home-base row, and the
+    hop across to (or back from) the stops. Neither is a stop — see leadLeg/homeLeg. */
+export function planAnchorHtml(leg, where){
   if (!leg) return "";
-  return planHopHtml(leg, "home") + `<div class="pend">
+  const row = `<div class="pend">
     <span class="pend-i" style="background:${(CATS.hotel || {}).color}">🏨</span>
-    <span class="pend-t">Ends back at ${leg.home.name}</span></div>`;
+    <span class="pend-t">${where} ${leg.home.name}</span></div>`;
+  return where === "Starts at" ? row + planHopHtml(leg, "anchor")
+                               : planHopHtml(leg, "anchor") + row;
 }
 
 export function renderPlan(){
@@ -75,8 +76,9 @@ export function renderPlan(){
   const el = document.getElementById("planpane");
   if (!el) return;
   const stops = planStops();
-  const st = planStats(stops, planOffFor);
-  const cautions = orderCautions(stops, plan.city, plan.day);
+  const anchor = hotelFor(plan.city, PLACES);
+  const st = planStats(stops, planOffFor, plan.city, PLACES);
+  const cautions = orderCautions(stops, plan.city, plan.day, anchor);
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const out = [];
 
@@ -89,10 +91,8 @@ export function renderPlan(){
   </div>`);
 
   if (!plan.ids.length){
-    const h = hotelFor(plan.city, PLACES);
     out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.
-      ${h ? `<br />The day starts at ${h.name}; the first spot you add puts it in front.` : ""}</div>`);
-    if (h) out.push(`<div class="pacts"><button class="pact" id="planStart">Start at ${h.name}</button></div>`);
+      ${anchor ? `<br />The day opens and closes at ${anchor.name} either way — that is not a stop you have to add.` : ""}</div>`);
   } else {
     out.push(`<div class="pacts">
       <button class="pact" id="planFit">Frame the day</button>
@@ -110,16 +110,17 @@ export function renderPlan(){
         ? `<button class="pcaution-fix" data-swap="${c.i}">Swap them</button>` : "";
       out.push(`<div class="pcaution ${c.kind}">${esc(c.text)}${fix}</div>`);
     });
-    const ro = reorderByProximity(stops);
+    const ro = reorderByProximity(stops, anchor);
     if (ro.gain_m > SWAP_GAIN_M) out.push(`<div class="pcaution">
       Walked in a different order this day is about ${fmtM(ro.gain_m)} shorter.
       <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
 
+    out.push(planAnchorHtml(st.lead, "Starts at"));
     stops.forEach((s, i) => {
       out.push(planStopHtml(s, i));
       out.push(planHopHtml(st.legs[i]));
     });
-    out.push(planHomeHtml(stops));
+    out.push(planAnchorHtml(st.home, "Ends back at"));
   }
 
   const sug = nearbySuggestions(stops, { places: PLACES, city: plan.city, cats: active });
@@ -152,10 +153,9 @@ export function wirePlanPane(el){
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); };
   const wire = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.onclick = fn; };
-  wire("planStart", () => { planSeedStart(); afterPlanChange(); });
   wire("planFit", fitPlan);
   wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
-  wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));
+  wire("planReorder", () => planReorder(reorderByProximity(planStops(), hotelFor(plan.city, PLACES)).order));
   wire("planGoCity", () => setTab(plan.city));
   wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planStops(), planHref(), planHotelLine, planOffFor), "Briefing copied"));
   wire("planLink", e => copyOut(e, planHref(), "Link copied"));

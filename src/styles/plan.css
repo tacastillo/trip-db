@@ -109,8 +109,8 @@
 .phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .phop-a-x{opacity:.8; font-weight:600;}
 
-/* the walk back, and the line that says the day is over — same rail, so the column
-   carries on to the bottom of the day */
+/* the home-base rows that open and close the day — same rail, so the column runs
+   unbroken from where the day starts to where it ends */
 .pend{margin:0 var(--px) 10px calc(var(--px) + var(--grab) + var(--gap) + var(--num) / 2 - 1px);
   border-left:2px dashed var(--line); padding:0 0 0 calc(var(--num) / 2 + var(--gap) - 1px);
   display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted);}

@@ -44,10 +44,11 @@ export function hideCard(){
 export function hopStripHtml(p){
   const stops = planStops();
   const i = stops.findIndex(s => s.id === p.id);
-  if (i === 0) return `<div class="pop-route"><span class="pr-k">Stop 1</span>
-    <div class="pr-walk">Where the day starts.</div></div>`;
-  const from = i > 0 ? stops[i - 1].place
-                     : stops.filter(s => s.place).map(s => s.place).pop();
+  const resolved = stops.filter(s => s.place).map(s => s.place);
+  // stop 1's hop is the one out of the hotel, because that is where the day begins —
+  // the same leg the pane draws above it, not a special case with nothing to say
+  const prev = i > 0 ? stops[i - 1].place : (i === 0 ? null : resolved[resolved.length - 1]);
+  const from = prev || hotelFor(p.city);
   if (!from || from.id === p.id) return "";
   const leg = planLegs([{ id:from.id, place:from }, { id:p.id, place:p }], planOffFor)[0];
   if (!leg) return "";
@@ -55,7 +56,8 @@ export function hopStripHtml(p){
     ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
        <span class="pr-txt">${leg.line.from} <span class="pr-arr">→</span> ${leg.line.to}</span></div>`
     : "";
-  const kicker = i > 0 ? `From stop ${i}, ${from.name}` : `From your last stop, ${from.name}`;
+  const kicker = i > 0 ? `From stop ${i}, ${from.name}`
+                       : prev ? `From your last stop, ${from.name}` : `Out of ${from.name}`;
   return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
     <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>
     ${naverBtnHtml(leg.naver, p.name, "Open in Naver Maps")}</div>`;

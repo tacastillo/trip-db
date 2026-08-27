@@ -3,13 +3,16 @@ import { renderPlan } from "./plan-pane.js";
 import { placeQuery, plan, setPlaceQuery, setPlan, setPlanOver, setSideTab } from "./plan-state.js";
 import { setCurrentTab } from "./state.js";
 import { LEGS } from "../data/places.js";
-import { decodePlanQuery } from "../lib/plan-core.js";
+import { decodePlanQuery, stripAnchorStops } from "../lib/plan-core.js";
 
 /* ---------------- boot ---------------- */
 
 export function bootPlan(){
   const got = decodePlanQuery(location.search, LEGS);
-  setPlan({ city: got.city, ids: got.ids, day: got.day, title: got.title, extra: got.extra });
+  // decode stays a faithful codec; it is here that a link written when the hotel was a
+  // stop gets it dropped, because the anchor rows now say the same thing at both ends
+  setPlan({ city: got.city, ids: stripAnchorStops(got.ids, got.city),
+            day: got.day, title: got.title, extra: got.extra });
   setPlanOver(got.over);
   setCurrentTab(plan.city);
   const s = document.getElementById("search");

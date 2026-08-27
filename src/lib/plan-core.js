@@ -85,6 +85,21 @@ export function hotelFor(city, places){
   return (places || PLACES).find(p => p.city === city && p.cat === "hotel") || null;
 }
 
+/** The home base is the day's anchor: it opens the day and it closes it, and it is
+    never one of the stops. Keeping it out of `ids` is what makes the two ends behave
+    the same — see leadLeg/homeLeg — and it also keeps it out of every reordering
+    question, because where you sleep is not up for optimisation. A link written before
+    the anchor existed carries the hotel as its first (or last) stop; that entry says
+    the same thing the anchor now says, so it is dropped rather than shown twice. */
+export function stripAnchorStops(ids, city, places){
+  const h = hotelFor(city, places);
+  const out = (ids || []).slice();
+  if (!h) return out;
+  if (out[0] === h.id) out.shift();
+  if (out.length && out[out.length - 1] === h.id) out.pop();
+  return out;
+}
+
 /** Metres as the rest of the page words them. */
 export function fmtM(m){
   return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
@@ -228,71 +243,101 @@ export function planLegs(stops, offFor){
   return legs;
 }
 
-/** The hop home. Every day of this trip ends where it started — you are sleeping at the
-    hotel — so the last thing a day needs is the way back. It is deliberately not a stop:
-    ?stops= collapses a repeated id, so a hotel that both opens and closes the day could
-    not survive a round trip through the link. It is computed from the last resolved stop
-    instead, which means it follows the day around as the order changes and costs the URL
-    nothing. Null when there is no home base, or when you already end at it. */
+/* The two ends of a day. Both are computed the same way, from the same home base, and
+   neither is a stop — that symmetry is the point. A hotel that was a stop could be
+   dragged out of first place, would take a number on the map, would be offered up for
+   reordering against the places you actually chose, and could not survive a round trip
+   through the link at both ends anyway, because ?stops= collapses a repeated id. */
+export function anchorLeg(from, to, offFor){
+  const leg = planLegs([{ id:from.id, place:from }, { id:to.id, place:to }], offFor)[0];
+  return leg || null;
+}
+
+/** Out of the hotel to the first stop. */
+export function leadLeg(stops, city, offFor, places){
+  const home = hotelFor(city, places);
+  const first = (stops.filter(s => s.place)[0] || {}).place;
+  if (!home || !first || first.id === home.id) return null;
+  const leg = anchorLeg(home, first, offFor);
+  return leg && Object.assign({ home }, leg);
+}
+
+/** And back into it from the last one. */
 export function homeLeg(stops, city, offFor, places){
   const home = hotelFor(city, places);
-  if (!home) return null;
   const last = stops.filter(s => s.place).map(s => s.place).pop();
-  if (!last || last.id === home.id) return null;
-  const leg = planLegs([{ id:last.id, place:last }, { id:home.id, place:home }], offFor)[0];
-  return leg ? Object.assign({ home, from:last }, leg) : null;
+  if (!home || !last || last.id === home.id) return null;
+  const leg = anchorLeg(last, home, offFor);
+  return leg && Object.assign({ home }, leg);
 }
 
 /** Raw metres end to end. No WALK_BEND: every caller compares two of these, and a
-    constant factor cancels out of a comparison. */
-export function pathLen(stops){
+    constant factor cancels out of a comparison. Given the day's anchor it measures the
+    whole loop — out of the hotel, round the stops, back into it — which is the only
+    length worth comparing: an order that saves 300m between stops and leaves you an
+    extra kilometre from your bed has not saved anything. */
+export function pathLen(stops, anchor){
   let t = 0;
   for (let i = 0; i < stops.length - 1; i++){
     const a = stops[i].place, b = stops[i + 1].place;
     if (a && b) t += hopMetres(a, b);
   }
+  const ends = stops.filter(s => s.place).map(s => s.place);
+  if (anchor && ends.length) t += hopMetres(anchor, ends[0]) + hopMetres(ends[ends.length - 1], anchor);
   return t;
 }
 
-export function planStats(stops, offFor){
+/** Everything the pane needs to draw a day. Given a city it also works out the two
+    anchor hops and counts them in the totals — the walk out of the hotel and the walk
+    back into it are part of the day whether or not they are stops. */
+export function planStats(stops, offFor, city, places){
   const legs = planLegs(stops, offFor);
+  const lead = city ? leadLeg(stops, city, offFor, places) : null;
+  const home = city ? homeLeg(stops, city, offFor, places) : null;
   let total = 0, walkM = 0, walkMin = 0, rides = 0;
-  legs.forEach(l => {
+  [lead].concat(legs, [home]).forEach(l => {
     if (!l) return;
     total += l.metres;
     if (l.walkable){ walkM += l.walkM; walkMin += l.walkMin; } else rides++;
   });
-  return { legs, total, walkM, walkMin, rides, resolved: stops.filter(s => s.place).length };
+  return { legs, lead, home, total, walkM, walkMin, rides,
+           resolved: stops.filter(s => s.place).length };
 }
 
-/** Adjacent pairs that would be shorter the other way round. */
-export function backtracks(stops){
-  const base = pathLen(stops), out = [];
+/** Adjacent pairs that would be shorter the other way round, measured over the whole
+    anchored loop so the first and last stop are judged against the hotel like any other. */
+export function backtracks(stops, anchor){
+  const base = pathLen(stops, anchor), out = [];
   for (let i = 0; i < stops.length - 1; i++){
     const swapped = stops.slice();
     swapped[i] = stops[i + 1]; swapped[i + 1] = stops[i];
-    const gain = base - pathLen(swapped);
+    const gain = base - pathLen(swapped, anchor);
     if (gain > SWAP_GAIN_M && gain > base * SWAP_GAIN_FRAC) out.push({ i, gain });
   }
   return out;
 }
 
-/** Nearest-neighbour from wherever you said you start, then 2-opt. Only ever a
-    suggestion: it returns the identity order unless it genuinely beats what you have,
-    so offering it twice in a row cannot make the plan wander. */
-export function reorderByProximity(stops){
+/** Nearest-neighbour then 2-opt. With an anchor the walk starts at the hotel and is
+    measured back to it, so every position is free — there is no first stop to pin,
+    because the thing the day is pinned to is not in the list. Only ever a suggestion:
+    it returns the identity order unless it genuinely beats what you have, so offering
+    it twice in a row cannot make the plan wander. */
+export function reorderByProximity(stops, anchor){
   const idx = stops.map((_, i) => i);
-  const before = pathLen(stops);
+  const before = pathLen(stops, anchor);
   const flat = { order: idx, before_m: before, after_m: before, gain_m: 0 };
   if (stops.length < 3 || !stops.every(s => s.place)) return flat;
   const len = o => {
     let t = 0;
     for (let i = 0; i < o.length - 1; i++) t += hopMetres(stops[o[i]].place, stops[o[i + 1]].place);
+    if (anchor && o.length) t += hopMetres(anchor, stops[o[0]].place)
+                               + hopMetres(stops[o[o.length - 1]].place, anchor);
     return t;
   };
-  const order = [0], left = idx.slice(1);
+  const order = [], left = idx.slice();
+  if (!anchor) order.push(left.shift());          // no anchor: the day starts where it starts
   while (left.length){
-    const last = stops[order[order.length - 1]].place;
+    const last = order.length ? stops[order[order.length - 1]].place : anchor;
     let best = 0, bd = Infinity;
     left.forEach((j, k) => {
       const d = hopMetres(last, stops[j].place);
@@ -302,7 +347,7 @@ export function reorderByProximity(stops){
   }
   for (let pass = 0; pass < REORDER_MAX_PASSES; pass++){
     let improved = false;
-    for (let i = 1; i < order.length - 1 && !improved; i++){
+    for (let i = anchor ? 0 : 1; i < order.length - 1 && !improved; i++){
       for (let j = i + 1; j < order.length && !improved; j++){
         const cand = order.slice(0, i).concat(order.slice(i, j + 1).reverse(), order.slice(j + 1));
         // first improving move, not the best one: same input must give the same output
@@ -351,8 +396,14 @@ export function nearbySuggestions(stops, opts){
   return out.slice(0, NEAR_MAX);
 }
 
+/** One hop in words, for the brief. */
+export function legWords(leg){
+  return `${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot`
+    : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`}`;
+}
+
 /** Everything the page can say about this order without guessing. */
-export function orderCautions(stops, city, day){
+export function orderCautions(stops, city, day, anchor){
   const out = [];
   const unknown = stops.filter(s => !s.place);
   if (unknown.length) out.push({ kind:"unknown", text:
@@ -361,7 +412,7 @@ export function orderCautions(stops, city, day){
     if (s.place && s.place.city !== city) out.push({ kind:"city", i, text:
       `Stop ${i + 1}, ${s.place.name}, is in ${s.place.city} — this day is ${city}.` });
   });
-  backtracks(stops).forEach(b => {
+  backtracks(stops, anchor).forEach(b => {
     const a = stops[b.i].place, c = stops[b.i + 1].place;
     out.push({ kind:"order", i:b.i, gain:b.gain, text:
       `Stops ${b.i + 1} and ${b.i + 2} look swapped — ${c.name} before ${a.name} saves about ${fmtM(b.gain)}.` });
@@ -379,7 +430,7 @@ export function orderCautions(stops, city, day){
 /** The handoff. rideLine is an optional (place) -> string for the ride from the hotel,
     which lives outside this block because it needs the memoised journey engine. */
 export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
-  const st = planStats(stops, offFor), lines = [];
+  const st = planStats(stops, offFor, plan.city), lines = [];
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const head = [plan.title || "Day plan", "—", cityLabel].join(" ");
   lines.push(`# ${head}${plan.day ? ` · ${plan.day}` : ""}`);
@@ -389,6 +440,7 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   lines.push(bits.join(" · "));
   if (href) lines.push(`Source: ${href}`);
   lines.push("");
+  if (st.lead) lines.push(`Starts at **${st.lead.home.name}** — ${legWords(st.lead)} to the first stop.`, "");
   stops.forEach((s, i) => {
     const p = s.place;
     if (!p){ lines.push(`${i + 1}. _unknown id \`${s.id}\`_`); lines.push(""); return; }
@@ -400,18 +452,14 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
     const ride = rideLine && rideLine(p);
     if (ride) lines.push(`   From the hotel: ${ride}`);
     const leg = st.legs[i];
-    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot`
-      : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`} · ${leg.naver}`);
+    if (leg) lines.push(`   -> next: ${legWords(leg)} · ${leg.naver}`);
     lines.push("");
   });
-  const back = homeLeg(stops, plan.city, offFor);
-  if (back){
-    lines.push(`Ends back at **${back.home.name}** — ${fmtM(back.metres)}${back.walkable
-      ? `, about ${back.walkMin} min on foot` : back.line
-        ? `, ${back.line.label} from ${back.line.from} to ${back.line.to}` : `, ${back.mode}`} · ${back.naver}`);
+  if (st.home){
+    lines.push(`Ends back at **${st.home.home.name}** — ${legWords(st.home)} · ${st.home.naver}`);
     lines.push("");
   }
-  const cautions = orderCautions(stops, plan.city, plan.day);
+  const cautions = orderCautions(stops, plan.city, plan.day, hotelFor(plan.city));
   if (cautions.length){
     lines.push("## Worth knowing");
     cautions.forEach(c => lines.push(`- ${c.text}`));
