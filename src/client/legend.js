@@ -44,7 +44,7 @@ export function renderLegend(){
   if (been){
     const b = document.createElement("button");
     b.className = "chip been" + (hideVisited ? " on" : "");
-    b.innerHTML = `☑ Been<span class="ct">${been}</span>`;
+    b.innerHTML = `<span class="tickbox on"></span> Been<span class="ct">${been}</span>`;
     b.title = hideVisited ? "Show the spots you have been to again" : "Hide the spots you have been to";
     b.onclick = () => { setHideVisited(!hideVisited); syncMarkers(); renderLegend(); renderList(); };
     legendEl.appendChild(b);

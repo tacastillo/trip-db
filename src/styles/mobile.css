@@ -75,7 +75,7 @@
   .card-plan{min-height:44px; font-size:14px;}
   .card-been{min-height:44px; font-size:13px;}
   /* the been-there tick is a thumb too, but it never takes room from the add button */
-  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin-top:6px;}
+  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin:6px 10px 0 0;}
   .pday{min-height:46px; padding:8px 11px;}
   .pday-d{font-size:12.5px;}
 
@@ -111,6 +111,14 @@
   .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
     max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
   .card-x{width:34px; height:34px; font-size:19px;}
+  /* Three lines can now land in that same box — the hangul, the hours and the signature.
+     Each is conditional, but they co-occur, so they are the smallest type on the card and
+     the row above stays on one line rather than wrapping the status under the category. */
+  .pop-top{padding-right:38px;}
+  .pop-hours{font-size:11px;}
+  .pop-ko{font-size:13px;}
+  .pop-sub{font-size:12px;}
+  .pop-extra{font-size:12px;}
   .leaflet-control-zoom{display:none;}
 }
 

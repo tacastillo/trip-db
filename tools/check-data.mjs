@@ -10,6 +10,7 @@
    Most of these catch a failure the page itself will not report: a spot with a
    typo'd cluster still drops its pin, but never appears in the list. */
 
+import { DOW, closedFromHours, parseHours } from "../src/lib/hours.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT, metres, distToPath } from "./lib.mjs";
@@ -168,6 +169,34 @@ if (walks.length)
 for (const p of PLACES){
   if (p.id && !/^[a-z0-9-]+$/.test(p.id))
     err(`${p.id}: plan ids go into the URL as-is, so they must be lowercase letters, digits and dashes`);
+}
+
+/* The fields synced from the trip database. `hours` is the one piece of structured
+   schedule on this map — if a string here stops parsing, the card quietly falls back to
+   printing it and the planner stops warning, so fail the build instead. */
+const HANGUL = /[가-힣]/;
+for (const p of PLACES){
+  const at = p.id || p.name;
+  if (p.hours && !parseHours(p.hours))
+    err(`${at}: hours "${p.hours}" does not parse — see the grammar in src/lib/hours.js`);
+  if (p.closed !== undefined){
+    if (!Array.isArray(p.closed)) err(`${at}: closed must be an array of weekday keys`);
+    else for (const d of p.closed)
+      if (!DOW.includes(d)) err(`${at}: closed has "${d}", which is not one of ${DOW.join(", ")}`);
+  }
+  if (p.hours && Array.isArray(p.closed)){
+    const fromHours = closedFromHours(p.hours);
+    if (fromHours && String([...fromHours].sort()) !== String([...p.closed].sort()))
+      err(`${at}: closed ${JSON.stringify(p.closed)} disagrees with hours "${p.hours}"`);
+  }
+  if (p.ko !== undefined && !HANGUL.test(p.ko))
+    err(`${at}: ko "${p.ko}" has no hangul in it`);
+  /* The whole point of the ko field: the bold line of a list row is for the name you can
+     read. A parenthetical creeping back into `name` would undo that silently. */
+  if (HANGUL.test(p.name || ""))
+    err(`${at}: name "${p.name}" contains hangul — that belongs in ko`);
+  if (p.signature !== undefined && typeof p.signature !== "string")
+    err(`${at}: signature must be a string`);
 }
 
 /* Every leg needs exactly one hotel: it is what the planner offers as a day's start. */

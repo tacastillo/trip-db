@@ -105,8 +105,13 @@ ok('"Closed Sat–Mon" wraps the week', eq(core.closedDays("Closed Sat–Mon"), 
 ["Open 24h","9am–10pm","₩2,500 · closes 5:10pm","₩3,000 · last entry 5pm",
  "Confirm hours on Naver","Reserve or queue",""].forEach(s =>
   ok(`"${s}" is left alone`, core.closedDays(s).length === 0));
-ok("every Closed meta in the file parses", PLACES.filter(p => /^Closed /.test(p.meta || ""))
+ok("every Closed meta still in the file parses", PLACES.filter(p => /^Closed /.test(p.meta || ""))
   .every(p => core.closedDays(p.meta).length > 0));
+/* closedDaysFor is the authority now; closedDays above is only the fallback for the places
+   with no row in the trip database. This is the invariant that matters to the planner. */
+ok("every place that closes on a day says so through closedDaysFor",
+  PLACES.filter(p => /closed/i.test(p.meta || "") || Array.isArray(p.closed))
+    .every(p => Array.isArray(core.closedDaysFor(p))));
 ok("2026-09-01 is a Tuesday", core.planDow("2026-09-01") === "tue");
 ok("a rolled-over date is refused", core.planDow("2026-13-45") === "");
 ok("a non-date is refused", core.planDow("tuesday") === "");
