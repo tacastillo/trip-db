@@ -1,23 +1,59 @@
 *{box-sizing:border-box;}
+
+/* The trip's palette, and the only place any of it is written down.
+
+   Four colours carry the whole page: a deep teal-navy #0F3040, a slate #464858, a clay
+   #A56F63 and a sand #D99B7F. Nothing here is a fifth hue — the paper is sand at a
+   tenth strength, the rules and fields are sand a little stronger, and night is the
+   navy itself with the paper one shade below the surface rather than a new colour.
+
+   Two exceptions, both semantic and both deliberate. --ok (a walk saved, a spot ticked
+   off, where you are) and --warn (shut today, pick a date) have to read as *different
+   kinds of thing* at a glance, and a fourth tone of clay cannot do that — so they are a
+   pine and an amber, desaturated into the same muted register as the four. Everything
+   else, category pins included (see CATS in data/places.js), is one of the four or a
+   tint of one.
+
+   Never hard-code a hex in a rule both themes use. If a rule needs a colour that is not
+   here, it needs a token here first — that is what makes night mode one block rather
+   than a hunt through six stylesheets. */
 :root{
-  --paper:#F6F2EA; --surface:#FFFFFF; --ink:#1C1A17; --muted:#7A7062;
-  --line:#E7E0D2; --line-2:#EFEAE0; --accent:#C8432A;
+  --paper:#F5EDE8; --surface:#FFFBF9; --ink:#0F3040; --muted:#5E6270;
+  --line:#E4D6CE; --line-2:#EFE5DF; --line-hover:#CDB4A8; --accent:#A56F63;
   /* An input has to read as inset, so it is off --surface rather than on it; and a
-     plan that saves you a kilometre wants a colour that isn't the warning red. */
-  --field:#FBF8F2; --ok:#2E7D52; --warn:#9C5A16;
+     plan that saves you a kilometre wants a colour that isn't the warning amber. */
+  --field:#FAF3EF; --ok:#2F6B63; --warn:#8E5B2A;
+  /* the states a row can be in, and the canvas the map paints on before any tile lands */
+  --hover:#F8F1EC; --sel:#F4E7E1; --mapbg:#E6DDD7;
+  /* a wash of the accent, for the one badge that wants to be tinted rather than filled */
+  --tint:rgba(165,111,99,.07);
+  /* over the map: the banners' scrim, the panels that float on it, and the casing
+     painted under a drawn ride so the line reads against whatever is beneath it */
+  --scrim:rgba(15,48,64,.86); --scrim-ink:#F5EDE8;
+  --glass:rgba(255,251,249,.94); --casing:#FFFFFF; --pin-edge:#FFFBF9;
 }
 
-/* night mode */
+/* night mode. The same four colours with the navy promoted from ink to surface, and the
+   sand promoted from a tint to the accent — it is the one of the four that still reads
+   as a colour at 2am on a dark map. */
 body.night{
-  --paper:#15120D; --surface:#1E1A14; --ink:#F1EBDF; --muted:#9C9081;
-  --line:#342E25; --line-2:#2A241D; --accent:#E2604A;
-  --field:#161310; --ok:#5FBE8B; --warn:#D9A05B;
+  --paper:#0A2131; --surface:#0F3040; --ink:#F0E4DC; --muted:#9BA3B0;
+  --line:#26485C; --line-2:#1B3C4E; --line-hover:#3C6478; --accent:#D99B7F;
+  --field:#0B2634; --ok:#79B7A6; --warn:#E0B27A;
+  --hover:#153B4E; --sel:#1C4457; --mapbg:#071722;
+  --tint:rgba(217,155,127,.14);
+  --scrim:rgba(240,228,220,.92); --scrim-ink:#0F3040;
+  --glass:rgba(15,48,64,.93); --casing:#071722; --pin-edge:#F0E4DC;
 }
-body.night #map{background:#0d0b08;}
-body.night .item:hover{background:#241f18;}
-body.night .item.sel{background:#2c2118;}
-body.night .leaflet-container{background:#0d0b08;}
 body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
 body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
-body.night .tilebanner{background:rgba(241,235,223,.92); color:#15120D;}
 body.carded .tilebanner{top:auto; bottom:14px;}
+
+/* Streamline icons, drawn by src/lib/icons.js on a 14x14 grid. Two rules for all of
+   them: an icon is the size of the text it sits beside, and it takes that text's colour
+   — so a category pin, a header toggle and a button each colour their own icon and none
+   of them needs a rule here. Only an icon with no text beside it gets a size of its own. */
+.ic{width:1em; height:1em; flex:none; display:inline-block; vertical-align:-.14em;}
+/* On a filled dot the stroke is white on colour at 12px, which is where a hairline
+   starts to break up — the one place the set's own weight needs a nudge. */
+.pindot .ic,.pin-b .ic,.pend-i .ic{stroke-width:1.3;}

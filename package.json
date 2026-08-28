@@ -9,6 +9,7 @@
     "check": "node tools/check-data.mjs && node tools/test-plan.mjs && node tools/test-pipeline.mjs"
   },
   "devDependencies": {
+    "@iconify-json/streamline": "^1.2.5",
     "astro": "^5.14.1"
   }
 }

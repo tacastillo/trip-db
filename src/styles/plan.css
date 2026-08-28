@@ -9,6 +9,7 @@
 .sidetab.on{color:var(--ink); border-bottom-color:var(--accent);}
 .st-ct{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
 .sidetab.on .st-ct{color:var(--accent);}
+.sidetab .ic{width:14px; height:14px;}
 
 #side[data-sidetab="plan"] .sum,
 #side[data-sidetab="plan"] .searchwrap,
@@ -28,6 +29,7 @@
   cursor:pointer; color:var(--muted); font-size:14px; line-height:1; padding:4px 6px; border-radius:6px; display:none;}
 .searchclear.on{display:block;}
 .searchclear:hover{color:var(--ink); background:var(--line-2);}
+.searchclear .ic{width:11px; height:11px;}
 
 /* a row is a button, so the add control has to be its sibling, never its child */
 .itemrow{display:flex; align-items:flex-start;}
@@ -42,7 +44,8 @@
 .planbtn:hover{background:var(--accent); color:#fff;}
 .planbtn:active{transform:scale(.94);}
 .planbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff; font-size:16px;}
+.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff;}
+.planbtn .ic{width:16px; height:16px;}
 .planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 .planpane{flex:1; min-height:0; overflow-y:auto; padding:2px 0 16px;}
@@ -69,6 +72,7 @@
   align-items:center; justify-content:center; touch-action:none; -webkit-user-select:none; user-select:none;}
 .pdrag:hover{color:var(--ink);}
 .pdrag:active{cursor:grabbing; background:var(--line);}
+.pdrag .ic{width:14px; height:14px;}
 .pnum-i{width:var(--num); height:var(--num); border-radius:50%; display:flex; align-items:center;
   justify-content:center; font-size:11px; font-weight:700; color:#fff; margin-top:1px;
   box-shadow:0 1px 2px rgba(0,0,0,.2); font-variant-numeric:tabular-nums;}
@@ -83,6 +87,7 @@
   font-size:13px; line-height:1; padding:0; border-radius:8px; display:flex; align-items:center;
   justify-content:center;}
 .pdrop:hover{color:var(--accent); background:var(--line-2);}
+.pdrop .ic{width:12px; height:12px;}
 
 /* The hop between two stops. It hangs off a dashed rail drawn down the centre of the
    number column, so the numbers, the rail and every hop line up in one straight
@@ -96,6 +101,7 @@
 .phop-d b{color:var(--ink); font-weight:700;}
 .phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10.5px;}
 .phop-s{color:var(--muted);}
+.phop-arr{width:11px; height:11px; opacity:.7; margin:0 1px;}
 
 /* The Naver link is the only thing here that actually navigates anybody anywhere, and
    it has proved the most trustworthy part of the page, so it is a filled control with
@@ -107,7 +113,7 @@
 .phop-a:hover{filter:brightness(1.08);}
 .phop-a:active{transform:scale(.97);}
 .phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-.phop-a-x{opacity:.8; font-weight:600;}
+.phop-a-x{opacity:.75; width:10px; height:10px;}
 
 /* The two ends of the day. Same row, same rail, same hotel dot — the day is bracketed
    by them, and they are what the numbered stops hang between. .start opens the rail and
@@ -123,7 +129,8 @@
   border-left:2px dashed var(--line); padding:0 0 0 calc(var(--num) / 2 + var(--gap) - 1px);
   display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted);}
 .pend-i{width:var(--num); height:var(--num); border-radius:50%; flex:none; display:flex; align-items:center;
-  justify-content:center; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+  justify-content:center; color:#fff; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+.pend-i .ic{width:12px; height:12px;}
 .pend-t{min-width:0;}
 
 .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
@@ -149,33 +156,33 @@
 .pacts{display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:12px var(--px) 6px;}
 .pact{border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:inherit;
   font-size:12px; font-weight:600; border-radius:9px; padding:8px 10px; line-height:1; min-height:34px;
-  display:flex; align-items:center; justify-content:center;}
+  display:flex; align-items:center; justify-content:center; gap:7px;}
 .pact:hover{border-color:var(--accent); color:var(--accent);}
 .pact.done{border-color:var(--ok); color:var(--ok);}
 
 /* the card's own add control carries the same weight as the one in the list — it is
    the same job, and on a phone the card is where most of it gets done */
-.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; min-height:38px; font-size:13px;
+.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; gap:7px; min-height:38px; font-size:13px;
   border-color:var(--accent); color:var(--accent); background:var(--line-2);}
 .card-plan:hover{background:var(--accent); color:#fff;}
 .card-plan.done{background:var(--ok); border-color:var(--ok); color:#fff;}
 .card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 
+.tb-i{display:inline-flex; align-items:center;}
+.tb-i .ic{width:15px; height:15px;}
 .tb-i + .tb-l{margin-left:6px;}
 .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
   background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
   display:inline-flex; align-items:center; gap:6px; line-height:1;}
-.railtoggle:hover{border-color:#cdbfa6;}
+.railtoggle:hover{border-color:var(--line-hover);}
 .railtoggle.on{background:var(--accent); color:#fff; border-color:var(--accent);}
-body.night .railtoggle:hover{border-color:#4a4234;}
-.raillegend{position:absolute; left:14px; bottom:14px; z-index:500; background:rgba(255,255,255,.94);
+.raillegend{position:absolute; left:14px; bottom:14px; z-index:500; background:var(--glass);
   border:1px solid var(--line); border-radius:10px; padding:9px 12px 10px; box-shadow:0 4px 16px rgba(0,0,0,.13);
   max-width:210px; display:flex; flex-wrap:wrap; gap:5px 13px;}
 .raillegend .rl-h{flex-basis:100%; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:2px;}
 .rl-item{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--ink); white-space:nowrap;}
 .rl-bar{width:15px; height:4px; border-radius:2px; flex:none;}
-body.night .raillegend{background:rgba(30,26,20,.93);}
 
 /* the ride from the hotel, as printed in the popup */
 .pop-route{margin-top:9px; padding-top:8px; border-top:1px solid var(--line-2); font-size:11.5px;}
@@ -184,11 +191,12 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
 .pr-line{display:inline-block; color:#fff; font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap;}
 .pr-to{font-weight:700; color:var(--ink);}
 .pr-off{font-weight:800; color:var(--accent);}
-.pr-arr{color:var(--muted);}
+.pr-arr{color:var(--muted); width:11px; height:11px; align-self:center;}
 .pr-tag{font-size:8.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:var(--muted);
   border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
 .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+.pr-walk .ic{width:12px; height:12px; margin-right:2px;}
 /* in the card there is nothing to sit beside, so it spans the width and reads as the
    action the card is for */
 /* in the card there is a whole width to spend: Naver takes the row, Kakao the one

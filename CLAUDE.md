@@ -66,6 +66,7 @@ page* below).
 | Module | What lives there |
 | --- | --- |
 | `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
+| `theme.js` | `cssVar`, the one door from `styles/tokens.css` to what Leaflet paints |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
 | `geo-me.js` | the blue dot, live distances, "nearest first" |
@@ -96,10 +97,43 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
+| `ICONS` | `data/icons.js` | Streamline, via `tools/fetch-icons.mjs` | no — regenerate instead |
 
 Station **names are keys**. `ROUTES` is keyed by them and `PLACE_OFF` points at them,
 so renaming one silently breaks a route. `fetch-stations.mjs` never renames for that
 reason; it reports what it could not match and leaves it alone.
+
+## Icons, and why they are not emoji
+
+Every mark on this page is a [Streamline][] icon in the regular weight, drawn inline from
+`src/data/icons.js` by the one function in `src/lib/icons.js`. Emoji were the wrong
+alphabet for a field map: the same category is a different drawing on Android, on iOS and
+on a Samsung phone, half of them are pictures of American food, and none of them can take
+the colour of the thing they sit in — a category pin had a beige croissant on it whatever
+the pin was coloured.
+
+[Streamline]: https://www.streamlinehq.com/icons/streamline-regular
+
+Three rules hold the set together, and `tools/fetch-icons.mjs` enforces the first two:
+
+- **The regular weight, on the 14x14 grid.** A `-solid` or `-remix` sibling is a
+  different drawing at a different weight, and the older icons in the set sit on a
+  different grid — either one puts a second stroke width on the page. The generator
+  refuses both rather than trusting a name.
+- **Only what is used.** The set has 3,900 icons; twenty-five are copied into
+  `src/data/icons.js`, the same way Leaflet and the fonts are vendored. Nothing is
+  fetched at runtime and there is no icon font to load.
+- **`currentColor` and `1em`, always.** An icon takes the colour and the size of whatever
+  it sits in, so a legend chip, a white-on-clay pin and a night-mode button all work with
+  no rule of their own. `.ic` in `tokens.css` is the whole stylesheet for them.
+
+To change one, edit the `STREAMLINE` table in `tools/fetch-icons.mjs` — page name on the
+left, the set's own name on the right — and re-run it. `check-data.mjs` fails if a
+category names an icon that run never wrote. The set is CC BY 4.0; the attribution is in
+the generated file's header, which is why that header is not noise.
+
+One emoji survives, on purpose: `CATS[cat].emoji`, which `planShareText()` uses when a
+day is copied out as a message. A message pasted into KakaoTalk cannot carry an SVG.
 
 ## Adding a place
 
@@ -454,6 +488,15 @@ registers on `localhost` as well as https — talk to it over a `MessageChannel`
 
 - **Themes**: every colour goes through a token on `:root` in `styles/tokens.css`,
   overridden under `body.night`. Never hard-code a hex in a rule that both themes use.
+  The palette is four colours — navy `#0F3040`, slate `#464858`, clay `#A56F63`, sand
+  `#D99B7F` — and everything else is a tint of one of them, including the nine category
+  colours in `CATS`, which keep their hues but live in that muted register. The two
+  exceptions are `--ok` and `--warn`: they have to read as a different *kind* of thing,
+  which a fourth tone of clay cannot do. Leaflet paints on a canvas and cannot be
+  styled by a sheet, so what the map draws reads its colours back through
+  `cssVar()` in `client/theme.js` rather than holding a literal.
+- **Icons, not emoji**: see *Icons, and why they are not emoji* above. A new mark comes
+  from the Streamline set through `tools/fetch-icons.mjs`, never from a character.
 - **Global CSS, never scoped.** The sheet is built on cross-cutting state classes —
   `body.night`, `body.planning`, `body.routing`, `.side[data-sidetab]` — which Astro's
   scoping would rewrite out from under it. The stylesheets are imported in cascade

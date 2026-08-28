@@ -8,6 +8,7 @@ import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
 import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
+import { icon } from "../lib/icons.js";
 
 /* ---------------- the plan pane ---------------- */
 
@@ -26,10 +27,10 @@ export function planStopHtml(s, i){
   // arrows stacked in a column were the smallest targets on the page and dragging is
   // the gesture people reach for anyway, so the handle got their space instead.
   return `<div class="pstop${p ? "" : " gone"}" data-i="${i}">
-    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag ${p ? p.name : s.id} to reorder">⠿</button>
+    <button class="pdrag" data-drag="${i}" title="Drag to reorder" aria-label="Drag ${p ? p.name : s.id} to reorder">${icon("drag")}</button>
     <span class="pnum-i" style="background:${p ? (c.color || "#888") : "#888"}">${i + 1}</span>
     <button class="pbody" data-focus="${p ? p.id : ""}">${body}</button>
-    <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove ${p ? p.name : s.id} from the day">✕</button>
+    <button class="pdrop" data-drop="${esc(s.id)}" title="Remove" aria-label="Remove ${p ? p.name : s.id} from the day">${icon("close")}</button>
   </div>`;
 }
 
@@ -38,7 +39,7 @@ export function planStopHtml(s, i){
     Every hop, the walk home and the card all use this same button. */
 export function naverBtnHtml(href, to, label){
   return `<a class="phop-a" href="${href}" target="_blank" rel="noopener noreferrer"
-    aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} <span class="phop-a-x">↗</span></a>`;
+    aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} ${icon("out", "phop-a-x")}</a>`;
 }
 
 /* Kakao is what half of Korea actually navigates with, but Naver is the one this map's
@@ -73,7 +74,7 @@ export function planHopHtml(leg, cls){
   // named only where the geometry proves it: one line, both stations, no transfer guessed
   const line = leg.line
     ? `<span class="phop-l" style="--ln:${leg.line.color}">${leg.line.label}</span>
-       <span class="phop-s">${leg.line.from} → ${leg.line.to}</span>`
+       <span class="phop-s">${leg.line.from} ${icon("next", "phop-arr")} ${leg.line.to}</span>`
     : "";
   return `<div class="phop${cls ? " " + cls : ""}">
     <span class="phop-d"><b>${fmtM(leg.metres)}</b> · ${hopHow(leg)}</span>
@@ -87,7 +88,7 @@ export function planHopHtml(leg, cls){
    homeLeg() explains why the end could never have been a stop; startLeg() is its mirror. */
 export function planEndHtml(home, text, cls){
   return `<div class="pend${cls ? " " + cls : ""}">
-    <span class="pend-i" style="background:${(CATS.hotel || {}).color}">🏨</span>
+    <span class="pend-i" style="background:${(CATS.hotel || {}).color}">${icon((CATS.hotel || {}).icon)}</span>
     <span class="pend-t">${text} ${esc(home.name)}</span></div>`;
 }
 
@@ -202,7 +203,7 @@ export function renderPlan(){
       const c = CATS[s.place.cat] || {};
       const anchor = stops[s.nearIdx] && stops[s.nearIdx].place;
       out.push(`<button class="psug" data-suggest="${s.place.id}" data-at="${s.insertAt}">
-        <span class="pindot" style="background:${c.color}">${c.emoji}</span>
+        <span class="pindot" style="background:${c.color}">${icon(c.icon)}</span>
         <span class="it-body">
           <span class="it-name">${s.place.name}</span>
           <span class="it-note">${s.place.note}</span>

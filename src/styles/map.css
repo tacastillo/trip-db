@@ -1,8 +1,13 @@
+/* Leaflet paints its own ground behind the tiles; before one lands, and in the gaps
+   where none exists, that ground is the page's. */
+.leaflet-container{background:var(--mapbg);}
+
 /* pins */
 .pin{width:30px; height:30px;}
-.pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid #fff; border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+.pin-b{width:30px; height:30px; background:var(--pin); border:2.5px solid var(--pin-edge); border-radius:50% 50% 50% 0; transform:rotate(-45deg);
   display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.32);}
-.pin-b span{transform:rotate(45deg); font-size:13px; line-height:1;}
+.pin-b span{transform:rotate(45deg); font-size:13px; line-height:1; color:#fff; display:flex;}
+.pin-b .ic{width:15px; height:15px;}
 .pin-n{font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:14px; color:#fff;}
 /* With a day up, the day is the subject and the other seventy-odd spots are context. */
 body.planning .leaflet-marker-icon{opacity:.26; transition:opacity .18s;}
@@ -20,10 +25,11 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 .card-x{position:absolute; top:7px; right:7px; width:28px; height:28px; border:none; background:none;
   cursor:pointer; color:var(--muted); font-size:16px; line-height:1; border-radius:7px; padding:0;}
 .card-x:hover{background:var(--line-2); color:var(--ink);}
+.card-x .ic{width:13px; height:13px;}
 /* The category and the open/shut read share one row so the status costs no new line —
    card height is the scarcest thing here, and the close button already owns the corner. */
 .pop-top{display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding-right:26px;}
-.pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+.pop-cat{display:inline-flex; align-items:center; gap:5px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
 .pop-hours{flex:none; font-size:10.5px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
 .pop-hours.on{color:var(--ok);}
 .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px;
@@ -45,7 +51,7 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 
 /* tile fallback banner */
 .tilebanner{position:absolute; left:50%; top:16px; transform:translateX(-50%); z-index:500; max-width:88%;
-  background:rgba(28,26,23,.86); color:#F6F2EA; font-size:12px; line-height:1.4; padding:9px 14px; border-radius:9px;
+  background:var(--scrim); color:var(--scrim-ink); font-size:12px; line-height:1.4; padding:9px 14px; border-radius:9px;
   box-shadow:0 6px 20px rgba(0,0,0,.25); display:none; text-align:center;}
 
 
@@ -53,7 +59,7 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 /* where you are. The dot is Leaflet's own blue rather than the trip's accent on
    purpose: every map app on the phone uses that colour for "you", and this is the one
    place on the page where matching everyone else beats matching ourselves. */
-.medot{position:relative; width:18px; height:18px; border-radius:50%; background:#2D6CB5; border:3px solid #fff;
+.medot{position:relative; width:18px; height:18px; border-radius:50%; background:#2D6CB5; border:3px solid var(--pin-edge);
   box-shadow:0 0 0 1px rgba(45,108,181,.5), 0 2px 6px rgba(0,0,0,.35);}
 .medot::after{content:''; position:absolute; inset:-7px; border-radius:50%;
   border:2px solid rgba(45,108,181,.45); animation:mePulse 2.4s ease-out infinite;}

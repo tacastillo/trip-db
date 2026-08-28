@@ -7,6 +7,8 @@ import { isVisited, visitedHidden } from "./visited.js";
 import { isMobile } from "./view.js";
 import { CATS, PLACES } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
+import { icon } from "../lib/icons.js";
+import { cssVar } from "./theme.js";
 
 /* Leaflet's own objects. Every one of these is written here and nowhere else,
    so the other modules import them as live bindings and always see the current
@@ -56,7 +58,7 @@ export function railFade(){ return document.body.classList.contains("planning") 
 export function drawRail(){
   if (!railLayer || !window.L) return;
   railLayer.clearLayers();
-  const casing = night ? "#15120D" : "#ffffff";
+  const casing = cssVar("--casing");
   (RAIL[currentTab]||[]).forEach(function(ln){ ln.paths.forEach(function(pa){
     railSegments(pa).forEach(function(sg){
       L.polyline(sg.pts, { renderer: railRenderer, color: casing, weight: 6, opacity: 0.5 * sg.fade * railFade(), lineCap: "round", lineJoin: "round", interactive: false }).addTo(railLayer);
@@ -153,13 +155,13 @@ export function showTileBanner(){
 }
 
 /* The pin a planned stop gets: the same shape and category colour, carrying its place
-   in the day instead of its emoji. One marker per stop, not a pin plus a chip beside it. */
+   in the day instead of its icon. One marker per stop, not a pin plus a chip beside it. */
 export function pinIcon(p, n){
   const c = CATS[p.cat] || {};
   return L.divIcon({
     className: "",
     html: `<div class="pin${n ? " plan" : ""}" style="--pin:${c.color}">
-             <div class="pin-b"><span${n ? ' class="pin-n"' : ""}>${n || c.emoji}</span></div></div>`,
+             <div class="pin-b"><span${n ? ' class="pin-n"' : ""}>${n || icon(c.icon)}</span></div></div>`,
     iconSize: [30, 30], iconAnchor: [15, 30],
   });
 }

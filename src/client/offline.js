@@ -48,7 +48,7 @@ export function syncOfflineButton(){
   const st = packState(currentTab);
   const leg = (LEGS.find(l => l.id === currentTab) || {}).label || currentTab;
   b.classList.toggle("on", !!st);
-  setToolBtn(b, "⤓", st ? "Saved" : "Offline");
+  setToolBtn(b, "offline", st ? "Saved" : "Offline");
   b.title = st
     ? `${leg}'s tiles are already on this device (${st.tiles} of them, saved ${st.at.slice(0, 10)}). Tap to refresh them.`
     : `Download ${leg}'s map tiles so the map works with no signal`;
@@ -59,7 +59,7 @@ export async function savePack(){
   const reg = swReady && await swReady;
   if (!reg || !navigator.serviceWorker.controller){
     if (b){
-      setToolBtn(b, "⤓", "no worker");
+      setToolBtn(b, "offline", "no worker");
       b.title = "This browser is not running the offline worker, so tiles cannot be kept. Everything else still works.";
     }
     return;

@@ -1,7 +1,10 @@
+---
+import { icon } from "../lib/icons.js";
+---
 <aside class="side" id="side" data-sidetab="places">
   <div class="sidetabs" id="sidetabs">
-    <button class="sidetab on" id="tabPlaces" aria-pressed="true">📋 Places</button>
-    <button class="sidetab" id="tabPlan" aria-pressed="false">🗓️ Plan <span class="st-ct" id="planCount"></span></button>
+    <button class="sidetab on" id="tabPlaces" aria-pressed="true"><Fragment set:html={icon("list")} /> Places</button>
+    <button class="sidetab" id="tabPlan" aria-pressed="false"><Fragment set:html={icon("plan")} /> Plan <span class="st-ct" id="planCount"></span></button>
   </div>
   <div class="sum">
     <div class="sum-n"><b id="shownCount">40</b> spots · <span id="hoodCount">10</span> neighborhoods</div>
@@ -10,7 +13,7 @@
   <div class="searchwrap">
     <input class="searchbox" id="search" type="search" autocomplete="off" spellcheck="false"
            placeholder="Search spots, notes, neighbourhoods" aria-label="Search spots" />
-    <button class="searchclear" id="searchClear" title="Clear" aria-label="Clear search">✕</button>
+    <button class="searchclear" id="searchClear" title="Clear" aria-label="Clear search" set:html={icon("close")} />
   </div>
   <div class="legend" id="legend"></div>
   <div class="list" id="list"></div>

@@ -1,11 +1,10 @@
 import { routeLayer } from "./map.js";
-import { map, night } from "./state.js";
+import { map } from "./state.js";
 import { CATS } from "../data/places.js";
 import { HOTEL_STATION, STATION_COORDS } from "../data/routing.js";
 import { lerpPt } from "../lib/geo.js";
 import { journeyFor } from "../lib/journey.js";
-
-export function cssVar(v){ return getComputedStyle(document.body).getPropertyValue(v).trim() || "#C8432A"; }
+import { cssVar } from "./theme.js";
 
 /* ---------------- drawing and animating the ride ---------------- */
 export let routeAnim = null, routeDraw = null;
@@ -31,7 +30,7 @@ export function stationDots(j){
     }
     const fill = s.kind === "off" ? cssVar("--accent") : s.tint;
     const dot = L.circleMarker(c, { radius: s.kind === "board" ? 5.5 : s.kind === "off" ? 7 : 8,
-      color: "#fff", weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+      color: cssVar("--pin-edge"), weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
     // a transfer wears both lines: the one arriving outside, the one leaving in the middle
     if (s.kind === "transfer" && s.then){
       L.circleMarker(c, { radius: 3.6, stroke: false, fillColor: s.then, fillOpacity: 1,
@@ -73,7 +72,7 @@ export function showRoute(p){
   const j = journeyFor(p);
   if (!j) return;
   document.body.classList.add("routing");
-  const casing = night ? "#15120D" : "#ffffff";
+  const casing = cssVar("--casing");
   const accent = cssVar("--accent");
   const shapes = j.legs.map(leg => {
     const walking = leg.kind === "walk";

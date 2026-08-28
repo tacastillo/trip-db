@@ -28,7 +28,7 @@ export const nightBtn = document.getElementById("nightToggle");
    browser remembered otherwise, that is undone here rather than in the markup. */
 export function applyNight(){
   document.body.classList.toggle("night", night);
-  setToolBtn(nightBtn, night ? "☀️" : "🌙", night ? "Day" : "Night");
+  setToolBtn(nightBtn, night ? "day" : "night", night ? "Day" : "Night");
 }
 applyNight();
 if (nightBtn) nightBtn.onclick = () => {

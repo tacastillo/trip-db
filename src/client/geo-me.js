@@ -153,7 +153,7 @@ export function syncMeButton(){
   const b = document.getElementById("meToggle");
   if (!b) return;
   b.classList.toggle("on", locating);
-  setToolBtn(b, "📍", locating ? (here ? "Here" : "…") : "Me");
+  setToolBtn(b, "me", locating ? (here ? "Here" : "…") : "Me");
   b.title = locating ? "Centre the map on you, or tap again to stop"
                      : "Show where you are and how far things are";
 }

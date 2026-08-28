@@ -26,6 +26,7 @@
     display:inline-flex; align-items:center; justify-content:center;}
   .tb-l{display:none;}
   .tb-i{font-size:15px; line-height:1;}
+  .tb-i .ic{width:18px; height:18px;}
   /* except when it is counting: a download says how far along it is */
   #offlineToggle .tb-i{font-size:13px; font-variant-numeric:tabular-nums;}
   .badge{font-size:10.5px; padding:4px 8px; border-radius:6px;}
@@ -62,7 +63,8 @@
      and the rail the hop rows hang off moves with them because it is the same token */
   .planpane{--px:14px; --gap:10px; --grab:44px; --num:26px; --ctrl:44px;}
   .pstop{padding:11px 14px;}
-  .pdrag{min-height:52px; font-size:16px;}
+  .pdrag{min-height:52px;}
+  .pdrag .ic{width:17px; height:17px;}
   .pname{font-size:15px;}
   .phood{font-size:12px;}
   .pnote{font-size:13px;}
@@ -70,8 +72,8 @@
   .planbtn{min-width:34px; min-height:34px;}
   .pact{min-height:44px; font-size:13px;}
   /* a thumb, not a cursor: the add control gets the full 44px Apple asks for */
-  .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; font-size:22px; margin:6px 10px 0 2px;}
-  .planbtn.on{font-size:18px;}
+  .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; margin:6px 10px 0 2px;}
+  .planbtn .ic{width:20px; height:20px;}
   .card-plan{min-height:44px; font-size:14px;}
   .card-been{min-height:44px; font-size:13px;}
   /* the been-there tick is a thumb too, but it never takes room from the add button */
@@ -110,7 +112,8 @@
      on with a thumb, so it gets the room and the map keeps the other 40%. */
   .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
     max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
-  .card-x{width:34px; height:34px; font-size:19px;}
+  .card-x{width:34px; height:34px;}
+  .card-x .ic{width:15px; height:15px;}
   /* Three lines can now land in that same box — the hangul, the hours and the signature.
      Each is conditional, but they co-occur, so they are the smallest type on the card and
      the row above stays on one line rather than wrapping the status under the category. */

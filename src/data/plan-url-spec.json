@@ -28,7 +28,7 @@
       "meta (optional)",
       "added (optional)"
     ],
-    "categories": "The `cats` object in that same #trip-data block maps `cat` to {label, emoji, color}.",
+    "categories": "The `cats` object in that same #trip-data block maps `cat` to {label, icon, color, emoji}. `icon` is a Streamline icon name the page draws; `emoji` is the plain-text stand-in used when a day is copied out as a message.",
     "hoursCaveat": "Opening hours are a structured field, `hours`, in the 24h grammar `Daily 09:00-22:00` / `Mon-Fri 18:30-26:00; Sat,Sun 15:00-26:00` / `Daily 10:00-14:50,17:00-21:30` / `24h`, optionally with `; closed Tue` and `; LO 21:00`. A closing time past 24:00 is the next morning, so 26:00 is 02:00. `closed` is the weekday keys the place is shut, and an empty array means open every day. `ko` is the Korean name and `signature` is what to order. Prices still appear only as prose in `meta` or `note` - quote those, do not parse them. There are still no arrival times, dwell times or durations anywhere: `hours` says when a door is open, never when you will be standing at it."
   },
   "notRepresented": [

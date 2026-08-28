@@ -9,6 +9,7 @@ import { CATS, CLUSTERS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { fmtM, matchesQuery } from "../lib/plan-core.js";
 import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
+import { icon } from "../lib/icons.js";
 
 /* ---------------- sidebar list ---------------- */
 export const listEl = document.getElementById("list");
@@ -44,7 +45,7 @@ export function itemRow(p){
   const b = document.createElement("button");
   b.className = "item" + (selectedId === p.id ? " sel" : "") + (been ? " been" : "");
   b.dataset.id = p.id;
-  b.innerHTML = `<span class="pindot" style="background:${c.color}">${c.emoji}</span>
+  b.innerHTML = `<span class="pindot" style="background:${c.color}">${icon(c.icon)}</span>
     <span class="it-body">
       <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
       <span class="it-note">${p.note}</span>
@@ -69,7 +70,7 @@ export function itemRow(p){
   const add = document.createElement("button");
   add.className = "planbtn" + (planHas(p.id) ? " on" : "");
   add.dataset.planAdd = p.id;
-  add.textContent = planHas(p.id) ? "✓" : "+";
+  add.innerHTML = icon(planHas(p.id) ? "check" : "add");
   add.title = planHas(p.id) ? "Remove from the day" : "Add to the day";
   add.setAttribute("aria-pressed", planHas(p.id) ? "true" : "false");
   add.onclick = () => planToggle(p.id);
