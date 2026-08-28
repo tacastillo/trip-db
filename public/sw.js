@@ -13,7 +13,10 @@
    shell. */
 
 const SHELL = "trip-db-shell-v1";
-const TILES = "trip-db-tiles-v1";
+/* v2: every tile URL gained @2x when the layer and the pack were made to agree, so
+   every v1 key is unreachable. Bumped rather than left to rot — stale keys still
+   count against TILE_MAX and would evict the pack downloaded to replace them. */
+const TILES = "trip-db-tiles-v2";
 const TILE_HOST = "basemaps.cartocdn.com";
 /* Enough for every leg at every zoom the pack asks for, with room for the wandering
    you do around them. Past it the oldest keys go, in insertion order. */

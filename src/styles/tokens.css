@@ -126,7 +126,9 @@ body.night{
   /* the selected row is the one place the accent touches a surface, at the
      strength where it reads as "this one" rather than as a colour */
   --sel:color-mix(in srgb, var(--pal-accent) 16%, var(--pal-ground));
-  --mapbg:color-mix(in srgb, black 45%, var(--pal-ground));
+  /* the ground behind the tiles. It was black 45%, which made every pan open on a
+     void before a tile landed — lifted toward the ground so the gap reads as map. */
+  --mapbg:color-mix(in srgb, black 22%, var(--pal-ground));
   --tint:color-mix(in srgb, var(--pal-accent) 14%, transparent);
   --ok:var(--pal-ok);
   --on-ok:var(--pal-ground);
@@ -197,6 +199,24 @@ body.night{
   /* the icon inside a pin and the number on a planned one */
   --on-cat:#F4F4EE;
 }
+
+/* ---- 4b. the street tiles ----------------------------------------------
+   CARTO's flat bases are backdrops: Positron and Dark Matter are built to be drawn on
+   top of, so out of the box the map is legible as *context* and not as a street you are
+   standing in. This is the one lever the page has over somebody else's pictures, and it
+   costs nothing — a filter on the tile pane changes no URL, so it works on tiles already
+   in the cache, offline included. Only the tile pane: the pins and the rail have panes
+   of their own and are not touched.
+
+   Voyager arrives with its own contrast and wants almost none of this; the flat bases
+   want a lot. client/basemap.js puts the choice on <html> so it can be tuned per base. */
+/* data-map is on <html> and .night is on <body>, and --tile-filter is inherited — so a
+   plain [data-map] rule on the root loses to body.night for anything inside the body.
+   The night override has to name both, which is why it reads long. */
+:root{ --tile-filter:contrast(1.10) saturate(1.5); }
+[data-map="voyager"]{ --tile-filter:saturate(1.12); }
+body.night{ --tile-filter:brightness(1.45) contrast(1.12) saturate(1.35); }
+[data-map="voyager"] body.night{ --tile-filter:brightness(.90) saturate(1.05); }
 
 /* ---- 5. depth -----------------------------------------------------------
    Four shadows, because a page with a dozen one-off shadows reads as a dozen
