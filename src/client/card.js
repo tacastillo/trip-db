@@ -108,6 +108,14 @@ export function hopStripHtml(p){
 export function routeStripHtml(p){
   const j = journeyFor(p);
   if (!j) return "";
+  const home = hotelFor(p.city);
+  const links = home ? { naver: naverDirUrl(home, p), kakao: kakaoDirUrl(home, p) } : null;
+  // Close enough that the subway is the long way round — see buildJourney(). One line,
+  // because there is nothing to say about a walk except how far and how long.
+  if (!j.rail.length)
+    return `<div class="pop-route"><span class="pr-k">From the hotel</span>
+      <div class="pr-walk">${icon("walk")} ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div>
+      ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;
   const rows = j.rail.map((leg, i) => {
     const last = i === j.rail.length - 1;
     return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
@@ -117,8 +125,6 @@ export function routeStripHtml(p){
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
   // the traced ride names the platforms; Naver is what you actually follow on the day
-  const home = hotelFor(p.city);
-  const links = home ? { naver: naverDirUrl(home, p), kakao: kakaoDirUrl(home, p) } : null;
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
     <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div>
     ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;

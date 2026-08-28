@@ -268,6 +268,18 @@ So adding a Seoul spot near an existing station needs no table edit. Add
 `PLACE_OFF[id]` only when the nearest station is not the one you would really use.
 Add to `ROUTES` and `STATION_COORDS` when a station is genuinely new.
 
+**A ride has to beat the walk, or there is no ride.** `ROUTES` is rooted at one hotel, so
+for a spot in the hotel's own street the nearest station with a route was never the station
+anybody would use: DDP is one block from the door and this page had you riding Line 4 out
+to Dongdaemun, changing, coming back down Line 1 and walking a kilometre — 21 minutes for a
+seven-minute walk. So `buildJourney()` builds both, and `walkJourney()` wins inside
+`HOP_WALKABLE_M`, where the rest of the page has already stopped calling a ride advice, or
+anywhere further out where walking beats the traced ride by more than `RIDE_WORTH_MIN` —
+a ride that merely ties a walk is a change of trains for nothing. The card then says the
+distance and the minutes and stops, nothing draws on the map but the walk, and the two
+hand-off buttons are unchanged, because the walk is still somewhere you have to get to.
+Three Seoul spots take that door today; everything past the block gets its ride as before.
+
 Only Seoul draws rides. Busan has line geometry but no station table behind it;
 Jeju has no metro. Both are handled, not broken: the card opens, no ride draws.
 
@@ -368,9 +380,12 @@ own left edge — that alignment is the reason those are tokens and not literals
 **The Naver button is the payload, not a footnote.** It is the one control on the page
 that actually navigates a person somewhere, and on the ground it is what gets followed —
 so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
-desktop, full width at 44px on a phone, and full width in the card. Every hop, the walk
-home, the planning card and the hotel-ride card go through that one function, so it looks
-and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
+desktop, full width at 44px on a phone, and the wide two thirds of the card's own button
+row. It shares that row with Kakao rather than stacking above it because a card is a sheet
+over the map you are reading: four full-width controls under the note is most of a phone
+screen spent on buttons. In a hop row it still takes the line to itself. Every hop, the
+walk home, the planning card and the hotel-ride card go through that one function, so it
+looks and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
 link stops resolving.
 
 **Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea navigates

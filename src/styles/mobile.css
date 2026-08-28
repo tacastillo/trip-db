@@ -87,8 +87,13 @@
   .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:var(--tap); font-size:13.5px; margin-top:0;}
   /* Kakao sits under it rather than beside the distance, which has the line to itself */
   .phop-a.alt{flex:1 1 0; min-width:0; min-height:40px; font-size:12.5px;}
-  .pop-route .phop-a{min-height:var(--tap); font-size:13.5px;}
-  .pop-route .phop-a.alt{min-height:40px;}
+  /* In the card the two hand-offs share one row rather than stacking. Four full-width
+     controls under a note is most of a phone screen spent on buttons, and the card is
+     what sits over the map you are trying to read. Naver still takes two thirds of the
+     row and stays the filled one — it is the payload — and both clear 44px. */
+  .pop-route .phop-go{display:flex; flex-wrap:nowrap; gap:7px;}
+  .pop-route .phop-a{flex:2 1 0; min-width:0; min-height:var(--tap); font-size:13.5px;}
+  .pop-route .phop-a.alt{flex:1 1 0; min-height:var(--tap); font-size:13px;}
   .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}
   .it-name{font-size:14.5px;}
@@ -110,8 +115,12 @@
   /* 44% cut the handoff buttons in half — the card scrolled, but a button sliced by the
      card's own edge reads as broken rather than as more to see. The card is what you act
      on with a thumb, so it gets the room and the map keeps the other 40%. */
-  .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
+  .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:11px 13px 12px;
     max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
+  /* the two action buttons keep their 44px target; what they lose is the air around them */
+  .card-acts{gap:8px; margin-top:8px;}
+  .pop-route{margin-top:8px;}
+  .pop-route .phop-go{margin-top:6px;}
   .card-x{width:34px; height:34px;}
   .card-x .ic{width:var(--ic-m); height:var(--ic-m);}
   /* Three lines can now land in that same box — the hangul, the hours and the signature.
