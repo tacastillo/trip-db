@@ -301,6 +301,23 @@ ok("and it says where the day ends", msg.includes("Ends back at Novotel"));
 ok("an unknown id is said out loud rather than dropped",
   core.planShareText({ city:"seoul", ids:["nope"] }, R(["nope"]), "").includes('unknown spot "nope"'));
 
+/* The mode token is the one thing in a Naver link this repository cannot verify — Naver
+   is unreachable from here and an unrecognised token falls back to driving rather than
+   failing. So what is pinned is that the table is the only thing deciding it. */
+group("the mode a Naver link opens in");
+ok("a walkable hop asks for walking",
+  core.naverDirUrl(pick("novotel"), pick("euljidarak")).endsWith("/-/walk"));
+ok("a longer Seoul hop asks for transit, not driving",
+  core.naverDirUrl(pick("novotel"), pick("onion")).endsWith("/-/transit"));
+const jejuHome = core.hotelFor("jeju", PLACES);
+ok("Jeju asks for driving, because there is no metro to ride",
+  core.naverDirUrl(jejuHome, PLACES.find(p => p.city === "jeju" && p.id !== jejuHome.id
+    && core.hopMetres(jejuHome, p) > core.HOP_WALKABLE_M)).endsWith("/-/car"));
+ok("every mode goes through the one token table",
+  Object.keys(core.NAVER_MODE_TOKEN).sort().join() === "car,transit,walk");
+ok("changing the table changes the link", ["walk","transit","car"].every(m =>
+  core.naverDirUrl(pick("novotel"), pick("onion"), m).endsWith("/-/" + core.NAVER_MODE_TOKEN[m])));
+
 group("the other map everyone here uses");
 const kFrom = pick("novotel"), kTo = pick("gwangjang");
 ok("Kakao's web link names the destination, not a pair",

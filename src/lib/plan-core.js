@@ -253,9 +253,20 @@ export function naverMode(a, b){
    environment this was written in could reach Naver to check it. Naver's documented
    app scheme, for reference, is
        nmap://route/public|car|walk|bicycle?slat=&slng=&sname=&dlat=&dlng=&dname=&appname= */
+/* The last path segment is the routing mode, and this is the vocabulary we send for it.
+   It is the one part of the URL nothing here can check: map.naver.com is unreachable from
+   the environment this was written in, Naver publishes no grammar for these links, and a
+   token it does not recognise does not error — it quietly falls back to driving, which
+   looks like a working link right up until you are standing on a platform. So the tokens
+   live in one table: if a link opens in the wrong mode, this is the only line to change.
+   Worth knowing that the app scheme below spells transit "public" rather than "transit",
+   which is a hint that the web one may want something other than what is here. */
+export const NAVER_MODE_TOKEN = { walk:"walk", transit:"transit", car:"car" };
+
 export function naverDirUrl(a, b, mode){
   const block = p => `${p.lng},${p.lat},${encodeURIComponent(p.name)},,`;
-  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${mode || naverMode(a, b)}`;
+  const m = mode || naverMode(a, b);
+  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${NAVER_MODE_TOKEN[m] || m}`;
 }
 export function naverAppUrl(a, b, mode){
   const m = mode || naverMode(a, b);

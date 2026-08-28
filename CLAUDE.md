@@ -252,6 +252,17 @@ place, not a pair, which on the ground is right anyway — it starts you where y
 standing. Like `naverDirUrl()`, neither could be reached from the environment they were
 written in.
 
+**The mode a Naver link opens in is one table, `NAVER_MODE_TOKEN`.** The last path segment
+of a directions URL is the routing mode, and `naverMode()` decides which one a hop deserves
+— walking under `HOP_WALKABLE_M`, driving in Jeju because there is no metro, transit
+otherwise. What that mode is *called* in the URL is the one thing here nobody could check:
+Naver is unreachable from this environment, publishes no grammar for these links, and a
+token it does not recognise falls back to driving rather than erroring — a link that looks
+like it works right up until you are standing on a platform. So the tokens live in one
+table with no other caller, and `test-plan.mjs` pins that every mode goes through it. If a
+link opens in the wrong mode, that table is the whole fix. The app scheme spells transit
+`public` rather than `transit`, which is a hint about what the web one may want.
+
 **There is no taxi button, and there should not be one until somebody can check it.** Kakao
 T is what actually hails a taxi here, and a `kakaot://` scheme was briefly rendered on
 touch devices — from memory, unverifiable from here, and an app scheme that is wrong fails
