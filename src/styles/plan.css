@@ -109,6 +109,14 @@
 .phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .phop-a-x{opacity:.8; font-weight:600;}
 
+/* The two ends of the day. Same row, same rail, same hotel dot — the day is bracketed
+   by them, and they are what the numbered stops hang between. .start opens the rail and
+   .pend without a modifier closes it. */
+.pend.start{margin-top:6px; margin-bottom:0;}
+/* the hop out of the hotel and the hop back are the same kind of thing as the hops
+   between stops, so they draw the same and just keep the rail running */
+.phop.start{padding-top:9px;}
+
 /* the walk back, and the line that says the day is over — same rail, so the column
    carries on to the bottom of the day */
 .pend{margin:0 var(--px) 10px calc(var(--px) + var(--grab) + var(--gap) + var(--num) / 2 - 1px);
@@ -183,8 +191,8 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
 /* in the card there is nothing to sit beside, so it spans the width and reads as the
    action the card is for */
-/* in the card there is a whole width to spend: Naver takes the row, Kakao and the taxi
-   share the one under it */
+/* in the card there is a whole width to spend: Naver takes the row, Kakao the one
+   under it */
 .pop-route .phop-go{width:100%; margin:8px 0 0;}
 .pop-route .phop-a{margin:0; flex:1 1 100%; justify-content:center; min-height:36px; font-size:12px;}
 .pop-route .phop-a.alt{flex:1 1 0; min-width:0;}
@@ -219,7 +227,6 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
 .phop-go{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-left:auto;}
 .phop-a.alt{background:none; color:var(--accent); box-shadow:none; padding:7px 11px; font-weight:600;}
 .phop-a.alt:hover{background:var(--field);}
-.phop-a.taxi{border-color:var(--line); color:var(--ink);}
 /* an action that needs something else chosen first, said in the button rather than by
    greying it out into something you cannot tell is a button at all */
 .pact.off{border-style:dashed; color:var(--muted);}

@@ -27,7 +27,9 @@ no metro to ride.
 
 The sidebar has a second tab. Add spots from the map card or from the list — there is a
 search box now — and they stack up into an ordered day, draggable into a different
-order. On the map a planned stop keeps its category colour but carries its number
+order. The day is bracketed by the hotel: it starts there and ends there, both shown as
+fixed rows with the hop out and the walk back, neither of them a stop you can drag or
+delete. What sits between them is the day. On the map a planned stop keeps its category colour but carries its number
 instead of its emoji, and everything else fades back, so the day reads on its own.
 Nothing is drawn between the stops — a straight line between two of them is not a route
 you could follow, and the useful part is in the list.
@@ -48,8 +50,7 @@ how long a hop takes, and that is deliberate: the routing tables only know rides
 from the hotel, so a station-to-station time does not exist anywhere in this project and
 guessing one would be worse than the link.
 
-Every hop also carries a **Kakao Map** link beside the Naver one, and on a phone a
-**Kakao T** button for the taxi.
+Every hop also carries a **Kakao Map** link beside the Naver one.
 
 What it *does* work out, from the data and without asking anyone: whether two stops are
 the wrong way round, whether the whole day would be shorter walked in another order,

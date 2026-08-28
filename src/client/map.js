@@ -1,5 +1,5 @@
 import { fitPlan } from "./plan-map.js";
-import { plan, planHas, planStops } from "./plan-state.js";
+import { plan, planBody, planHas } from "./plan-state.js";
 import { routeDraw, spaceLabels } from "./route.js";
 import { deselect, select, selectedId } from "./selection.js";
 import { active, currentTab, map, night, railOn, setMap } from "./state.js";
@@ -132,7 +132,7 @@ export function initMap(){
   if (document.body.classList.contains("planning")) drawRail();
   // opening a plan link and landing on the whole city hides the very thing the link
   // was for, so a day in the URL frames itself instead
-  if (planStops().some(s => s.place)) fitPlan(); else fitCity();
+  if (planBody().some(s => s.place)) fitPlan(); else fitCity();
 
   // Tiles are the one thing still fetched live. Everything else ships with the page,
   // so losing them degrades to pins-on-a-blank-canvas rather than a broken map.
@@ -167,7 +167,8 @@ export function pinIcon(p, n){
 export function syncMarkers(){
   if (!map) return;
   const order = {};
-  planStops().forEach((s, i) => { if (s.place) order[s.id] = i + 1; });
+  // the same numbering the pane shows: the hotel bookends the day rather than opening it
+  planBody().forEach((s, i) => { if (s.place) order[s.id] = i + 1; });
   document.body.classList.toggle("planning",
     currentTab === plan.city && Object.keys(order).length > 0);
   PLACES.forEach(p => {

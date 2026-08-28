@@ -205,6 +205,30 @@ group("the home base");
 });
 ok("a city with no hotel simply has none", core.hotelFor("nowhere", PLACES) === null);
 
+group("the two ends of a day");
+/* Both ends are computed and neither is a stop: the day is bracketed by the hotel and
+   what sits between the brackets is what you picked. */
+const bracketed = R(["gwangjang","gyeongbok"]);
+const outLeg = core.startLeg(bracketed, "seoul", null, PLACES);
+ok("a day gets a hop out of the hotel to its first stop",
+  !!outLeg && outLeg.home.id === "novotel" && outLeg.b.id === "gwangjang"
+  && outLeg.naver.includes("map.naver.com"));
+ok("the two ends mirror each other",
+  outLeg.home.id === core.homeLeg(bracketed, "seoul", null, PLACES).home.id);
+ok("none for an empty day", core.startLeg(R([]), "seoul", null, PLACES) === null);
+ok("and none when the day already opens at the hotel",
+  core.startLeg(R(["novotel","gwangjang"]), "seoul", null, PLACES) === null);
+ok("a city with no home base gets neither end",
+  core.startLeg(bracketed, "nowhere", null, PLACES) === null
+  && core.homeLeg(bracketed, "nowhere", null, PLACES) === null);
+ok("an unknown id at the front does not swallow the hop out",
+  (core.startLeg(R(["nosuchplace","gwangjang"]), "seoul", null, PLACES) || {}).b?.id === "gwangjang");
+ok("the brief says where the day starts as well as where it ends",
+  core.planBriefMarkdown({ city:"seoul", ids:[] }, bracketed, "", null, null)
+    .includes("Starts at **Novotel"));
+ok("and so does the message",
+  core.planShareText({ city:"seoul", ids:[] }, bracketed, "").includes("Starts at Novotel"));
+
 const day = R(["novotel","gwangjang","gyeongbok"]);
 const back = core.homeLeg(day, "seoul", null, PLACES);
 ok("a day gets a hop home from its last stop",
@@ -283,10 +307,12 @@ ok("Kakao's web link names the destination, not a pair",
   core.kakaoDirUrl(kFrom, kTo) === `https://map.kakao.com/link/to/${encodeURIComponent(kTo.name)},${kTo.lat},${kTo.lng}`);
 ok("its app scheme carries both ends and a manner of travel",
   core.kakaoAppUrl(kFrom, kTo, "walk") === `kakaomap://route?sp=${kFrom.lat},${kFrom.lng}&ep=${kTo.lat},${kTo.lng}&by=FOOT`);
-ok("the taxi link is the destination and nothing else",
-  core.kakaoTaxiUrl(kTo).startsWith("kakaot://taxi?dest_lat=") && core.kakaoTaxiUrl(kTo).includes("dest_name="));
-ok("a hop carries both maps and a taxi",
-  core.planLegs(R(["novotel","gwangjang"]), null)[0].kakao.includes("map.kakao.com"));
+/* Kakao T's scheme is not something this repository can verify, and an unverified
+   scheme that resolves to nothing while you stand in a street is worse than no button */
+ok("there is no taxi link to get wrong", core.kakaoTaxiUrl === undefined);
+ok("a hop carries both maps and nothing else",
+  core.planLegs(R(["novotel","gwangjang"]), null)[0].kakao.includes("map.kakao.com")
+  && !("kakaoTaxi" in core.planLegs(R(["novotel","gwangjang"]), null)[0]));
 
 group("the offline tile pack");
 LEGS.forEach(l => {

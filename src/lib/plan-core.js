@@ -266,13 +266,18 @@ export function naverAppUrl(a, b, mode){
   return `nmap://route/${m === "transit" ? "public" : m}?${q}`;
 }
 
-/* Kakao is the other half of how anyone actually moves here: its taxi hailing is what
-   you use at midnight in Jeonpo, and its map routes by car better than Naver's. The
-   web link is deliberately destination-only — map.kakao.com/link/to takes one place,
-   not a pair — which on the ground is the right shape anyway: Kakao starts you from
-   where you are standing. The two app schemes are documented by Kakao and, like
-   naverDirUrl(), could not be reached from the environment this was written in; if a
-   link stops resolving these three functions are the only thing to change. */
+/* Kakao is the other half of how anyone actually moves here: its map routes by car
+   better than Naver's, and it is what half the country navigates with. The web link is
+   deliberately destination-only — map.kakao.com/link/to takes one place, not a pair —
+   which on the ground is the right shape anyway: Kakao starts you from where you are
+   standing. Like naverDirUrl(), neither of these could be reached from the environment
+   they were written in; they are the only things to change if a link stops resolving.
+
+   There is no taxi link. Kakao T is the app everyone actually hails with, but its URL
+   scheme is not something this repository can verify, and an unverified scheme is worse
+   than no button: it resolves to nothing at all, silently, while you are standing in a
+   street at midnight deciding whether to keep waiting. Kakao Map's car route is the
+   honest version of that — it is the screen you show the driver anyway. */
 export const KAKAO_BY = { walk:"FOOT", transit:"PUBLICTRANSIT", car:"CAR" };
 export function kakaoDirUrl(a, b){
   return `https://map.kakao.com/link/to/${encodeURIComponent(b.name)},${b.lat},${b.lng}`;
@@ -280,11 +285,6 @@ export function kakaoDirUrl(a, b){
 export function kakaoAppUrl(a, b, mode){
   const by = KAKAO_BY[mode || naverMode(a, b)] || "CAR";
   return `kakaomap://route?sp=${a.lat},${a.lng}&ep=${b.lat},${b.lng}&by=${by}`;
-}
-/** Kakao T, the taxi app. Only ever offered on a touch device: on a desktop the scheme
-    resolves to nothing at all, and a button that does nothing is worse than no button. */
-export function kakaoTaxiUrl(b){
-  return `kakaot://taxi?dest_lat=${b.lat}&dest_lng=${b.lng}&dest_name=${encodeURIComponent(b.name)}`;
 }
 
 /** One entry per gap between consecutive stops; null where an end is unresolved.
@@ -300,10 +300,24 @@ export function planLegs(stops, offFor){
     legs.push({ i, a, b, metres: hopMetres(a, b), mode, walkable: mode === "walk",
                 walkM: w.m, walkMin: w.minutes, line,
                 naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode),
-                kakao: kakaoDirUrl(a, b), kakaoApp: kakaoAppUrl(a, b, mode),
-                kakaoTaxi: kakaoTaxiUrl(b) });
+                kakao: kakaoDirUrl(a, b), kakaoApp: kakaoAppUrl(a, b, mode) });
   }
   return legs;
+}
+
+/** The hop out of the front door. The exact mirror of homeLeg() below, and for the same
+    reason: every day of this trip begins at the hotel, so the way out is worked out
+    rather than typed in, and it is not a stop. It used to be one — the first spot you
+    added put the hotel in front of it as stop 1 — which meant the two ends of the same
+    day were different kinds of thing: one draggable and removable, one fixed. Null when
+    the leg has no home base, or when the day already opens at it. */
+export function startLeg(stops, city, offFor, places){
+  const home = hotelFor(city, places);
+  if (!home) return null;
+  const first = stops.map(s => s.place).find(Boolean);
+  if (!first || first.id === home.id) return null;
+  const leg = planLegs([{ id:home.id, place:home }, { id:first.id, place:first }], offFor)[0];
+  return leg ? Object.assign({ home, to:first }, leg) : null;
 }
 
 /** The hop home. Every day of this trip ends where it started — you are sleeping at the
@@ -467,6 +481,13 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   lines.push(bits.join(" · "));
   if (href) lines.push(`Source: ${href}`);
   lines.push("");
+  const out = startLeg(stops, plan.city, offFor);
+  if (out){
+    lines.push(`Starts at **${out.home.name}** — ${fmtM(out.metres)}${out.walkable
+      ? `, about ${out.walkMin} min on foot` : out.line
+        ? `, ${out.line.label} from ${out.line.from} to ${out.line.to}` : `, ${out.mode}`} · ${out.naver}`);
+    lines.push("");
+  }
   stops.forEach((s, i) => {
     const p = s.place;
     if (!p){ lines.push(`${i + 1}. _unknown id \`${s.id}\`_`); lines.push(""); return; }
@@ -511,6 +532,8 @@ export function planShareText(plan, stops, href){
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const head = [plan.title || "Day plan", fmtDay(plan.day), cityLabel].filter(Boolean);
   lines.push(head.join(" · "));
+  const out = startLeg(stops, plan.city, null);
+  if (out) lines.push(`Starts at ${out.home.name} — ${fmtM(out.metres)} to the first stop · ${out.naver}`);
   const legs = planLegs(stops, null);
   stops.forEach((s, i) => {
     const p = s.place;

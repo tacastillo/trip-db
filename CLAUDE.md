@@ -173,18 +173,26 @@ seeds, reorders or replaces it. A URL with no stops in it is not a shared day, i
 the page, so the day you were building comes back rather than being thrown away — and is
 written back into the address bar, or "Copy link" would hand over a link to an empty page.
 
-**A day starts at the hotel.** The first stop added to an empty day puts the leg's home
-base in front of it first — `planSeedStart()` in `plan-state.js`, off `hotelFor()` — because
-that is where every morning of this trip actually begins. It is an ordinary stop once it
-is there: drag it, drop it, and nothing puts it back until the day is empty again. A day
-that arrives off a link is somebody else's and is never touched, seeded or reordered.
+**A day is bracketed by the hotel, and neither bracket is a stop.** Every morning of this
+trip starts at the home base and every night comes back to it, so both ends are computed
+and drawn as fixed rows — `startLeg()` and `homeLeg()` in `plan-core.js`, `planStartHtml()`
+and `planHomeHtml()` in the pane. They are always on screen, including on an empty day,
+and neither has a number, a handle or a remove: the day is what sits between them.
 
-**And it ends there too.** `homeLeg()` measures the way back from the last resolved stop
-to the same home base and the pane closes on it — the hop, then a dashed "Ends back at"
-row — and `planBriefMarkdown()` says the same. It is deliberately **not** a stop: `?stops=`
-collapses a repeated id, so a hotel that both opened and closed the day could not survive
-a round trip through the link. Computed instead, it also follows the day around as the
-order changes and costs the URL nothing.
+The end was always like this, because it had to be — `?stops=` collapses a repeated id, so
+a hotel that both opened and closed a day could not survive a round trip through a link.
+The start used to be an ordinary stop that `planSeedStart()` pushed in front of the first
+spot you added, which made the two ends of one day two different kinds of thing. Computing
+both instead also means they follow the day around as the order changes, and cost the URL
+nothing.
+
+**A link that still names the hotel first is absorbed, never rewritten.** Days built before
+that change have `stops=novotel,…` in them, and quietly dropping an id from somebody's link
+is the one thing this planner does not do. `planLead()` in `plan-state.js` returns 1 when
+`ids[0]` is the leg's home base, `planBody()` is the day without it, and the pane, the map's
+numbering, the drag, the reorder and the suggestions all count in body indices —
+`planMoveBody()` and `planReorderBody()` are the only translation back. A hotel dragged into
+the middle of a day is still an ordinary stop; only the first id is ever absorbed.
 
 **In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
 page's one answer to "are we planning right now" (`planningMode()`), and while it is on,
@@ -235,16 +243,21 @@ home, the planning card and the hotel-ride card go through that one function, so
 and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
 link stops resolving.
 
-**Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea
-navigates with and Kakao T is what hails the taxi, so every hop, the walk home and both
-cards carry them next to the Naver button — one `dirBtnsHtml()` group, so the three move
-together and no button ever wraps onto a line by itself. Naver stays the filled one
-because it is the link this repository builds, pins and tests. Kakao's web link is
-destination-only on purpose: `map.kakao.com/link/to` takes one place, not a pair, which
-on the ground is right anyway — it starts you where you are standing. `kakaoTaxiUrl()` is
-an app scheme, so it is only rendered on a coarse pointer; a button that resolves to
-nothing on a laptop is worse than no button. Like `naverDirUrl()`, none of the three could
-be reached from the environment they were written in.
+**Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea navigates
+with, so every hop, both ends of the day and both cards carry it next to the Naver button —
+one `dirBtnsHtml()` group, so the two move together and no button ever wraps onto a line by
+itself. Naver stays the filled one because it is the link this repository builds, pins and
+tests. Kakao's web link is destination-only on purpose: `map.kakao.com/link/to` takes one
+place, not a pair, which on the ground is right anyway — it starts you where you are
+standing. Like `naverDirUrl()`, neither could be reached from the environment they were
+written in.
+
+**There is no taxi button, and there should not be one until somebody can check it.** Kakao
+T is what actually hails a taxi here, and a `kakaot://` scheme was briefly rendered on
+touch devices — from memory, unverifiable from here, and an app scheme that is wrong fails
+the worst way there is: silently, doing nothing at all, while you stand in a street at
+midnight deciding whether to keep waiting. Kakao Map's car route is the honest version of
+the same thing, and it is the screen you show the driver anyway.
 
 **A day can leave the page three ways**, and none of them invents anything: "Copy link"
 (the URL), "Copy as a message" (`planShareText()` — numbered stops and the links you would

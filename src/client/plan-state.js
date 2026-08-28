@@ -109,24 +109,30 @@ export function afterPlanChange(){
   if (c) c.textContent = plan.ids.length || "";
 }
 
-/* Every day of this trip starts at the hotel — you walk out of it before you do
-   anything else — so the first stop added to an empty day gets the home base put in
-   front of it rather than being left to remember. It is an ordinary stop once there:
-   drag it, drop it, and nothing puts it back until the day is empty again. A day that
-   arrives off a link is somebody else's and is never touched. */
-export function planSeedStart(){
-  if (plan.ids.length) return;
+/* Every day of this trip starts at the hotel and ends there, and neither end is a stop.
+   The way home has always been computed — homeLeg() — because ?stops= collapses a
+   repeated id, so a hotel that both opened and closed a day could not survive a round
+   trip through a link. The way out is computed the same way now, by startLeg(). Before
+   this, adding the first spot to an empty day pushed the hotel in front of it as an
+   ordinary stop, which made the two ends of one day two different kinds of thing: one
+   you could drag and delete, one fixed. They are both fixed, and both always on screen.
+
+   A link written before that change still names the hotel first, and links are never
+   quietly edited — so an id at the front that is the leg's home base is absorbed into
+   the start row rather than numbered. planLead() is how many ids that accounts for, and
+   everything that indexes the day goes through it. */
+export function planLead(){
   const h = hotelFor(plan.city, PLACES);
-  if (h) plan.ids.push(h.id);
+  return h && plan.ids[0] === h.id ? 1 : 0;
 }
+/** The stops the day is actually made of: what is drawn, numbered, dragged and counted. */
+export function planBody(){ return planStops().slice(planLead()); }
 
 export function planAdd(id, at){
   if (planHas(id)) return;
   if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
   planFull = false;
-  const seeding = !plan.ids.length && (PLACES.find(p => p.id === id) || {}).cat !== "hotel";
-  if (seeding) planSeedStart();
-  const i = (at == null || at < 0 || at > plan.ids.length || seeding) ? plan.ids.length : at;
+  const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
   plan.ids.splice(i, 0, id);
   afterPlanChange();
 }
@@ -146,6 +152,20 @@ export function planMove(from, to){
 export function planReorder(order){
   plan.ids = order.map(i => plan.ids[i]);
   afterPlanChange();
+}
+
+/* The pane, the drag and the reorder all count in rendered rows, which is the day
+   without its absorbed first id. These two are the only translation between the two
+   numberings; nothing else should be doing the arithmetic. */
+export function planMoveBody(from, to){
+  const off = planLead();
+  planMove(from + off, to + off);
+}
+export function planReorderBody(order){
+  const off = planLead();
+  const head = [];
+  for (let i = 0; i < off; i++) head.push(i);
+  planReorder(head.concat(order.map(i => i + off)));
 }
 export function planClear(){
   plan.ids = [];

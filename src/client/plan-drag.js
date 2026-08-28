@@ -1,5 +1,5 @@
 import { renderPlan } from "./plan-pane.js";
-import { planDragFrom, planMove, planRenderQueued, setPlanDragFrom, setPlanDragging, setPlanRenderQueued } from "./plan-state.js";
+import { planDragFrom, planMoveBody, planRenderQueued, setPlanDragFrom, setPlanDragging, setPlanRenderQueued } from "./plan-state.js";
 
 /* ---------------- dragging a stop ---------------- */
 
@@ -27,7 +27,8 @@ export function planDragStart(e){
     setPlanDragging(false);
     const from = planDragFrom;
     setPlanDragFrom(-1);
-    if (to >= 0) planMove(from, to > from ? to - 1 : to);
+    // rows are the day's stops; the hotel at either end is not one of them
+    if (to >= 0) planMoveBody(from, to > from ? to - 1 : to);
     else if (planRenderQueued){ setPlanRenderQueued(false); renderPlan(); }
   };
   document.addEventListener("pointermove", move);

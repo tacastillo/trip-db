@@ -83,7 +83,7 @@
      whole row and a thumb-sized target rather than sharing a line with the distance */
   .phop-go{width:100%; margin-left:0; margin-top:2px;}
   .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:44px; font-size:13.5px; margin-top:0;}
-  /* Kakao and the taxi share the row under it rather than each taking one of their own */
+  /* Kakao sits under it rather than beside the distance, which has the line to itself */
   .phop-a.alt{flex:1 1 0; min-width:0; min-height:40px; font-size:12.5px;}
   .pop-route .phop-a{min-height:44px; font-size:13.5px;}
   .pop-route .phop-a.alt{min-height:40px;}

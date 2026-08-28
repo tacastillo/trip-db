@@ -1,12 +1,12 @@
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
-import { afterPlanChange, esc, plan, planAdd, planClear, planDragging, planFull, planHotelLine, planMove, planOffFor, planOver, planRemove, planReorder, planSeedStart, planStops, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
+import { esc, plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { storeOk } from "./store.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, tripDays } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 
 /* ---------------- the plan pane ---------------- */
@@ -41,22 +41,13 @@ export function naverBtnHtml(href, to, label){
     aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} <span class="phop-a-x">↗</span></a>`;
 }
 
-/* Kakao is what half of Korea actually navigates with, and its taxi hailing is the
-   thing you reach for at midnight — but Naver is the one this map's links are built
-   and pinned against, so Naver stays the filled button and Kakao is the quiet second
-   one beside it. Same shape everywhere: hop rows, the walk home, both cards. */
+/* Kakao is what half of Korea actually navigates with, but Naver is the one this map's
+   links are built and pinned against, so Naver stays the filled button and Kakao is the
+   quiet second one beside it. Same shape everywhere: hop rows, the walk home, both
+   cards. There is no taxi button — see kakaoDirUrl() for why. */
 export function kakaoBtnHtml(href, to, label){
   return `<a class="phop-a alt" href="${href}" target="_blank" rel="noopener noreferrer"
     aria-label="Directions to ${esc(to)} in Kakao Map">${label || "Kakao"}</a>`;
-}
-
-/** Kakao T is an app scheme: on a desktop it resolves to nothing at all, so it is
-    offered only where there is a thumb and therefore a phone with the app on it. */
-export const coarsePointer = () => window.matchMedia("(pointer:coarse)").matches;
-export function taxiBtnHtml(href, to){
-  if (!coarsePointer()) return "";
-  return `<a class="phop-a alt taxi" href="${href}"
-    aria-label="Hail a taxi to ${esc(to)} in Kakao T">🚕 Taxi</a>`;
 }
 
 /** Every way this page can hand you off to something that actually navigates, as one
@@ -67,7 +58,6 @@ export function taxiBtnHtml(href, to){
 export function dirBtnsHtml(links, to, label){
   return `<span class="phop-go">${naverBtnHtml(links.naver, to, label)}`
     + (links.kakao ? kakaoBtnHtml(links.kakao, to) : "")
-    + (links.kakaoTaxi ? taxiBtnHtml(links.kakaoTaxi, to) : "")
     + `</span>`;
 }
 
@@ -90,14 +80,33 @@ export function planHopHtml(leg, cls){
     ${line}${dirBtnsHtml(leg, leg.b.name)}</div>`;
 }
 
-/** A day ends at the hotel, so the pane says so and hands you the way back. It is a
-    closing row rather than a stop — see homeLeg() for why it cannot be one. */
-export function planHomeHtml(stops){
-  const leg = homeLeg(stops, plan.city, planOffFor, PLACES);
-  if (!leg) return "";
-  return planHopHtml(leg, "home") + `<div class="pend">
+/* The two ends of the day, drawn the same way because they are the same thing: every
+   morning of this trip starts at the hotel and every night comes back to it, and neither
+   is a decision made in this pane. So neither is a stop — they are fixed rows, always on
+   screen, with no number, no handle and no remove. What sits between them is the day.
+   homeLeg() explains why the end could never have been a stop; startLeg() is its mirror. */
+export function planEndHtml(home, text, cls){
+  return `<div class="pend${cls ? " " + cls : ""}">
     <span class="pend-i" style="background:${(CATS.hotel || {}).color}">🏨</span>
-    <span class="pend-t">Ends back at ${leg.home.name}</span></div>`;
+    <span class="pend-t">${text} ${esc(home.name)}</span></div>`;
+}
+
+/** The hotel, then the hop out of it. Shown on an empty day too: it is where the day
+    starts whether or not anything has been picked, and a day that grows downward from a
+    fixed point reads better than one that appears out of nowhere. */
+export function planStartHtml(stops){
+  const home = hotelFor(plan.city, PLACES);
+  if (!home) return "";
+  return planEndHtml(home, "Starts at", "start")
+    + planHopHtml(startLeg(stops, plan.city, planOffFor, PLACES), "start");
+}
+
+/** And its mirror: the hop back, then the hotel. */
+export function planHomeHtml(stops){
+  const home = hotelFor(plan.city, PLACES);
+  if (!home) return "";
+  return planHopHtml(homeLeg(stops, plan.city, planOffFor, PLACES), "home")
+    + planEndHtml(home, "Ends back at");
 }
 
 /* The trip is fifteen days long and every one of them is a chip, which is the whole
@@ -123,15 +132,24 @@ export function renderPlan(){
   if (planDragging){ setPlanRenderQueued(true); return; }
   const el = document.getElementById("planpane");
   if (!el) return;
-  const stops = planStops();
+  /* Everything below counts in stops, and the hotel at either end is not one. A link
+     written before that was true still names it first; planLead() absorbs that id into
+     the start row rather than rewriting somebody's link. */
+  const stops = planBody();
   const st = planStats(stops, planOffFor);
   const cautions = orderCautions(stops, plan.city, plan.day);
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const out = [];
 
+  // both computed ends are walking you actually do, so they are in the day's numbers
+  const ends = [startLeg(stops, plan.city, planOffFor, PLACES),
+                homeLeg(stops, plan.city, planOffFor, PLACES)].filter(Boolean);
+  const walkM = st.walkM + ends.filter(l => l.walkable).reduce((a, l) => a + l.walkM, 0);
+  const rides = st.rides + ends.filter(l => !l.walkable).length;
+
   const bits = [`<b>${st.resolved}</b> stop${st.resolved === 1 ? "" : "s"}`];
-  if (st.walkM) bits.push(`${fmtM(st.walkM)} on foot`);
-  if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} to ride`);
+  if (walkM) bits.push(`${fmtM(walkM)} on foot`);
+  if (rides) bits.push(`${rides} hop${rides === 1 ? "" : "s"} to ride`);
   if (plan.day) bits.push(fmtDay(plan.day));
   out.push(`<div class="phead">
     <input class="ptitle" id="planTitle" placeholder="Name this day" maxlength="${PLAN_TITLE_MAX}" value="${esc(plan.title)}" />
@@ -140,12 +158,7 @@ export function renderPlan(){
   </div>`);
   if (!storeOk) out.push(`<div class="pcaution">This browser will not let the page remember anything between visits, so this day lives in the link above and nowhere else. Copy it before you close the tab.</div>`);
 
-  if (!plan.ids.length){
-    const h = hotelFor(plan.city, PLACES);
-    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order.
-      ${h ? `<br />The day starts at ${h.name}; the first spot you add puts it in front.` : ""}</div>`);
-    if (h) out.push(`<div class="pacts"><button class="pact" id="planStart">Start at ${h.name}</button></div>`);
-  } else {
+  if (stops.length){
     out.push(`<div class="pacts">
       <button class="pact" id="planFit">Frame the day</button>
       <button class="pact" id="planLink">Copy link</button>
@@ -168,13 +181,19 @@ export function renderPlan(){
     if (ro.gain_m > SWAP_GAIN_M) out.push(`<div class="pcaution">
       Walked in a different order this day is about ${fmtM(ro.gain_m)} shorter.
       <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
+  }
 
+  out.push(planStartHtml(stops));
+  if (!stops.length){
+    out.push(`<div class="pempty">Nothing planned yet.<br />Pick spots from the map or the Places tab and they land here, in order — between those two rows, which is where every day of this trip begins and ends.</div>`);
+  } else {
     stops.forEach((s, i) => {
       out.push(planStopHtml(s, i));
-      out.push(planHopHtml(st.legs[i]));
+      // the last stop's hop is the way home, and planHomeHtml draws that one
+      if (i < stops.length - 1) out.push(planHopHtml(st.legs[i]));
     });
-    out.push(planHomeHtml(stops));
   }
+  out.push(planHomeHtml(stops));
 
   const sug = nearbySuggestions(stops, { places: PLACES, city: plan.city, cats: active });
   if (sug.length){
@@ -205,20 +224,19 @@ export function wirePlanPane(el){
   const on = (sel, ev, fn) => el.querySelectorAll(sel).forEach(n => n.addEventListener(ev, fn));
   on("[data-focus]", "click", e => { const id = e.currentTarget.dataset.focus; if (id) focus(id); });
   on("[data-drop]", "click", e => planRemove(e.currentTarget.dataset.drop));
-  on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMove(i, i + 1); });
-  on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at));
+  on("[data-swap]", "click", e => { const i = +e.currentTarget.dataset.swap; planMoveBody(i, i + 1); });
+  on("[data-suggest]", "click", e => planAdd(e.currentTarget.dataset.suggest, +e.currentTarget.dataset.at + planLead()));
   on("[data-drag]", "pointerdown", planDragStart);
 
   const t = el.querySelector("#planTitle");
   if (t) t.oninput = () => { plan.title = t.value.slice(0, PLAN_TITLE_MAX); syncPlanUrl(); savePlan(); };
   const wire = (id, fn) => { const b = el.querySelector("#" + id); if (b) b.onclick = fn; };
-  wire("planStart", () => { planSeedStart(); afterPlanChange(); });
   wire("planFit", fitPlan);
   wire("planWipe", () => { if (!plan.ids.length || confirm("Clear this day?")) planClear(); });
-  wire("planReorder", () => planReorder(reorderByProximity(planStops()).order));
+  wire("planReorder", () => planReorderBody(reorderByProximity(planBody()).order));
   wire("planGoCity", () => setTab(plan.city));
-  wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planStops(), planHref(), planHotelLine, planOffFor), "Briefing copied"));
-  wire("planText", e => copyOut(e, planShareText(plan, planStops(), planHref()), "Copied"));
+  wire("planBrief", e => copyOut(e, planBriefMarkdown(plan, planBody(), planHref(), planHotelLine, planOffFor), "Briefing copied"));
+  wire("planText", e => copyOut(e, planShareText(plan, planBody(), planHref()), "Copied"));
   wire("planLink", e => copyOut(e, planHref(), "Link copied"));
   wire("planIcs", e => downloadIcs(e));
   on("[data-day]", "click", e => {
@@ -245,7 +263,7 @@ export function downloadIcs(e){
     }
     return;
   }
-  const text = planIcs(plan, planStops(), planHref());
+  const text = planIcs(plan, planBody(), planHref());
   if (!text) return;
   const name = `${plan.day}-${(plan.title || plan.city).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "day"}.ics`;
   const url = URL.createObjectURL(new Blob([text], { type:"text/calendar;charset=utf-8" }));
