@@ -79,7 +79,8 @@ ok("longitude comes first, as naver wants",
   url.indexOf(`/${a.lng},${a.lat},`) > 0 && url.indexOf(`/${b.lng},${b.lat},`) > 0);
 ok("each block keeps its five fields",
   url.split("/p/directions/")[1].split("/-/")[0].split("/").every(x => x.split(",").length === 5));
-ok("the mode lands at the end", url.endsWith("/-/transit"));
+// the mode Naver is asked for is "transit"; the word it wants in the URL is "public"
+ok("the mode lands at the end, in naver's own word for it", url.endsWith("/-/public"));
 const comma = core.naverDirUrl({lat:1,lng:2,name:"A, B & C"}, b, "walk");
 ok("a comma in a name cannot split the block",
   comma.indexOf("A%2C%20B%20%26%20C") > 0
@@ -301,14 +302,15 @@ ok("and it says where the day ends", msg.includes("Ends back at Novotel"));
 ok("an unknown id is said out loud rather than dropped",
   core.planShareText({ city:"seoul", ids:["nope"] }, R(["nope"]), "").includes('unknown spot "nope"'));
 
-/* The mode token is the one thing in a Naver link this repository cannot verify — Naver
-   is unreachable from here and an unrecognised token falls back to driving rather than
-   failing. So what is pinned is that the table is the only thing deciding it. */
+/* Transit is spelled "public" in these URLs, which was checked on a phone: Naver is
+   unreachable from here, and an unrecognised token falls back to driving rather than
+   failing, so nothing else would have caught it. Pinned here because a link that opens in
+   the wrong mode is the one kind of wrong you only find out about on a platform. */
 group("the mode a Naver link opens in");
 ok("a walkable hop asks for walking",
   core.naverDirUrl(pick("novotel"), pick("euljidarak")).endsWith("/-/walk"));
 ok("a longer Seoul hop asks for transit, not driving",
-  core.naverDirUrl(pick("novotel"), pick("onion")).endsWith("/-/transit"));
+  core.naverDirUrl(pick("novotel"), pick("onion")).endsWith("/-/public"));
 const jejuHome = core.hotelFor("jeju", PLACES);
 ok("Jeju asks for driving, because there is no metro to ride",
   core.naverDirUrl(jejuHome, PLACES.find(p => p.city === "jeju" && p.id !== jejuHome.id
