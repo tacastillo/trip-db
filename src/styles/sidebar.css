@@ -44,7 +44,7 @@
    off is a note to yourself and adding one to the day is an action */
 .beenbtn{flex:none; border:1px solid var(--line); background:none; color:var(--muted); cursor:pointer;
   font-family:inherit; font-size:15px; line-height:1; width:28px; height:34px; border-radius:9px;
-  margin:7px 0 0 0; display:flex; align-items:center; justify-content:center; padding:0;
+  margin:7px 8px 0 0; display:flex; align-items:center; justify-content:center; padding:0;
   transition:color .12s, border-color .12s;}
 .beenbtn:hover{color:var(--ok); border-color:var(--ok);}
 .beenbtn.on{color:var(--ok); border-color:var(--ok);}

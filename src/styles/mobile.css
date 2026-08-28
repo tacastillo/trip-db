@@ -75,7 +75,7 @@
   .card-plan{min-height:44px; font-size:14px;}
   .card-been{min-height:44px; font-size:13px;}
   /* the been-there tick is a thumb too, but it never takes room from the add button */
-  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin-top:6px;}
+  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin:6px 10px 0 0;}
   .pday{min-height:46px; padding:8px 11px;}
   .pday-d{font-size:12.5px;}
 
