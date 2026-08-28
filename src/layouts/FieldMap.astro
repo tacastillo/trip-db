@@ -9,6 +9,7 @@ import "../styles/sidebar.css";
 import "../styles/map.css";
 import "../styles/plan.css";
 import "../styles/ride.css";
+import "../styles/palette.css";
 import "../styles/mobile.css";
 
 const base = import.meta.env.BASE_URL;
@@ -37,7 +38,7 @@ const FONTS = `
 <!-- data-palette ships set for the same reason body ships class="night": the first
      paint should be the right one. client/palette.js corrects it if a link or this
      browser asked for another. -->
-<html lang="en" data-palette="charcoal">
+<html lang="en" data-palette="glacier">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -45,8 +46,8 @@ const FONTS = `
 <!-- The browser chrome cannot read a stylesheet, so these two are the only colours on
      the page written outside styles/tokens.css — along with the manifest and the
      launcher icon. check-data.mjs pins all four to --paper there, so they cannot drift. -->
-<meta name="theme-color" content="#16171A" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="#F4F5EE" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1A1C15" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#F2F4F5" media="(prefers-color-scheme: light)" />
 <title>Tim &amp; Marisa · Korea — Seoul field map</title>
 
 <!-- Installable and offline-capable: the worker is registered from client/offline.js,

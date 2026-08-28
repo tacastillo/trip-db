@@ -12,7 +12,7 @@ import { setTab } from "./tabs.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
-import { applyPalette, bootPalette, palette } from "./palette.js";
+import { applyPalette, armPaletteEgg, bootPalette, palette, setPaletteHandler } from "./palette.js";
 import { here, locating, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
@@ -55,6 +55,11 @@ export function setPalette(name){
   if (sel && routeDraw) showRoute(sel);
   return now;
 }
+/* The panel picks a palette; this is what makes the map follow. palette.js cannot
+   import map.js without a cycle, so it is handed the redraw rather than reaching for it. */
+setPaletteHandler(setPalette);
+/* and the way in: five taps on the title. There is no button — see palette.js. */
+armPaletteEgg(document.querySelector(".title"));
 
 export const railBtn = document.getElementById("railToggle");
 if (railBtn) railBtn.classList.toggle("on", railOn);

@@ -44,16 +44,25 @@
    green "ok" is invisible beside chartreuse, and an amber "warn" is its hue
    neighbour. Under `ember` the two swap back the other way round.
 
-   The palette in :root is the one the page ships with. The others below are
-   real alternatives, switched with ?palette=<name> and then remembered — see
-   client/palette.js. When one of them wins, delete the rest and this comment. */
-:root, [data-palette="charcoal"]{
+   The palette in :root is the one the page ships with. The others are real
+   alternatives, kept because choosing between them off a swatch site kept failing —
+   colours on colorhunt.co are not colours on a map at 390px at night. There is no
+   button for them: tap the title in the header five times. See client/palette.js. */
+:root, [data-palette="glacier"]{
+  --pal-ground:#1A1C15;   /* warm olive ink — origin's depth and warmth, off its brown */
+  --pal-accent:#9AC9DF;   /* soft glacier — ice with the chroma taken out of it */
+  --pal-ok:#7CC98F;
+  --pal-warn:#EFB25E;
+}
+/* On a near-black ground, "softer" is a chroma decision and costs nothing in contrast:
+   the accent above is s52 against ice's s75 and still scores 9.7:1. Every previous
+   attempt at softer went darker too, and turned into mush. */
+[data-palette="charcoal"]{
   --pal-ground:#16171A;
   --pal-accent:#CBDC33;   /* chartreuse */
   --pal-ok:#3FBF9A;       /* a teal, so it cannot be mistaken for the accent */
   --pal-warn:#FF6B57;     /* a coral, ditto */
 }
-/* the same ground, a different accent: which half of it do you actually like */
 [data-palette="ember"]{
   --pal-ground:#16171A;
   --pal-accent:#FF5F3D;   /* vermilion */
@@ -62,8 +71,8 @@
 }
 [data-palette="ice"]{
   --pal-ground:#16171A;
-  --pal-accent:#5FD3E8;   /* ice */
-  --pal-ok:#7BD46A;       /* a green, since the accent has taken the cool end */
+  --pal-accent:#5FD3E8;   /* ice, at full chroma */
+  --pal-ok:#7BD46A;
   --pal-warn:#FF8A5B;
 }
 /* the palette this repo shipped with, kept as the thing to beat */

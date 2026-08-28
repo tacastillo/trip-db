@@ -123,6 +123,16 @@
   .pop-sub{font-size:12px;}
   .pop-extra{font-size:12px;}
   .leaflet-control-zoom{display:none;}
+
+  /* the palette panel becomes a sheet: a 300px card floating top-right is a desktop
+     shape, and the bottom half of the screen is what a thumb actually reaches */
+  .pal-panel{right:8px; left:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
+    width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
+  .pal-panel.on{transform:none;}
+  .pal-row{padding:10px 12px; min-height:52px;}
+  .pal-txt b{font-size:14px;}
+  .pal-txt em{font-size:11.5px;}
+  .pal-sw i{width:13px; height:30px;}
 }
 
 @media (max-width:400px){

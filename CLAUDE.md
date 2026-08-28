@@ -178,11 +178,23 @@ emphasised against anything. `--ok` and `--warn` sit inside the palette because 
 reads as a different *kind* of thing depends on the accent: a green "ok" is invisible
 beside chartreuse, and an amber "warn" is its hue neighbour.
 
-**Four palettes ship, switched with `?palette=<name>` and then remembered**
-(`client/palette.js`). That is scaffolding, not a feature — picking colours off a swatch
-site kept failing because colours on colorhunt.co are not colours on a map at 390px at
-night. Deliberately not a button: header room is the scarcest thing here. When one wins,
-delete the others and the module with them.
+**Five palettes ship, and the way in is hidden.** Picking between them off a swatch site
+kept failing — colours on colorhunt.co are not colours on a map at 390px at night — so
+they stayed, and the choice is made against the real map instead. **Tap the title five
+times** (within about a second of each tap) and a panel comes up listing them;
+`client/palette.js` owns that, `styles/palette.css` dresses it, and the choice is
+remembered like night mode. `?palette=<name>` still works and is how a link or a script
+gets at it.
+
+There is no button on purpose. Header room is the scarcest thing here, and a control for
+something you touch twice a fortnight does not deserve a permanent 44px of it. The panel
+is a side sheet rather than a modal over the middle, because the entire point is judging
+a palette against the map, the pins and an open card — so it must not cover them.
+
+Each row in that panel carries its own `data-palette`, which is why the swatches are
+honest: `[data-palette="ember"]` sets `--pal-*` on **any** element, not just `<html>`, so
+a swatch painted in `var(--pal-accent)` inside that row is that palette's real accent.
+No colour is copied into JS to draw them.
 
 **What the page draws on the map is not what it fills a button with.** `--track` — the
 walking leg of a ride, the get-off ring, the ring on the selected pin — is its own token
