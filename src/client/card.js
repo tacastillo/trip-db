@@ -12,6 +12,7 @@ import { fmtM, hotelFor, kakaoDirUrl, koreaClock, naverDirUrl, planLegs } from "
 import { DOW_SHORT } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
 import { icon } from "../lib/icons.js";
+import { catVar } from "../lib/design.js";
 
 /* Open or shut, right now, in Korea. Computed at render time rather than on a timer:
    the card is rebuilt on every select, which is the only moment anyone reads this.
@@ -33,7 +34,7 @@ export function cardHtml(p){
   const c = CATS[p.cat];
   return `<button class="card-x" id="cardX" title="Close" aria-label="Close">${icon("close")}</button>
     <div class="pop-top">
-      <div class="pop-cat" style="color:${c.color}">${icon(c.icon)} ${c.label}</div>
+      <div class="pop-cat" style="--c:${catVar(p.cat)}">${icon(c.icon)} ${c.label}</div>
       ${hoursChipHtml(p)}
     </div>
     <div class="pop-name">${p.name}${p.ko ? ` <span class="pop-ko" lang="ko">${p.ko}</span>` : ""}</div>

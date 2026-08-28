@@ -1,59 +1,171 @@
 *{box-sizing:border-box;}
 
-/* The trip's palette, and the only place any of it is written down.
+/* ==========================================================================
+   The whole look of this page, in one file.
 
-   Four colours carry the whole page: a deep teal-navy #0F3040, a slate #464858, a clay
-   #A56F63 and a sand #D99B7F. Nothing here is a fifth hue — the paper is sand at a
-   tenth strength, the rules and fields are sand a little stronger, and night is the
-   navy itself with the paper one shade below the surface rather than a new colour.
+   Nothing else in src/styles/ or src/client/ may hold a colour, a shadow, an
+   icon size or a tap target — they name a token from here instead, and
+   tools/check-data.mjs fails the build if a literal creeps back in. That rule
+   is the point: swapping the palette below is meant to be one edit that
+   propagates, not a hunt through eight stylesheets and a dozen modules.
 
-   Two exceptions, both semantic and both deliberate. --ok (a walk saved, a spot ticked
-   off, where you are) and --warn (shut today, pick a date) have to read as *different
-   kinds of thing* at a glance, and a fourth tone of clay cannot do that — so they are a
-   pine and an amber, desaturated into the same muted register as the four. Everything
-   else, category pins included (see CATS in data/places.js), is one of the four or a
-   tint of one.
+   Three things read these tokens:
+     · the stylesheets, by name;
+     · the map, through cssVar() in client/theme.js — Leaflet paints on a
+       canvas and cannot be styled by a sheet, so that is the one door;
+     · the browser chrome, through the two <meta name="theme-color"> tags in
+       layouts/FieldMap.astro and public/manifest.webmanifest, which cannot
+       read CSS at all. check-data.mjs pins those three to --paper here, so
+       they can never quietly drift from the page again.
+   ========================================================================== */
 
-   Never hard-code a hex in a rule both themes use. If a rule needs a colour that is not
-   here, it needs a token here first — that is what makes night mode one block rather
-   than a hunt through six stylesheets. */
+/* ---- 1. the palette -----------------------------------------------------
+   Four colours, and the only four hexes here that are not derived from
+   something else. Everything below mixes them with each other, or with plain
+   white and black as tint agents. Change these four and the page changes. */
 :root{
-  --paper:#F5EDE8; --surface:#FFFBF9; --ink:#0F3040; --muted:#5E6270;
-  --line:#E4D6CE; --line-2:#EFE5DF; --line-hover:#CDB4A8; --accent:#A56F63;
-  /* An input has to read as inset, so it is off --surface rather than on it; and a
-     plan that saves you a kilometre wants a colour that isn't the warning amber. */
-  --field:#FAF3EF; --ok:#2F6B63; --warn:#8E5B2A;
-  /* the states a row can be in, and the canvas the map paints on before any tile lands */
-  --hover:#F8F1EC; --sel:#F4E7E1; --mapbg:#E6DDD7;
-  /* a wash of the accent, for the one badge that wants to be tinted rather than filled */
-  --tint:rgba(165,111,99,.07);
-  /* over the map: the banners' scrim, the panels that float on it, and the casing
-     painted under a drawn ride so the line reads against whatever is beneath it */
-  --scrim:rgba(15,48,64,.86); --scrim-ink:#F5EDE8;
-  --glass:rgba(255,251,249,.94); --casing:#FFFFFF; --pin-edge:#FFFBF9;
+  --bark:#1A120B;      /* darkest — night's paper, day's ink */
+  --cocoa:#3C2A21;     /* the mid dark — day's accent, night's rules */
+  --khaki:#D5CEA3;     /* the mid light — night's accent */
+  --cream:#E5E5CB;     /* lightest — day's paper, night's ink */
+
+  /* The two exceptions, and they are semantic rather than decorative: --ok
+     (a walk saved, a spot ticked off, where you are) and --warn (shut today,
+     pick a date) have to read as a different *kind* of thing at a glance,
+     which a fifth tone of brown cannot do. They are a sage and an amber,
+     desaturated into the same warm register as the four. */
+  --ok-day:#3F6B4E;   --ok-night:#7FB894;
+  --warn-day:#A1601F; --warn-night:#E3A65C;
+  /* And one more: the dot that says where you are is every other map app's
+     blue on purpose — see .medot in map.css. */
+  --me:#2D6CB5;
 }
 
-/* night mode. The same four colours with the navy promoted from ink to surface, and the
-   sand promoted from a tint to the accent — it is the one of the four that still reads
-   as a colour at 2am on a dark map. */
-body.night{
-  --paper:#0A2131; --surface:#0F3040; --ink:#F0E4DC; --muted:#9BA3B0;
-  --line:#26485C; --line-2:#1B3C4E; --line-hover:#3C6478; --accent:#D99B7F;
-  --field:#0B2634; --ok:#79B7A6; --warn:#E0B27A;
-  --hover:#153B4E; --sel:#1C4457; --mapbg:#071722;
-  --tint:rgba(217,155,127,.14);
-  --scrim:rgba(240,228,220,.92); --scrim-ink:#0F3040;
-  --glass:rgba(15,48,64,.93); --casing:#071722; --pin-edge:#F0E4DC;
+/* ---- 2. the day ---------------------------------------------------------
+   Cream paper, bark ink, cocoa accent. */
+:root{
+  --paper:var(--cream);
+  --surface:color-mix(in srgb, white 55%, var(--cream));
+  --ink:var(--bark);
+  --muted:color-mix(in srgb, var(--cocoa) 74%, var(--cream));
+  --line:color-mix(in srgb, var(--khaki) 72%, var(--cream));
+  --line-2:color-mix(in srgb, var(--khaki) 38%, var(--cream));
+  --line-hover:color-mix(in srgb, var(--khaki) 62%, var(--cocoa) 38%);
+  --accent:var(--cocoa);
+  /* what sits on a filled accent — never assume white: by day this is cream
+     on cocoa, by night bark on khaki, and the token is what makes that one
+     flip rather than fourteen */
+  --on-accent:var(--cream);
+  --field:color-mix(in srgb, white 34%, var(--cream));
+  --hover:color-mix(in srgb, white 26%, var(--cream));
+  --sel:color-mix(in srgb, var(--khaki) 45%, var(--cream));
+  --mapbg:color-mix(in srgb, var(--khaki) 55%, var(--cream));
+  --tint:color-mix(in srgb, var(--cocoa) 8%, transparent);
+  --ok:var(--ok-day);
+  --on-ok:var(--cream);
+  --warn:var(--warn-day);
+  /* over the map: the banners' scrim, the panels that float on it, the casing
+     painted under a drawn ride, and the ring around a pin */
+  --scrim:color-mix(in srgb, var(--bark) 88%, transparent);
+  --scrim-ink:var(--cream);
+  --glass:color-mix(in srgb, var(--surface) 94%, transparent);
+  --casing:color-mix(in srgb, white 85%, var(--cream));
+  --pin-edge:var(--surface);
 }
-body.night .card{box-shadow:0 14px 36px rgba(0,0,0,.55);}
+
+/* ---- 3. the night -------------------------------------------------------
+   The same four with the roles swapped: bark becomes the paper, cream the
+   ink, khaki the accent. Only these lines change — every rule in every other
+   sheet is already written against the names above. */
+body.night{
+  --paper:var(--bark);
+  --surface:color-mix(in srgb, var(--cocoa) 62%, var(--bark));
+  --ink:var(--cream);
+  --muted:color-mix(in srgb, var(--khaki) 60%, var(--cocoa));
+  --line:var(--cocoa);
+  --line-2:color-mix(in srgb, var(--cocoa) 60%, var(--bark));
+  --line-hover:color-mix(in srgb, var(--khaki) 42%, var(--cocoa));
+  --accent:var(--khaki);
+  --on-accent:var(--bark);
+  --field:color-mix(in srgb, black 32%, var(--bark));
+  --hover:color-mix(in srgb, var(--cocoa) 45%, var(--bark));
+  --sel:color-mix(in srgb, var(--cocoa) 78%, var(--bark));
+  --mapbg:color-mix(in srgb, black 45%, var(--bark));
+  --tint:color-mix(in srgb, var(--khaki) 14%, transparent);
+  --ok:var(--ok-night);
+  --on-ok:var(--bark);
+  --warn:var(--warn-night);
+  --scrim:color-mix(in srgb, var(--cream) 92%, transparent);
+  --scrim-ink:var(--bark);
+  --glass:color-mix(in srgb, var(--surface) 93%, transparent);
+  --casing:var(--bark);
+  --pin-edge:var(--cream);
+}
+
+/* ---- 4. the categories --------------------------------------------------
+   One token per category, named for its key: a category `food` in
+   data/places.js draws itself in --cat-food, and nothing in JS ever holds a
+   colour. catVar() in lib/design.js is the only thing that builds the name,
+   and check-data.mjs fails if a category has no token here.
+
+   They keep nine distinct hues on purpose — nine pins at 390px in sunlight
+   have to be tellable apart, and the icon inside a pin is only half of that
+   job — but every one is pulled into this palette's warm, muted register and
+   is dark enough for --on-cat to read on it. They do not flip with the
+   theme: a pin sits on a map, not on the page. */
+:root{
+  --cat-hotel:#4A6472;
+  --cat-food:#9E3B29;
+  --cat-cafe:#7E5839;
+  --cat-bakery:#99505A;
+  --cat-dessert:#7D5273;
+  --cat-bar:#7D6820;
+  --cat-shopping:#456B4F;
+  --cat-landmark:#575B84;
+  --cat-beauty:#94456B;
+  /* the icon inside a pin and the number on a planned one */
+  --on-cat:color-mix(in srgb, white 78%, var(--cream));
+}
+
+/* ---- 5. depth -----------------------------------------------------------
+   Four shadows, because a page with a dozen one-off shadows reads as a dozen
+   different materials. */
+:root{
+  --sh-1:0 1px 2px color-mix(in srgb, var(--bark) 18%, transparent);
+  --sh-2:0 2px 5px color-mix(in srgb, var(--bark) 30%, transparent);
+  --sh-3:0 4px 16px color-mix(in srgb, var(--bark) 14%, transparent);
+  --sh-4:0 14px 36px color-mix(in srgb, var(--bark) 18%, transparent);
+}
+body.night{
+  --sh-3:0 4px 16px color-mix(in srgb, black 40%, transparent);
+  --sh-4:0 14px 36px color-mix(in srgb, black 55%, transparent);
+}
+
+/* ---- 6. the measurements that carry a decision --------------------------
+   Not every number on the page — a padding is a padding. These are the ones
+   an argument was had about, so they are settled in one place: the tap target
+   this map is built around, and the sizes an icon is allowed to be. */
+:root{
+  --tap:44px;          /* every target on a phone. See "Mobile first" in CLAUDE.md */
+  --ic-xs:10px;        /* riding inside a line of small text */
+  --ic-s:12px;         /* inside a 20px category dot, or a row's small print */
+  --ic-m:15px;         /* a header toggle, a pin, a button */
+  --ic-l:18px;         /* a header toggle on a phone */
+  --ic-xl:20px;        /* the add control at thumb size */
+}
+
+/* ---- 7. what every icon does -------------------------------------------
+   Streamline icons, drawn by src/lib/icons.js on a 14x14 grid. Two rules for
+   all of them: an icon is the size of the text it sits beside, and it takes
+   that text's colour — so a legend chip, a white-on-clay pin and a night-mode
+   button each colour their own icon and none needs a rule of its own. Only an
+   icon with no text beside it gets a size, and only from the scale above. */
+.ic{width:1em; height:1em; flex:none; display:inline-block; vertical-align:-.14em;}
+/* On a filled dot the stroke is cream on colour at 12px, which is where a
+   hairline starts to break up — the one place the set's own weight needs it. */
+.pindot .ic,.pin-b .ic,.pend-i .ic{stroke-width:1.3;}
+
+/* the two rules that are night mode and could not be a token */
+body.night .card{box-shadow:var(--sh-4);}
 body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
 body.carded .tilebanner{top:auto; bottom:14px;}
-
-/* Streamline icons, drawn by src/lib/icons.js on a 14x14 grid. Two rules for all of
-   them: an icon is the size of the text it sits beside, and it takes that text's colour
-   — so a category pin, a header toggle and a button each colour their own icon and none
-   of them needs a rule here. Only an icon with no text beside it gets a size of its own. */
-.ic{width:1em; height:1em; flex:none; display:inline-block; vertical-align:-.14em;}
-/* On a filled dot the stroke is white on colour at 12px, which is where a hairline
-   starts to break up — the one place the set's own weight needs a nudge. */
-.pindot .ic,.pin-b .ic,.pend-i .ic{stroke-width:1.3;}

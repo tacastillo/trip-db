@@ -2,21 +2,22 @@
    appending to PLACES, then run node tools/check-data.mjs, which catches the things
    the page will not: a cluster that is not in CLUSTERS renders a pin and no list row. */
 
-/* What a category looks like. `icon` is the Streamline name the page draws — see
-   src/lib/icons.js — and `color` is the pin it sits in, tuned into the trip's palette
-   (styles/tokens.css) rather than picked freely: same hues, same muted register, dark
-   enough that a white icon reads on it in sunlight. `emoji` survives for one caller,
+/* What a category looks like. `icon` is the Streamline name the page draws (see
+   src/lib/icons.js) and `label` is what it is called. There is deliberately no colour
+   here: a category key names its own token — `food` draws itself in `--cat-food`, which
+   lives with every other colour in styles/tokens.css — and catVar() in src/lib/design.js
+   is the only thing that builds that name. `emoji` survives for one caller,
    planShareText(), because a message pasted into KakaoTalk cannot carry an SVG. */
 export const CATS = {
-  "hotel":    { label:"Hotel", icon:"hotel", color:"#41708B", emoji:"🏨" },
-  "food":     { label:"Food", icon:"food", color:"#A8412C", emoji:"🍖" },
-  "cafe":     { label:"Cafe", icon:"cafe", color:"#8A5C44", emoji:"☕" },
-  "bakery":   { label:"Bakery", icon:"bakery", color:"#A65A6E", emoji:"🥐" },
-  "dessert":  { label:"Dessert", icon:"dessert", color:"#8C5F86", emoji:"🍰" },
-  "bar":      { label:"Bar", icon:"bar", color:"#98762F", emoji:"🍸" },
-  "shopping": { label:"Shopping", icon:"shopping", color:"#3E7061", emoji:"🛍️" },
-  "landmark": { label:"Landmark", icon:"landmark", color:"#5A6E92", emoji:"🏛️" },
-  "beauty":   { label:"Beauty", icon:"beauty", color:"#9A4F72", emoji:"💅" },
+  "hotel":    { label:"Hotel", icon:"hotel", emoji:"🏨" },
+  "food":     { label:"Food", icon:"food", emoji:"🍖" },
+  "cafe":     { label:"Cafe", icon:"cafe", emoji:"☕" },
+  "bakery":   { label:"Bakery", icon:"bakery", emoji:"🥐" },
+  "dessert":  { label:"Dessert", icon:"dessert", emoji:"🍰" },
+  "bar":      { label:"Bar", icon:"bar", emoji:"🍸" },
+  "shopping": { label:"Shopping", icon:"shopping", emoji:"🛍️" },
+  "landmark": { label:"Landmark", icon:"landmark", emoji:"🏛️" },
+  "beauty":   { label:"Beauty", icon:"beauty", emoji:"💅" },
 };
 
 export const CAT_ORDER = ["hotel", "food", "cafe", "bakery", "dessert", "bar", "beauty", "shopping", "landmark"];

@@ -135,6 +135,45 @@ the generated file's header, which is why that header is not noise.
 One emoji survives, on purpose: `CATS[cat].emoji`, which `planShareText()` uses when a
 day is copied out as a message. A message pasted into KakaoTalk cannot carry an SVG.
 
+## One place for the look
+
+`src/styles/tokens.css` is the whole design system, in seven numbered blocks, and it is
+the only file in `src/styles/` or `src/client/` allowed to write a colour, a shadow, an
+icon size or a tap target. Everything else names a token. That is not a style preference:
+it is what makes swapping the palette one edit instead of a hunt through eight
+stylesheets and a dozen modules, and it is checked rather than hoped for.
+
+**Four hexes, and everything else derived.** Block 1 holds the palette — `--bark`,
+`--cocoa`, `--khaki`, `--cream` — and blocks 2 and 3 build the day and the night out of
+them with `color-mix()`, using plain white and black only as tint agents. Change those
+four lines and the page changes. Night is the same four with the roles swapped, which is
+why it is one block and not an override scattered through six sheets.
+
+Two colours are deliberately not derived. `--ok` (a walk saved, a spot ticked off) and
+`--warn` (shut today, pick a date) have to read as a different *kind* of thing at a
+glance, and a fifth tone of brown cannot do that. `--me` is a third: the dot that says
+where you are is every other map app's blue on purpose.
+
+**A category names its own colour.** `--cat-food` is the colour of the `food` category,
+and `catVar()` in `src/lib/design.js` is the only thing that builds that name. `CATS` in
+`data/places.js` holds no colour at all, so a renderer hands the browser a `var()` rather
+than a hex it had to be told, and the nine hues sit in block 4 with everything else.
+`check-data.mjs` fails if a category has no token to point at.
+
+**What is a token and what is just a number.** Colours, shadows, icon sizes and the 44px
+tap target, because each of those was an argument that should be settled once. Not every
+measurement — a padding is a padding, and hoisting all of them would make one file that
+means nothing rather than one file that means something. Type sizes are still literals in
+the sheets; that is the obvious next thing to hoist, and it has not been done.
+
+**Three ways out of the file.** The stylesheets read tokens by name. The map reads them
+through `cssVar()` in `client/theme.js`, which *resolves* rather than reads — a custom
+property's computed value is its text, so `--accent` comes back as a `color-mix(...)`
+string, and handing that to a canvas is not the same as handing it a colour. And four
+things cannot read CSS at all: the two `<meta name="theme-color">` tags, the manifest and
+`public/icon.svg`. Those are pinned to `--paper` by `check-data.mjs`, because all four of
+them had silently kept a palette the page stopped using two palettes ago.
+
 ## Adding a place
 
 Append to `PLACES` in `src/data/places.js`:
@@ -486,15 +525,10 @@ registers on `localhost` as well as https — talk to it over a `MessageChannel`
 
 ## Conventions worth keeping
 
-- **Themes**: every colour goes through a token on `:root` in `styles/tokens.css`,
-  overridden under `body.night`. Never hard-code a hex in a rule that both themes use.
-  The palette is four colours — navy `#0F3040`, slate `#464858`, clay `#A56F63`, sand
-  `#D99B7F` — and everything else is a tint of one of them, including the nine category
-  colours in `CATS`, which keep their hues but live in that muted register. The two
-  exceptions are `--ok` and `--warn`: they have to read as a different *kind* of thing,
-  which a fourth tone of clay cannot do. Leaflet paints on a canvas and cannot be
-  styled by a sheet, so what the map draws reads its colours back through
-  `cssVar()` in `client/theme.js` rather than holding a literal.
+- **The look lives in `styles/tokens.css`, all of it.** See *One place for the look*
+  above. Nothing in `src/styles/` or `src/client/` may write a colour, a shadow, an icon
+  size or a tap target — name a token instead, and `check-data.mjs` fails the build if a
+  literal creeps back in.
 - **Icons, not emoji**: see *Icons, and why they are not emoji* above. A new mark comes
   from the Streamline set through `tools/fetch-icons.mjs`, never from a character.
 - **Global CSS, never scoped.** The sheet is built on cross-cutting state classes —

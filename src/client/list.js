@@ -10,6 +10,7 @@ import { journeyFor } from "../lib/journey.js";
 import { fmtM, matchesQuery } from "../lib/plan-core.js";
 import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
+import { catVar } from "../lib/design.js";
 
 /* ---------------- sidebar list ---------------- */
 export const listEl = document.getElementById("list");
@@ -45,7 +46,7 @@ export function itemRow(p){
   const b = document.createElement("button");
   b.className = "item" + (selectedId === p.id ? " sel" : "") + (been ? " been" : "");
   b.dataset.id = p.id;
-  b.innerHTML = `<span class="pindot" style="background:${c.color}">${icon(c.icon)}</span>
+  b.innerHTML = `<span class="pindot" style="background:${catVar(p.cat)}">${icon(c.icon)}</span>
     <span class="it-body">
       <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
       <span class="it-note">${p.note}</span>

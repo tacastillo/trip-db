@@ -6,6 +6,7 @@ import { setToolBtn } from "./toolbtn.js";
 import { PLACES } from "../data/places.js";
 import { metres } from "../lib/geo.js";
 import { fmtM } from "../lib/plan-core.js";
+import { cssVar } from "./theme.js";
 
 /* Where you are standing. On the ground this is the question the map was missing: not
    "how far is Gwangjang from the hotel" but "what is near me, now, and which way is
@@ -60,8 +61,9 @@ export function drawMe(pan){
     meMarker = L.marker(at, { icon: meIcon(), interactive:false, zIndexOffset:1000 });
     // the accuracy circle is the honest part: a 900m fix from wifi should not look
     // like a 5m fix from GPS just because both draw the same dot
-    meRing = L.circle(at, { radius: here.acc || 0, color:"#2D6CB5", weight:1,
-                            opacity:.5, fillColor:"#2D6CB5", fillOpacity:.10, interactive:false });
+    const blue = cssVar("--me");
+    meRing = L.circle(at, { radius: here.acc || 0, color:blue, weight:1,
+                            opacity:.5, fillColor:blue, fillOpacity:.10, interactive:false });
     meRing.addTo(map); meMarker.addTo(map);
   } else {
     meMarker.setLatLng(at);

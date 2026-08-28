@@ -39,8 +39,11 @@ const FONTS = `
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="dark light" />
-<meta name="theme-color" content="#15120D" media="(prefers-color-scheme: dark)" />
-<meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
+<!-- The browser chrome cannot read a stylesheet, so these two are the only colours on
+     the page written outside styles/tokens.css — along with the manifest and the
+     launcher icon. check-data.mjs pins all four to --paper there, so they cannot drift. -->
+<meta name="theme-color" content="#1A120B" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#E5E5CB" media="(prefers-color-scheme: light)" />
 <title>Tim &amp; Marisa · Korea — Seoul field map</title>
 
 <!-- Installable and offline-capable: the worker is registered from client/offline.js,

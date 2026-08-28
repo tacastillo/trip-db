@@ -9,6 +9,7 @@ import { CATS, PLACES } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 import { icon } from "../lib/icons.js";
 import { cssVar } from "./theme.js";
+import { catVar } from "../lib/design.js";
 
 /* Leaflet's own objects. Every one of these is written here and nowhere else,
    so the other modules import them as live bindings and always see the current
@@ -160,7 +161,7 @@ export function pinIcon(p, n){
   const c = CATS[p.cat] || {};
   return L.divIcon({
     className: "",
-    html: `<div class="pin${n ? " plan" : ""}" style="--pin:${c.color}">
+    html: `<div class="pin${n ? " plan" : ""}" style="--pin:${catVar(p.cat)}">
              <div class="pin-b"><span${n ? ' class="pin-n"' : ""}>${n || icon(c.icon)}</span></div></div>`,
     iconSize: [30, 30], iconAnchor: [15, 30],
   });

@@ -1,17 +1,17 @@
 import { routeLayer } from "./map.js";
 import { map } from "./state.js";
-import { CATS } from "../data/places.js";
 import { HOTEL_STATION, STATION_COORDS } from "../data/routing.js";
 import { lerpPt } from "../lib/geo.js";
 import { journeyFor } from "../lib/journey.js";
 import { cssVar } from "./theme.js";
+import { catToken } from "../lib/design.js";
 
 /* ---------------- drawing and animating the ride ---------------- */
 export let routeAnim = null, routeDraw = null;
 export const lessMotion = window.matchMedia("(prefers-reduced-motion:reduce)");
 
 export function stationDots(j){
-  const stops = [{ name: HOTEL_STATION, kind: "board", kicker: "Board", tint: CATS.hotel.color }];
+  const stops = [{ name: HOTEL_STATION, kind: "board", kicker: "Board", tint: cssVar(catToken("hotel")) }];
   j.rail.forEach((leg, i) => {
     const last = i === j.rail.length - 1;
     const next = last ? null : j.rail[i + 1];
@@ -91,9 +91,9 @@ export function showRoute(p){
   shapes.forEach(s => { s.start = run; run += s.leg.len; });
   const total = run;
   // the moving head rides on top of everything the legs drew
-  const comet = L.polyline([], { color: "#fff", weight: 3, opacity: .95,
+  const comet = L.polyline([], { color: cssVar("--pin-edge"), weight: 3, opacity: .95,
     lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
-  const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: "#fff", weight: 2,
+  const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: cssVar("--pin-edge"), weight: 2,
     fillColor: accent, fillOpacity: 1, interactive: false }).addTo(routeLayer);
   stationDots(j);
   routeDraw = { shapes, comet, head, total, j };
