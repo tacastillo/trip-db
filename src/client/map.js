@@ -10,6 +10,8 @@ import { RAIL } from "../data/rail.js";
 import { icon } from "../lib/icons.js";
 import { cssVar } from "./theme.js";
 import { catVar } from "../lib/design.js";
+import { leafletTemplate } from "../lib/tiles.js";
+import { tileStyle } from "./basemap.js";
 
 /* Leaflet's own objects. Every one of these is written here and nowhere else,
    so the other modules import them as live bindings and always see the current
@@ -75,8 +77,9 @@ export function drawRail(){
 export function setBaseLayer(){
   if (!map) return;
   if (baseLayer) map.removeLayer(baseLayer);
-  const style = night ? "dark_all" : "light_all";
-  baseLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
+  /* The template comes from lib/tiles.js so that the layer and the offline pack cannot
+     ask for different URLs — they did, silently, for every retina phone. */
+  baseLayer = L.tileLayer(leafletTemplate(tileStyle()), {
     attribution: "© OpenStreetMap © CARTO", subdomains: "abcd", maxZoom: 20,
   });
   /* One tile that actually arrives is the test, not the layer's own "load" — that fires

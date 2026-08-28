@@ -1,6 +1,9 @@
 /* Leaflet paints its own ground behind the tiles; before one lands, and in the gaps
    where none exists, that ground is the page's. */
 .leaflet-container{background:var(--mapbg);}
+/* The one lever over CARTO's own pictures — see block 4b in tokens.css. The tile pane
+   only: markers and the rail have their own panes and must not be touched. */
+.leaflet-tile-pane{filter:var(--tile-filter);}
 
 /* pins */
 .pin{width:30px; height:30px;}

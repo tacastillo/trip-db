@@ -1,8 +1,9 @@
 import { save, saved } from "./store.js";
-import { currentTab, night } from "./state.js";
+import { currentTab } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
 import { LEGS, PLACES } from "../data/places.js";
-import { offlinePack } from "../lib/tiles.js";
+import { TILE_KB, offlinePack, tileUrl } from "../lib/tiles.js";
+import { tileStyle } from "./basemap.js";
 
 /* Making the map survive a dead SIM.
 
@@ -13,14 +14,13 @@ import { offlinePack } from "../lib/tiles.js";
    have wifi and keep them. That is what this button does, one leg at a time, with the
    count said out loud first: it is somebody else's bandwidth and your storage. */
 
-export const TILE_TEMPLATE = "https://a.basemaps.cartocdn.com/{style}/{z}/{x}/{y}.png";
 export let swReady = null;               // the registration, once there is one
 export let packing = false;
 
+/** Exactly what the live layer will ask for, because both come out of tileUrl(). */
 export function tileUrls(cityId, style){
   const places = PLACES.filter(p => p.city === cityId);
-  return offlinePack(places).map(t => TILE_TEMPLATE
-    .replace("{style}", style).replace("{z}", t.z).replace("{x}", t.x).replace("{y}", t.y));
+  return offlinePack(places).map(t => tileUrl(style || tileStyle(), t));
 }
 
 /** Only over http(s), and only where the browser has one: opening the built page off a
@@ -47,11 +47,18 @@ export function syncOfflineButton(){
   if (packing) return;                  // mid-download the label is the progress
   const st = packState(currentTab);
   const leg = (LEGS.find(l => l.id === currentTab) || {}).label || currentTab;
-  b.classList.toggle("on", !!st);
-  setToolBtn(b, "offline", st ? "Saved" : "Offline");
-  b.title = st
+  /* A pack is only any use for the base it was downloaded in — the worker caches by URL
+     and the style is a segment of it. Saying "Saved" for a pack that can never be hit is
+     worse than saying nothing, because the thing it is wrong about is standing in Jeju
+     with no signal. */
+  const usable = !!st && st.style === tileStyle();
+  b.classList.toggle("on", usable);
+  setToolBtn(b, "offline", usable ? "Saved" : st ? "Re-save" : "Offline");
+  b.title = usable
     ? `${leg}'s tiles are already on this device (${st.tiles} of them, saved ${st.at.slice(0, 10)}). Tap to refresh them.`
-    : `Download ${leg}'s map tiles so the map works with no signal`;
+    : st
+      ? `${leg}'s saved tiles are for a different map style, so they cannot be used. Tap to download this one (about ${packMb(currentTab)} MB).`
+      : `Download ${leg}'s map tiles so the map works with no signal (about ${packMb(currentTab)} MB)`;
 }
 
 export async function savePack(){
@@ -65,7 +72,7 @@ export async function savePack(){
     return;
   }
   if (packing) return;
-  const style = night ? "dark_all" : "light_all";
+  const style = tileStyle();
   const urls = tileUrls(currentTab, style);
   packing = true;
   // the percentage takes the icon's place: the label beside it is hidden on the very
@@ -89,5 +96,11 @@ export async function savePack(){
 
 /** How big the ask is, for the label on the button's own tooltip and for tests. */
 export function packSize(cityId){
-  return tileUrls(cityId, "dark_all").length;
+  return tileUrls(cityId, tileStyle()).length;
+}
+
+/** Roughly what a leg weighs, for the tooltip. The number is a courtesy, not a promise. */
+export function packMb(cityId){
+  const style = tileStyle();
+  return Math.round(packSize(cityId) * (TILE_KB[style] || 40) / 1024);
 }

@@ -1,3 +1,4 @@
+import { BASEMAPS, applyBasemap, basemap } from "./basemap.js";
 import { icon } from "../lib/icons.js";
 import { save, saved } from "./store.js";
 
@@ -85,11 +86,22 @@ function panelHtml(){
       <span class="pal-txt"><b>${p.label}</b><em>${p.note}</em></span>
       <span class="pal-tick">${icon("check")}</span>
     </button>`).join("");
+  /* The second half of the same question. CARTO's flat bases are data-viz backdrops and
+     read as too dim to navigate by; whether colour fixes that is a question about a
+     street at night, so it is asked here rather than settled in a stylesheet. */
+  const maps = BASEMAPS.map(m => `
+    <button class="pal-row" data-map-pick="${m.id}" role="option" aria-selected="false">
+      <span class="pal-txt"><b>${m.label}</b><em>${m.note}</em></span>
+      <span class="pal-tick">${icon("check")}</span>
+    </button>`).join("");
   return `<div class="pal-head">
-      <div><b>Palette</b><span>tap the title five times to get back here</span></div>
+      <div><b>The look</b><span>tap the title five times to get back here</span></div>
       <button class="pal-x" id="palClose" title="Close" aria-label="Close">${icon("close")}</button>
     </div>
-    <div class="pal-list" role="listbox" aria-label="Palette">${rows}</div>`;
+    <div class="pal-sec">Palette</div>
+    <div class="pal-list" role="listbox" aria-label="Palette">${rows}</div>
+    <div class="pal-sec">Street map</div>
+    <div class="pal-list" role="listbox" aria-label="Street map">${maps}</div>`;
 }
 
 export function openPalettePanel(){
@@ -104,6 +116,9 @@ export function openPalettePanel(){
      page you are actually looking at */
   panel.querySelectorAll("[data-pal]").forEach(b => b.addEventListener("click", () => {
     setPaletteFromPanel(b.dataset.pal);
+  }));
+  panel.querySelectorAll("[data-map-pick]").forEach(b => b.addEventListener("click", () => {
+    setBasemapFromPanel(b.dataset.mapPick);
   }));
   panel.querySelector("#palClose").onclick = closePalettePanel;
   document.addEventListener("keydown", onEggKey);
@@ -122,13 +137,15 @@ function onEggKey(e){ if (e.key === "Escape"){ e.stopPropagation(); closePalette
 
 /* Which row is on. Called after every apply, and on open, so the panel cannot disagree
    with the page it is sitting on. */
-function syncPaletteEgg(){
+export function syncPaletteEgg(){
   if (!panel) return;
-  panel.querySelectorAll("[data-pal]").forEach(b => {
-    const on = b.dataset.pal === palette;
+  const mark = (nodes, is) => nodes.forEach(b => {
+    const on = is(b);
     b.classList.toggle("on", on);
     b.setAttribute("aria-selected", on ? "true" : "false");
   });
+  mark(panel.querySelectorAll("[data-pal]"), b => b.dataset.pal === palette);
+  mark(panel.querySelectorAll("[data-map-pick]"), b => b.dataset.mapPick === basemap);
 }
 
 /* Set by main.js, which owns the redraw: the map paints from tokens through cssVar(),
@@ -137,3 +154,9 @@ function syncPaletteEgg(){
 let onPick = applyPalette;
 export const setPaletteHandler = (fn) => { onPick = fn; };
 function setPaletteFromPanel(id){ onPick(id); }
+
+/* Same again for the base. Changing it rebuilds the tile layer, and the offline button
+   has to be asked again — a pack downloaded in another style cannot be served. */
+let onPickMap = applyBasemap;
+export const setBasemapHandler = (fn) => { onPickMap = fn; };
+function setBasemapFromPanel(id){ onPickMap(id); }

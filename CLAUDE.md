@@ -93,6 +93,7 @@ page* below).
 | `geo-me.js` | the blue dot, live distances, "nearest first" |
 | `offline.js` | registering the worker, downloading a leg's tile pack |
 | `view.js` | the mobile map/list switch, `isMobile` |
+| `basemap.js` | which CARTO base the tiles come from, and `?map=` |
 | `legend.js` `list.js` `card.js` | the sidebar's three renderers |
 | `map.js` | `initMap`, `drawRail`, `syncMarkers`, `fitCity`, the Leaflet layers |
 | `route.js` | drawing and animating the ride, the station labels |
@@ -177,6 +178,15 @@ colours is what went wrong with the four-browns palette, where nothing could be
 emphasised against anything. `--ok` and `--warn` sit inside the palette because what
 reads as a different *kind* of thing depends on the accent: a green "ok" is invisible
 beside chartreuse, and an amber "warn" is its hue neighbour.
+
+**The street tiles are somebody else's, and the page has exactly one lever on them.**
+`light_all` and `dark_all` are CARTO's Positron and Dark Matter — data-viz backdrops,
+flattened and desaturated so something else can be drawn on top. That is the right basemap
+for a chart and the wrong one for finding a restaurant, which is why the map read as too
+dim to use in either theme. So the base is a choice (`client/basemap.js`, in the same
+panel), and `--tile-filter` in block 4b lifts whichever one is on. A filter changes no URL,
+so it works on tiles already in the cache, offline included — and it is scoped to
+`.leaflet-tile-pane`, because the pins and the rail have panes of their own.
 
 **Five palettes ship, and the way in is hidden.** Picking between them off a swatch site
 kept failing — colours on colorhunt.co are not colours on a map at 390px at night — so
@@ -488,15 +498,33 @@ Jeju is to fetch them on hotel wifi and keep them. The ⤓ button downloads the 
 leg's pack: `src/lib/tiles.js` works out which tiles that is (the whole city at zooms 11–13,
 where it is cheap, and 450m around every spot at 14–16, where it is not — a bounding box of
 Seoul at zoom 16 is a quarter of a million tiles, and nine-tenths of them are hillside), and
-the worker fetches them four at a time and reports progress back. CARTO serves the same tile
-from `a.`–`d.` and Leaflet picks the subdomain from the tile's coordinates, so both the
-download and the lookup normalise to `a.` — cache it under four names and the pack you
-downloaded is the pack you never hit.
+the worker fetches them four at a time and reports progress back.
 
-`check-data.mjs` holds this together in the two places nothing else would notice: it fails
+**One template, in `src/lib/tiles.js`, and both ends build from it.** The worker caches by
+URL and matches by URL, so the live layer and the pack have to ask for byte-identical
+strings. They did not, for months, and nothing noticed: Leaflet fills `{r}` from
+`Browser.retina` **alone** — not from `detectRetina`, which this page never set — so every
+retina phone requested `…@2x.png` while the pack cached `….png`. Online that falls straight
+through to the network and looks perfect. Offline it was a dead map in Jeju with the button
+still saying "Saved". So `TILE_URL` lives in the pure half where a test can reach it, `@2x`
+is hardcoded rather than left to the device, and `check-data.mjs` fails if the two ever
+differ again. Do not reintroduce `{r}`, and do not turn on `detectRetina` — it halves
+`tileSize` and bumps `zoomOffset`, which changes *which* tiles are asked for, and
+`offlinePack()` computes those itself.
+
+CARTO serves the same tile from `a.`–`d.` and Leaflet picks the subdomain from the tile's
+coordinates, so both the download and the lookup normalise to `a.` — cache it under four
+names and the pack you downloaded is the pack you never hit.
+
+**The style is part of the URL, so a pack is only good for the base it was saved in.**
+That is why the receipt records `style` and why the button says **Re-save** rather than
+"Saved" when it does not match what is on. A button that is wrong about working offline is
+wrong in the one place you cannot check.
+
+`check-data.mjs` holds this together in the three places nothing else would notice: it fails
 if `sw.js` precaches a file that is not in `public/` (rename a vendored font and the page
-still builds, still works online, and quietly stops working offline) and if a leg's pack
-grows past what anyone would download.
+still builds, still works online, and quietly stops working offline), if the layer's tile
+URL and the pack's stop agreeing, and if a leg's pack grows past what anyone would download.
 
 ## The pure half
 
@@ -540,13 +568,13 @@ Bundled modules export nothing to the console, so `src/client/main.js` publishes
 handle deliberately:
 
 ```js
-window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette,
+window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
                 startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
                 get selectedId(), get currentTab(), get plan(), get planOver(),
-                get here(), get locating(), get visited(), get hideVisited(), get palette() }
+                get here(), get locating(), get visited(), get hideVisited(), get palette(), get basemap() }
 ```
 
 With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,

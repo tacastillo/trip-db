@@ -20,7 +20,7 @@ import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
 import { RAIL } from "../src/data/rail.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
 import { PLAN_PARAMS, PLAN_MAX_STOPS, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
-import { offlinePack } from "../src/lib/tiles.js";
+import { TILE_KB, TILE_URL, leafletTemplate, offlinePack, tileUrl } from "../src/lib/tiles.js";
 import { ICONS } from "../src/data/icons.js";
 import SPEC from "../src/data/plan-url-spec.json" with { type: "json" };
 const CITY_BOX = {                      // generous, just to catch a transposed pair
@@ -265,7 +265,31 @@ for (const leg of LEGS){
   for (const leg of LEGS){
     const n = offlinePack(PLACES.filter(p => p.city === leg.id)).length;
     if (n > 2500) err(`${leg.id}'s offline tile pack is ${n} tiles — too much to ask anyone to download`);
-    console.log(`  ${leg.label.padEnd(6)} offline pack: ${String(n).padStart(4)} tiles, roughly ${Math.round(n * 18 / 1024)} MB`);
+    const mb = (style) => Math.round(n * TILE_KB[style] / 1024);
+    console.log(`  ${leg.label.padEnd(6)} offline pack: ${String(n).padStart(4)} tiles, roughly `
+      + Object.keys(TILE_KB).map(st => `${mb(st)} MB ${st.replace("rastertiles/", "")}`).join(" · "));
+  }
+
+  /* The one that would have caught the bug this file was extended for. The worker caches
+     tiles by URL and matches by URL, so the live layer and the offline pack have to ask
+     for the same string — and they did not: Leaflet substitutes {r} from Browser.retina
+     alone, so every retina phone requested @2x while the pack cached the 1x URL. Online
+     that falls through to the network and looks fine; offline it was a dead map. Both
+     now come out of tileUrl() in src/lib/tiles.js, and this is what holds them there. */
+  {
+    const t = { z: 12, x: 3492, y: 1586 };
+    for (const style of Object.keys(TILE_KB)){
+      const live = leafletTemplate(style)
+        .replace("{s}", "a").replace("{z}", t.z).replace("{x}", t.x).replace("{y}", t.y);
+      const cached = tileUrl(style, t);
+      if (live !== cached)
+        err(`the tile the layer asks for and the tile the pack caches differ:\n`
+          + `           layer  ${live}\n           pack   ${cached}`);
+    }
+    if (/\{r\}/.test(TILE_URL))
+      err("TILE_URL still has {r} in it — Leaflet fills that from the device, which the pack builder cannot see");
+    if (!TILE_URL.includes("@2x"))
+      warn("TILE_URL is not asking for @2x tiles; on a retina phone the map will be an upscaled 1x image");
   }
 }
 

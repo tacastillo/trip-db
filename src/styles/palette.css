@@ -21,7 +21,12 @@
 .pal-x:hover{background:var(--line-2); color:var(--ink);}
 .pal-x .ic{width:var(--ic-s); height:var(--ic-s);}
 
-.pal-list{padding:6px; display:flex; flex-direction:column; gap:2px;}
+/* two questions in one sheet: the palette, and the pictures underneath it */
+.pal-sec{padding:10px 14px 2px; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:700; color:var(--muted);}
+.pal-list{padding:2px 6px 6px; display:flex; flex-direction:column; gap:2px;}
+/* a base has no swatch to show, so its text takes the room the swatch would have had */
+.pal-row:not([data-palette]) .pal-txt{margin-left:2px;}
 /* A row is the palette it names: [data-palette] sets --pal-* on any element, so the
    swatches below are that palette's own colours with nothing copied into JS. */
 .pal-row{display:flex; align-items:center; gap:11px; width:100%; text-align:left; cursor:pointer;

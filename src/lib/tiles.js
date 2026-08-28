@@ -68,3 +68,36 @@ export function offlinePack(places, opts){
     places.forEach(p => tilesForBox(boxAround(p.lat, p.lng, o.radius || PACK_RADIUS_M), z).forEach(add)));
   return out;
 }
+
+/* ---------- the one URL a tile has ----------
+
+   The live layer and the offline pack have to ask for byte-identical URLs, because the
+   worker caches by URL and matches by URL. They did not, and it was invisible: Leaflet
+   substitutes `{r}` from `Browser.retina` alone — not from `detectRetina`, which this
+   page never set — so every retina phone requested `…@2x.png` while the pack cached
+   `….png`. Online that falls through to the network and looks fine. Offline it was a
+   dead map in Jeju, with the button still saying "Saved".
+
+   So there is one template here, in the pure half where a test can reach it, and both
+   callers build from it. `@2x` is hardcoded rather than left to `{r}`: a URL that
+   depends on the device is a URL the pack builder cannot predict. A 1x screen pays for
+   pixels it cannot show, which is the cheaper mistake — the desktop is where this is
+   edited and the phone is where it is used.
+
+   Not `detectRetina` either: it halves `tileSize` and bumps `zoomOffset`, which changes
+   *which* z/x/y are requested, and offlinePack() computes those itself. */
+export const TILE_URL = "https://{s}.basemaps.cartocdn.com/{style}/{z}/{x}/{y}@2x.png";
+
+/** For Leaflet, which fills {s}/{z}/{x}/{y} itself. */
+export const leafletTemplate = (style) => TILE_URL.replace("{style}", style);
+
+/** For the pack and the worker. One subdomain: CARTO serves the same tile from a–d and
+    Leaflet picks by coordinate, so both ends normalise to `a` — see tileKey() in sw.js. */
+export const tileUrl = (style, t, sub = "a") => TILE_URL
+  .replace("{s}", sub).replace("{style}", style)
+  .replace("{z}", t.z).replace("{x}", t.x).replace("{y}", t.y);
+
+/* Roughly what one tile weighs, for the size a person is told before they download a
+   leg. @2x tiles are four times the pixels; voyager carries far more ink than the flat
+   bases do. Measured off CARTO, and only ever used to print a number. */
+export const TILE_KB = { "dark_all": 38, "light_all": 34, "rastertiles/voyager": 62 };

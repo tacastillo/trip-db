@@ -12,7 +12,8 @@ import { setTab } from "./tabs.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
-import { applyPalette, armPaletteEgg, bootPalette, palette, setPaletteHandler } from "./palette.js";
+import { applyPalette, armPaletteEgg, bootPalette, palette, setBasemapHandler, setPaletteHandler, syncPaletteEgg } from "./palette.js";
+import { applyBasemap, basemap, bootBasemap } from "./basemap.js";
 import { here, locating, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
@@ -21,6 +22,7 @@ import { RAIL } from "../data/rail.js";
 
 /* ---------------- go ---------------- */
 bootPalette();       // before anything paints, so nothing paints in the wrong palette
+bootBasemap();       // and the tile layer is built from this, so it has to be first too
 bootPlan();          // reads the link, so currentTab is right before anything renders
 renderLegend();
 renderList();
@@ -58,6 +60,19 @@ export function setPalette(name){
 /* The panel picks a palette; this is what makes the map follow. palette.js cannot
    import map.js without a cycle, so it is handed the redraw rather than reaching for it. */
 setPaletteHandler(setPalette);
+
+/* Changing the base rebuilds the tile layer, and the offline button has to be asked
+   again: a pack downloaded in one style cannot serve another, and saying "Saved" when
+   that is untrue is the failure this whole change exists to stop. */
+export function setBasemap(name){
+  const now = applyBasemap(name);
+  save({ basemap: now });
+  setBaseLayer();
+  syncOfflineButton();
+  syncPaletteEgg();
+  return now;
+}
+setBasemapHandler(setBasemap);
 /* and the way in: five taps on the title. There is no button — see palette.js. */
 armPaletteEgg(document.querySelector(".title"));
 
@@ -110,7 +125,7 @@ registerSW();
    Getters rather than values, because most of what is worth looking at is reassigned
    as the page runs. */
 window.trip = {
-  focus, select, deselect, setTab, setSideTab, setView, setPalette,
+  focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
   planAdd, planRemove, planToggle, planClear, planReorder, planHref,
   startLocating, stopLocating, savePack, packSize, setHideVisited,
   PLACES, CATS, RAIL,
@@ -127,5 +142,6 @@ window.trip = {
   get visited(){ return [...visited]; },
   get hideVisited(){ return hideVisited; },
   get palette(){ return palette; },
+  get basemap(){ return basemap; },
 };
 
