@@ -19,7 +19,15 @@
   .titlerow{align-items:center; gap:10px; margin-top:0; flex-wrap:nowrap;}
   .title{font-size:19px; min-width:0;}
   .toolbtns{gap:7px;}
-  .railtoggle,.nighttoggle{font-size:12px; padding:7px 10px; min-height:34px;}
+  /* Icons only. Four labelled toggles plus the title do not fit on one line at 390px,
+     and the casualty was the title wrapping and the header taking a third of the screen
+     before the map had drawn anything. The label lives on in aria-label. */
+  .railtoggle,.nighttoggle{font-size:12px; padding:7px 0; min-height:40px; min-width:40px;
+    display:inline-flex; align-items:center; justify-content:center;}
+  .tb-l{display:none;}
+  .tb-i{font-size:15px; line-height:1;}
+  /* except when it is counting: a download says how far along it is */
+  #offlineToggle .tb-i{font-size:13px; font-variant-numeric:tabular-nums;}
   .badge{font-size:10.5px; padding:4px 8px; border-radius:6px;}
 
   /* tabs scroll sideways instead of wrapping */
@@ -65,10 +73,20 @@
   .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; font-size:22px; margin:6px 10px 0 2px;}
   .planbtn.on{font-size:18px;}
   .card-plan{min-height:44px; font-size:14px;}
+  .card-been{min-height:44px; font-size:13px;}
+  /* the been-there tick is a thumb too, but it never takes room from the add button */
+  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin-top:6px;}
+  .pday{min-height:46px; padding:8px 11px;}
+  .pday-d{font-size:12.5px;}
+
   /* the Naver button is the thing you tap while standing in a street, so it gets the
      whole row and a thumb-sized target rather than sharing a line with the distance */
-  .phop-a{width:100%; justify-content:center; min-height:44px; font-size:13.5px; margin-top:2px;}
+  .phop-go{width:100%; margin-left:0; margin-top:2px;}
+  .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:44px; font-size:13.5px; margin-top:0;}
+  /* Kakao sits under it rather than beside the distance, which has the line to itself */
+  .phop-a.alt{flex:1 1 0; min-width:0; min-height:40px; font-size:12.5px;}
   .pop-route .phop-a{min-height:44px; font-size:13.5px;}
+  .pop-route .phop-a.alt{min-height:40px;}
   .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}
   .it-name{font-size:14.5px;}
@@ -86,8 +104,12 @@
   .raillegend.collapsed .rl-h::after{content:' ▸';}
   .raillegend:not(.collapsed) .rl-h::after{content:' ▾';}
   .tilebanner{top:10px; font-size:11.5px; padding:8px 12px; max-width:92%;}
-  .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 13px;
-    max-height:44%; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+  .geobanner{top:auto; bottom:10px;}
+  /* 44% cut the handoff buttons in half — the card scrolled, but a button sliced by the
+     card's own edge reads as broken rather than as more to see. The card is what you act
+     on with a thumb, so it gets the room and the map keeps the other 40%. */
+  .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
+    max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
   .card-x{width:34px; height:34px; font-size:19px;}
   .leaflet-control-zoom{display:none;}
 }

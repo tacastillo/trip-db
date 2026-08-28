@@ -1,7 +1,9 @@
-import { plan, planStops } from "./plan-state.js";
+import { plan, planBody, planOffFor } from "./plan-state.js";
 import { currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { isMobile } from "./view.js";
+import { PLACES } from "../data/places.js";
+import { hotelFor } from "../lib/plan-core.js";
 
 /* ---------------- the plan on the map ---------------- */
 
@@ -14,7 +16,11 @@ import { isMobile } from "./view.js";
    the part you can actually use. */
 export function fitPlan(){
   if (!map) return;
-  const pts = planStops().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);
+  // the hotel is in the frame because the day starts and ends there, even though it is
+  // not a stop — a day framed without it hides the two hops you are actually shown
+  const home = hotelFor(plan.city, PLACES);
+  const pts = planBody().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);
+  if (pts.length && home) pts.push([home.lat, home.lng]);
   if (!pts.length) return;
   if (currentTab !== plan.city) setTab(plan.city);
   const pad = isMobile() ? 40 : 70;

@@ -31,3 +31,20 @@
 .it-meta{font-size:10.5px; color:var(--accent); font-weight:600; margin-top:3px;}
 .tag{font-size:8.5px; letter-spacing:.08em; text-transform:uppercase; font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:1px 4px; line-height:1.3;}
 
+
+/* been there. The row stays legible rather than being greyed into unreadability —
+   you still need to know what it was — so only the name is struck through. */
+.item.been .it-name{text-decoration:line-through; text-decoration-thickness:1.5px; color:var(--muted);}
+.item.been .pindot{filter:saturate(.3); opacity:.75;}
+.it-dist{display:none; font-size:10.5px; color:var(--ok); font-weight:600; margin-top:3px;
+  font-variant-numeric:tabular-nums;}
+/* the quiet sibling of .planbtn: same column, half the weight, because ticking a spot
+   off is a note to yourself and adding one to the day is an action */
+.beenbtn{flex:none; border:1px solid var(--line); background:none; color:var(--muted); cursor:pointer;
+  font-family:inherit; font-size:15px; line-height:1; width:28px; height:34px; border-radius:9px;
+  margin:7px 0 0 0; display:flex; align-items:center; justify-content:center; padding:0;
+  transition:color .12s, border-color .12s;}
+.beenbtn:hover{color:var(--ok); border-color:var(--ok);}
+.beenbtn.on{color:var(--ok); border-color:var(--ok);}
+.beenbtn:focus-visible{outline:2px solid var(--ok); outline-offset:2px;}
+.chip.been.on,.chip.near.on{border-color:var(--ok); color:var(--ok);}

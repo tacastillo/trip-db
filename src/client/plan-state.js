@@ -1,10 +1,12 @@
 import { drawRail, syncMarkers } from "./map.js";
 import { renderPlan } from "./plan-pane.js";
 import { resyncSelection, selectedId } from "./selection.js";
+import { save } from "./store.js";
+import { setTab } from "./tabs.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, legForDate, resolvePlan } from "../lib/plan-core.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
    few need a setter rather than a bare live binding. */
@@ -70,8 +72,32 @@ export function syncPlanUrl(){
   }, 400);
 }
 
+/* The link is still the only thing you can share, and it is still the truth when one
+   names stops. This is the other half: a day you were part way through building when
+   the phone locked is not somebody else's, and losing it to a reload was never a
+   decision anyone made. Only the four fields the URL itself carries are kept. */
+export function savePlan(){
+  save({ plan: { city: plan.city, ids: plan.ids.slice(), day: plan.day, title: plan.title } });
+}
+
+/** The date is a label and a source of closure cautions, never a schedule — see
+    plan-core's closedDays(). Picking one on an empty day also moves you to the leg you
+    are actually in that day, because that is the only reason the spans exist. */
+export function setPlanDay(day){
+  plan.day = day || "";
+  const leg = legForDate(plan.day);
+  if (leg && !plan.ids.length && leg !== plan.city){
+    plan.city = leg;
+    setTab(leg);
+  }
+  syncPlanUrl();
+  savePlan();
+  renderPlan();
+}
+
 export function afterPlanChange(){
   syncPlanUrl();
+  savePlan();
   renderPlan();
   syncMarkers();
   drawRail();
@@ -83,24 +109,30 @@ export function afterPlanChange(){
   if (c) c.textContent = plan.ids.length || "";
 }
 
-/* Every day of this trip starts at the hotel — you walk out of it before you do
-   anything else — so the first stop added to an empty day gets the home base put in
-   front of it rather than being left to remember. It is an ordinary stop once there:
-   drag it, drop it, and nothing puts it back until the day is empty again. A day that
-   arrives off a link is somebody else's and is never touched. */
-export function planSeedStart(){
-  if (plan.ids.length) return;
+/* Every day of this trip starts at the hotel and ends there, and neither end is a stop.
+   The way home has always been computed — homeLeg() — because ?stops= collapses a
+   repeated id, so a hotel that both opened and closed a day could not survive a round
+   trip through a link. The way out is computed the same way now, by startLeg(). Before
+   this, adding the first spot to an empty day pushed the hotel in front of it as an
+   ordinary stop, which made the two ends of one day two different kinds of thing: one
+   you could drag and delete, one fixed. They are both fixed, and both always on screen.
+
+   A link written before that change still names the hotel first, and links are never
+   quietly edited — so an id at the front that is the leg's home base is absorbed into
+   the start row rather than numbered. planLead() is how many ids that accounts for, and
+   everything that indexes the day goes through it. */
+export function planLead(){
   const h = hotelFor(plan.city, PLACES);
-  if (h) plan.ids.push(h.id);
+  return h && plan.ids[0] === h.id ? 1 : 0;
 }
+/** The stops the day is actually made of: what is drawn, numbered, dragged and counted. */
+export function planBody(){ return planStops().slice(planLead()); }
 
 export function planAdd(id, at){
   if (planHas(id)) return;
   if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
   planFull = false;
-  const seeding = !plan.ids.length && (PLACES.find(p => p.id === id) || {}).cat !== "hotel";
-  if (seeding) planSeedStart();
-  const i = (at == null || at < 0 || at > plan.ids.length || seeding) ? plan.ids.length : at;
+  const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
   plan.ids.splice(i, 0, id);
   afterPlanChange();
 }
@@ -120,6 +152,20 @@ export function planMove(from, to){
 export function planReorder(order){
   plan.ids = order.map(i => plan.ids[i]);
   afterPlanChange();
+}
+
+/* The pane, the drag and the reorder all count in rendered rows, which is the day
+   without its absorbed first id. These two are the only translation between the two
+   numberings; nothing else should be doing the arithmetic. */
+export function planMoveBody(from, to){
+  const off = planLead();
+  planMove(from + off, to + off);
+}
+export function planReorderBody(order){
+  const off = planLead();
+  const head = [];
+  for (let i = 0; i < off; i++) head.push(i);
+  planReorder(head.concat(order.map(i => i + off)));
 }
 export function planClear(){
   plan.ids = [];
@@ -146,6 +192,7 @@ export function refreshPlanControls(){
 
 export function setSideTab(t){
   sideTab = t;
+  save({ sideTab: t });
   document.getElementById("side").dataset.sidetab = t;
   [["tabPlaces","places"],["tabPlan","plan"]].forEach(([id, v]) => {
     const b = document.getElementById(id);

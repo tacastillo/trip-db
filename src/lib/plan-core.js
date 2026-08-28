@@ -3,7 +3,7 @@
    into node. Anything that touches the page belongs in src/client/, and
    tools/check-data.mjs fails if something in this directory reaches for it. */
 
-import { CATS, LEGS, PLACES } from "../data/places.js";
+import { CATS, LEGS, PLACES, TRIP } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 import { STATION_COORDS, WALK_BEND, WALK_KMH } from "../data/routing.js";
 import { metres, projectOnSeg } from "./geo.js";
@@ -98,6 +98,61 @@ export function planDow(day){
   // Date.UTC rolls 2026-13-45 over into next year rather than refusing it
   if (d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) return "";
   return DOW[(d.getUTCDay() + 6) % 7];
+}
+
+/* Korea is UTC+9 all year — no daylight saving — so "what day is it there" is one
+   addition rather than a timezone library. `now` is passed in by the caller so this
+   stays testable; nothing here reads the clock unless asked to. */
+export const KST_OFFSET_MIN = 9 * 60;
+export function isoDay(now){
+  const t = new Date((now || new Date()).getTime() + KST_OFFSET_MIN * 60000);
+  return t.toISOString().slice(0, 10);
+}
+
+export const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+export const DOW_SHORT = { mon:"Mon", tue:"Tue", wed:"Wed", thu:"Thu", fri:"Fri", sat:"Sat", sun:"Sun" };
+
+/** "2026-09-01" -> "Tue 1 Sep". Empty for anything that is not a real date. */
+export function fmtDay(day){
+  const dow = planDow(day);
+  if (!dow) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  return `${DOW_SHORT[dow]} ${+m[3]} ${MONTHS[+m[2] - 1]}`;
+}
+
+/** Every date of the trip, in order, each tagged with the leg it falls in. ISO dates
+    sort and compare as strings, which is the whole reason the tables hold them. */
+export function tripDays(trip, legs){
+  const t = trip || TRIP;
+  const out = [];
+  for (let d = t.start; d <= t.end; d = nextDay(d)){
+    out.push({ day: d, dow: planDow(d), label: fmtDay(d), leg: legForDate(d, legs) });
+    if (out.length > 400) break;                  // a malformed date range must not spin
+  }
+  return out;
+}
+export function nextDay(day){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day || "");
+  if (!m) return "";
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3] + 1));
+  return d.toISOString().slice(0, 10);
+}
+export function inTrip(day, trip){
+  const t = trip || TRIP;
+  return !!planDow(day) && day >= t.start && day <= t.end;
+}
+
+/** Which leg a date belongs to, or null for a date outside every span. The handover
+    days sit in two spans — you wake in one city and sleep in another — and a day plan
+    made on one of them is for where you are going, so a span that *starts* on the date
+    wins over one that merely contains it. */
+export function legForDate(day, legs){
+  const L = legs || LEGS;
+  if (!planDow(day)) return null;
+  const arriving = L.find(l => (l.spans || []).some(s => s[0] === day));
+  if (arriving) return arriving.id;
+  const here = L.find(l => (l.spans || []).some(s => day >= s[0] && day <= s[1]));
+  return here ? here.id : null;
 }
 
 /* The only shapes that actually occur in meta: "Closed Mon", "Closed Mon-Tue",
@@ -198,9 +253,18 @@ export function naverMode(a, b){
    environment this was written in could reach Naver to check it. Naver's documented
    app scheme, for reference, is
        nmap://route/public|car|walk|bicycle?slat=&slng=&sname=&dlat=&dlng=&dname=&appname= */
+/* The last path segment is the routing mode, and this is the vocabulary Naver wants for
+   it. Transit is "public", not "transit" — the same word the app scheme uses, and checked
+   on a phone in the only way it can be: an unrecognised token does not error, it quietly
+   falls back to driving, which looks like a working link right up until you are standing
+   on a platform. Nothing in this repository can reach Naver to test that, so this table
+   is the one place the vocabulary lives and the only line to change if it moves. */
+export const NAVER_MODE_TOKEN = { walk:"walk", transit:"public", car:"car" };
+
 export function naverDirUrl(a, b, mode){
   const block = p => `${p.lng},${p.lat},${encodeURIComponent(p.name)},,`;
-  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${mode || naverMode(a, b)}`;
+  const m = mode || naverMode(a, b);
+  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${NAVER_MODE_TOKEN[m] || m}`;
 }
 export function naverAppUrl(a, b, mode){
   const m = mode || naverMode(a, b);
@@ -209,6 +273,27 @@ export function naverAppUrl(a, b, mode){
     dlat:b.lat, dlng:b.lng, dname:b.name, appname:"trip-db",
   });
   return `nmap://route/${m === "transit" ? "public" : m}?${q}`;
+}
+
+/* Kakao is the other half of how anyone actually moves here: its map routes by car
+   better than Naver's, and it is what half the country navigates with. The web link is
+   deliberately destination-only — map.kakao.com/link/to takes one place, not a pair —
+   which on the ground is the right shape anyway: Kakao starts you from where you are
+   standing. Like naverDirUrl(), neither of these could be reached from the environment
+   they were written in; they are the only things to change if a link stops resolving.
+
+   There is no taxi link. Kakao T is the app everyone actually hails with, but its URL
+   scheme is not something this repository can verify, and an unverified scheme is worse
+   than no button: it resolves to nothing at all, silently, while you are standing in a
+   street at midnight deciding whether to keep waiting. Kakao Map's car route is the
+   honest version of that — it is the screen you show the driver anyway. */
+export const KAKAO_BY = { walk:"FOOT", transit:"PUBLICTRANSIT", car:"CAR" };
+export function kakaoDirUrl(a, b){
+  return `https://map.kakao.com/link/to/${encodeURIComponent(b.name)},${b.lat},${b.lng}`;
+}
+export function kakaoAppUrl(a, b, mode){
+  const by = KAKAO_BY[mode || naverMode(a, b)] || "CAR";
+  return `kakaomap://route?sp=${a.lat},${a.lng}&ep=${b.lat},${b.lng}&by=${by}`;
 }
 
 /** One entry per gap between consecutive stops; null where an end is unresolved.
@@ -223,9 +308,25 @@ export function planLegs(stops, offFor){
     const line = (mode !== "walk" && offFor) ? hopLine(offFor(a), offFor(b), a.city) : null;
     legs.push({ i, a, b, metres: hopMetres(a, b), mode, walkable: mode === "walk",
                 walkM: w.m, walkMin: w.minutes, line,
-                naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode) });
+                naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode),
+                kakao: kakaoDirUrl(a, b), kakaoApp: kakaoAppUrl(a, b, mode) });
   }
   return legs;
+}
+
+/** The hop out of the front door. The exact mirror of homeLeg() below, and for the same
+    reason: every day of this trip begins at the hotel, so the way out is worked out
+    rather than typed in, and it is not a stop. It used to be one — the first spot you
+    added put the hotel in front of it as stop 1 — which meant the two ends of the same
+    day were different kinds of thing: one draggable and removable, one fixed. Null when
+    the leg has no home base, or when the day already opens at it. */
+export function startLeg(stops, city, offFor, places){
+  const home = hotelFor(city, places);
+  if (!home) return null;
+  const first = stops.map(s => s.place).find(Boolean);
+  if (!first || first.id === home.id) return null;
+  const leg = planLegs([{ id:home.id, place:home }, { id:first.id, place:first }], offFor)[0];
+  return leg ? Object.assign({ home, to:first }, leg) : null;
 }
 
 /** The hop home. Every day of this trip ends where it started — you are sleeping at the
@@ -389,6 +490,13 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   lines.push(bits.join(" · "));
   if (href) lines.push(`Source: ${href}`);
   lines.push("");
+  const out = startLeg(stops, plan.city, offFor);
+  if (out){
+    lines.push(`Starts at **${out.home.name}** — ${fmtM(out.metres)}${out.walkable
+      ? `, about ${out.walkMin} min on foot` : out.line
+        ? `, ${out.line.label} from ${out.line.from} to ${out.line.to}` : `, ${out.mode}`} · ${out.naver}`);
+    lines.push("");
+  }
   stops.forEach((s, i) => {
     const p = s.place;
     if (!p){ lines.push(`${i + 1}. _unknown id \`${s.id}\`_`); lines.push(""); return; }
@@ -424,4 +532,89 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   lines.push("- Opening hours. Anything above in quotes is prose copied straight from the notes.");
   lines.push("- How busy anywhere is, or how long the queue runs.");
   return lines.join("\n");
+}
+
+/** The day as something you can text to someone. Shorter than the brief and with no
+    markdown in it: names, the one-line note, and the link you would actually follow. */
+export function planShareText(plan, stops, href){
+  const lines = [];
+  const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
+  const head = [plan.title || "Day plan", fmtDay(plan.day), cityLabel].filter(Boolean);
+  lines.push(head.join(" · "));
+  const out = startLeg(stops, plan.city, null);
+  if (out) lines.push(`Starts at ${out.home.name} — ${fmtM(out.metres)} to the first stop · ${out.naver}`);
+  const legs = planLegs(stops, null);
+  stops.forEach((s, i) => {
+    const p = s.place;
+    if (!p){ lines.push(`${i + 1}. unknown spot "${s.id}"`); return; }
+    lines.push(`${i + 1}. ${p.name} — ${p.note || (CATS[p.cat] || {}).label || ""}`);
+    if (p.meta) lines.push(`   ${p.meta}`);
+    const leg = legs[i];
+    if (leg) lines.push(`   ${fmtM(leg.metres)} to the next stop · ${leg.naver}`);
+  });
+  const back = homeLeg(stops, plan.city, null);
+  if (back) lines.push(`Ends back at ${back.home.name} — ${fmtM(back.metres)} · ${back.naver}`);
+  if (href) lines.push(`The whole map: ${href}`);
+  return lines.join("\n");
+}
+
+/* An .ics is a text format with three sharp edges: CRLF endings, escaped commas and
+   semicolons, and lines folded at 75 octets with a leading space on the continuation.
+   Get one wrong and the file imports as nothing, silently. */
+export function icsEscape(s){
+  return String(s == null ? "" : s)
+    .replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,")
+    .replace(/\r?\n/g, "\\n");
+}
+/* 75 octets, not 75 characters: the notes are full of ·, — and Korean, and a fold that
+   counted characters would break a line in the middle of a UTF-8 sequence. */
+export function icsFold(line){
+  const out = [];
+  let cur = "", n = 0, limit = 74;              // 74 + the CRLF's own room
+  for (const ch of String(line)){
+    const w = new TextEncoder().encode(ch).length;
+    if (n + w > limit){ out.push(cur); cur = " "; n = 1; limit = 73; }
+    cur += ch; n += w;
+  }
+  out.push(cur);
+  return out.join("\r\n");
+}
+export const ICS_PRODID = "-//trip-db//Korea field map//EN";
+
+/** The day as a calendar entry — one all-day event, never a timed schedule. Nothing
+    on this map knows when you arrive anywhere or how long a queue runs, and an .ics
+    full of invented 10:30s would look authoritative on a phone precisely where it is
+    least true. So the day is the event, and the order lives in its description.
+    Null without a date: there is nothing to put a calendar entry on. */
+export function planIcs(plan, stops, href, opts){
+  const o = opts || {};
+  if (!planDow(plan.day)) return null;
+  const start = plan.day.replace(/-/g, "");
+  const end = nextDay(plan.day).replace(/-/g, "");
+  const stamp = (o.now instanceof Date ? o.now : new Date(o.now || Date.now()))
+    .toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
+  const first = stops.map(s => s.place).find(Boolean);
+  const rows = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    `PRODID:${ICS_PRODID}`,
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    // stable per day and per order, so re-importing an edited day replaces it
+    `UID:${plan.day}-${(plan.ids || []).join("-") || "empty"}@trip-db`,
+    `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${start}`,
+    `DTEND;VALUE=DATE:${end}`,
+    `SUMMARY:${icsEscape(`${plan.title || "Day plan"} · ${cityLabel}`)}`,
+    `DESCRIPTION:${icsEscape(planShareText(plan, stops, href))}`,
+  ];
+  if (first){
+    rows.push(`LOCATION:${icsEscape(`${first.name}, ${first.cluster}`)}`);
+    rows.push(`GEO:${first.lat};${first.lng}`);
+  }
+  if (href) rows.push(`URL:${icsEscape(href)}`);
+  rows.push("TRANSP:TRANSPARENT", "END:VEVENT", "END:VCALENDAR");
+  return rows.map(icsFold).join("\r\n") + "\r\n";
 }

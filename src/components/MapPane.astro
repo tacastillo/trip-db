@@ -1,6 +1,9 @@
 <div class="mapwrap" id="mapwrap">
   <div id="map"></div>
   <div class="tilebanner" id="tilebanner"></div>
+  <!-- its own banner rather than the tile one: they can both be true at once, and
+       "no tiles" and "location is blocked" are two different things to fix -->
+  <div class="tilebanner geobanner" id="geobanner"></div>
   <div class="card" id="card"></div>
   <div class="raillegend" id="raillegend"></div>
 </div>

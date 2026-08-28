@@ -13,12 +13,13 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT, metres, distToPath } from "./lib.mjs";
-import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS } from "../src/data/places.js";
+import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, TRIP } from "../src/data/places.js";
 import { SUBWAY } from "../src/data/subway.js";
 import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
 import { RAIL } from "../src/data/rail.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
-import { PLAN_PARAMS, PLAN_MAX_STOPS } from "../src/lib/plan-core.js";
+import { PLAN_PARAMS, PLAN_MAX_STOPS, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
+import { offlinePack } from "../src/lib/tiles.js";
 import SPEC from "../src/data/plan-url-spec.json" with { type: "json" };
 const CITY_BOX = {                      // generous, just to catch a transposed pair
   seoul: [37.2, 126.6, 37.9, 127.5],
@@ -180,6 +181,58 @@ for (const leg of LEGS){
 const widest = PLACES.map(p => p.id.length).sort((a, b) => b - a)
   .slice(0, PLAN_MAX_STOPS).reduce((a, b) => a + b + 1, 0);
 if (widest > 1500) err(`${PLAN_MAX_STOPS} of the longest ids is ${widest} characters of query string`);
+
+/* ---------- the calendar ---------- */
+/* The day picker offers these dates and legForDate() routes a date to a leg, so a span
+   that has drifted from the dates on the tab is a day plan quietly filed under the
+   wrong city. Nothing else would notice. */
+if (!planDow(TRIP.start) || !planDow(TRIP.end)) err(`TRIP is ${TRIP.start}..${TRIP.end}, which is not two dates`);
+else if (TRIP.start >= TRIP.end) err(`TRIP starts on ${TRIP.start} and ends on ${TRIP.end}`);
+for (const leg of LEGS){
+  if (!leg.spans || !leg.spans.length){ err(`${leg.id} has no date spans, so no date can land in it`); continue; }
+  for (const [a, b] of leg.spans){
+    if (!planDow(a) || !planDow(b)) err(`${leg.id}: span ${a}..${b} is not two dates`);
+    else if (a > b) err(`${leg.id}: span ${a}..${b} runs backwards`);
+    else if (a < TRIP.start || b > TRIP.end) err(`${leg.id}: span ${a}..${b} falls outside the trip (${TRIP.start}..${TRIP.end})`);
+  }
+}
+{
+  const days = tripDays();
+  const placed = days.filter(d => d.leg).length;
+  const orphans = days.filter(d => !d.leg).map(d => d.day);
+  if (!days.length) err("the trip window covers no days at all");
+  if (orphans.length > 2) warn(`${orphans.length} trip days belong to no leg: ${orphans.join(", ")}`);
+  for (const leg of LEGS)
+    if (!days.some(d => d.leg === leg.id))
+      err(`no date in the trip resolves to ${leg.id} — legForDate() would never pick it`);
+  console.log(`\n  ${days.length} trip days, ${placed} of them in a leg`
+    + (orphans.length ? ` (${orphans.join(", ")} travelling)` : ""));
+}
+
+/* ---------- what ships offline ---------- */
+/* public/sw.js is copied to the site verbatim and precaches a list of files by hand,
+   because it is not bundled and nothing rewrites those paths. Rename a vendored font
+   and the page still builds, still works online, and quietly stops working offline. */
+{
+  const sw = readFileSync(join(ROOT, "public/sw.js"), "utf8");
+  const listed = [...sw.matchAll(/^\s*"\.\/([^"]*)",\s*$/gm)].map(m => m[1]).filter(Boolean);
+  if (listed.length < 10) err("public/sw.js lists almost nothing to precache — has SHELL_FILES moved?");
+  for (const f of listed){
+    if (f === "index.html") continue;                  // built, not committed
+    try { readFileSync(join(ROOT, "public", f)); }
+    catch (e){ err(`public/sw.js precaches "${f}", which is not in public/`); }
+  }
+  const mf = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
+  if (mf.start_url !== "./index.html") err(`the manifest starts at ${mf.start_url}; build.format is "file", so it has to be ./index.html`);
+  for (const icon of mf.icons || [])
+    try { readFileSync(join(ROOT, "public", icon.src.replace(/^\.\//, ""))); }
+    catch (e){ err(`the manifest names an icon that is not there: ${icon.src}`); }
+  for (const leg of LEGS){
+    const n = offlinePack(PLACES.filter(p => p.city === leg.id)).length;
+    if (n > 2500) err(`${leg.id}'s offline tile pack is ${n} tiles — too much to ask anyone to download`);
+    console.log(`  ${leg.label.padEnd(6)} offline pack: ${String(n).padStart(4)} tiles, roughly ${Math.round(n * 18 / 1024)} MB`);
+  }
+}
 
 /* src/lib/ is the half of the code the node tests can run, and it can only stay that
    way while nothing in it reaches for the page. The single-file page fenced this off

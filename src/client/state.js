@@ -1,3 +1,4 @@
+import { saved } from "./store.js";
 import { CAT_ORDER } from "../data/places.js";
 
 /* index.html kept every mutable in one block; here each one lives with the module
@@ -11,17 +12,20 @@ import { CAT_ORDER } from "../data/places.js";
 export let map;
 export const setMap = (v) => { map = v; };
 
-/* the category filters. Mutated in place and never replaced, so no setter. */
+/* the category filters. Mutated in place and never replaced, so no setter. A chip you
+   switched off last night is still off this morning — see store.js. An unknown key in
+   what was stored is ignored rather than trusted: the category table can change under
+   a browser that remembered the old one. */
 export const active = {};
-CAT_ORDER.forEach(k => active[k] = true);
+CAT_ORDER.forEach(k => active[k] = !saved.cats || saved.cats[k] !== false);
 
 /* written by setTab, and by bootPlan when the link names a different leg */
 export let currentTab = "seoul";
 export const setCurrentTab = (v) => { currentTab = v; };
 
 /* both written by their toggle button in main.js and read by the map */
-export let night = true;
+export let night = saved.night !== false;
 export const setNight = (v) => { night = v; };
 
-export let railOn = true;
+export let railOn = saved.railOn !== false;
 export const setRailOn = (v) => { railOn = v; };

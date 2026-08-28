@@ -1,9 +1,14 @@
-import { planHas, planOffFor, planStops, planToggle, planningMode } from "./plan-state.js";
+import { distanceFrom, here } from "./geo-me.js";
+import { renderLegend } from "./legend.js";
+import { renderList } from "./list.js";
+import { syncMarkers } from "./map.js";
+import { planBody, planHas, planOffFor, planToggle, planningMode } from "./plan-state.js";
 import { deselect } from "./selection.js";
+import { isVisited, toggleVisited } from "./visited.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { hopHow, naverBtnHtml } from "./plan-pane.js";
-import { fmtM, hotelFor, naverDirUrl, planLegs } from "../lib/plan-core.js";
+import { dirBtnsHtml, hopHow } from "./plan-pane.js";
+import { fmtM, hotelFor, kakaoDirUrl, naverDirUrl, planLegs } from "../lib/plan-core.js";
 
 /* ---------------- map ---------------- */
 export function cardHtml(p){
@@ -14,7 +19,11 @@ export function cardHtml(p){
     <div class="pop-hood">${p.cluster}</div>
     <div class="pop-note">${p.note}</div>
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}
-    <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
+    ${here ? `<div class="pop-here">📍 ${fmtM(distanceFrom(p))} from you</div>` : ""}
+    <div class="card-acts">
+      <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
+      <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen">${isVisited(p.id) ? "☑ Been" : "◻ Been"}</button>
+    </div>
     ${planningMode() ? hopStripHtml(p) : routeStripHtml(p)}`;
 }
 export const cardEl = document.getElementById("card");
@@ -26,6 +35,14 @@ export function showCard(p){
   document.getElementById("cardX").onclick = deselect;
   const cp = document.getElementById("cardPlan");
   if (cp){ cp.classList.toggle("done", planHas(p.id)); cp.onclick = () => planToggle(p.id); }
+  const cb = document.getElementById("cardBeen");
+  if (cb) cb.onclick = () => {
+    toggleVisited(p.id);
+    showCard(p);            // the card is the thing that just changed, so redraw it
+    renderList();
+    renderLegend();
+    syncMarkers();
+  };
 }
 export function hideCard(){
   cardEl.classList.remove("show");
@@ -42,12 +59,14 @@ export function hideCard(){
    For a spot that is not in the day yet, the hop is measured from the last stop there
    is — which is exactly what you are weighing up before you tap add. */
 export function hopStripHtml(p){
-  const stops = planStops();
+  const stops = planBody();
   const i = stops.findIndex(s => s.id === p.id);
-  if (i === 0) return `<div class="pop-route"><span class="pr-k">Stop 1</span>
-    <div class="pr-walk">Where the day starts.</div></div>`;
-  const from = i > 0 ? stops[i - 1].place
-                     : stops.filter(s => s.place).map(s => s.place).pop();
+  const home = hotelFor(p.city);
+  const planned = stops.filter(s => s.place).map(s => s.place);
+  // stop one is walked to from the hotel, because that is where the day starts — the
+  // same hop the pane draws above stop one, worded the same way
+  const fromHome = i === 0 || (i < 0 && !planned.length);
+  const from = fromHome ? home : (i > 0 ? stops[i - 1].place : planned[planned.length - 1]);
   if (!from || from.id === p.id) return "";
   const leg = planLegs([{ id:from.id, place:from }, { id:p.id, place:p }], planOffFor)[0];
   if (!leg) return "";
@@ -55,10 +74,12 @@ export function hopStripHtml(p){
     ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
        <span class="pr-txt">${leg.line.from} <span class="pr-arr">→</span> ${leg.line.to}</span></div>`
     : "";
-  const kicker = i > 0 ? `From stop ${i}, ${from.name}` : `From your last stop, ${from.name}`;
+  const kicker = fromHome ? `From ${from.name}, where the day starts`
+    : i > 0 ? `From stop ${i}, ${from.name}`
+            : `From your last stop, ${from.name}`;
   return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
     <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>
-    ${naverBtnHtml(leg.naver, p.name, "Open in Naver Maps")}</div>`;
+    ${dirBtnsHtml(leg, p.name, "Open in Naver Maps")}</div>`;
 }
 
 export function routeStripHtml(p){
@@ -74,8 +95,9 @@ export function routeStripHtml(p){
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
   // the traced ride names the platforms; Naver is what you actually follow on the day
   const home = hotelFor(p.city);
+  const links = home ? { naver: naverDirUrl(home, p), kakao: kakaoDirUrl(home, p) } : null;
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
     <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div>
-    ${home ? naverBtnHtml(naverDirUrl(home, p), p.name, "Open in Naver Maps") : ""}</div>`;
+    ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;
 }
 

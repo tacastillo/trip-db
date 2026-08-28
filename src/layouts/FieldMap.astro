@@ -43,6 +43,14 @@ const FONTS = `
 <meta name="theme-color" content="#F6F2EA" media="(prefers-color-scheme: light)" />
 <title>Tim &amp; Marisa · Korea — Seoul field map</title>
 
+<!-- Installable and offline-capable: the worker is registered from client/offline.js,
+     and public/ is copied verbatim so both of these are real files at the site root. -->
+<link rel="manifest" href={`${base}manifest.webmanifest`} />
+<link rel="icon" href={`${base}icon.svg`} type="image/svg+xml" />
+<link rel="apple-touch-icon" href={`${base}icon.svg`} />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Korea map" />
+
 <link rel="stylesheet" href={`${base}vendor/leaflet/leaflet.css`} />
 <style is:inline set:html={FONTS}></style>
 </head>

@@ -3,8 +3,12 @@
   <div class="titlerow">
     <div class="title disp">Tim <span class="amp">&amp;</span> Marisa · Korea</div>
     <div class="toolbtns">
-      <button class="railtoggle on" id="railToggle" title="Toggle subway lines">🚇 Rail</button>
-      <button class="nighttoggle" id="nightToggle" title="Toggle night mode">☀️ Day</button>
+      <!-- icon and label are separate spans because the phone hides the labels: see
+           client/toolbtn.js. aria-label carries the meaning either way. -->
+      <button class="railtoggle on" id="railToggle" title="Toggle subway lines" aria-label="Toggle subway lines"><span class="tb-i">🚇</span><span class="tb-l">Rail</span></button>
+      <button class="railtoggle" id="meToggle" title="Show where you are and how far things are" aria-label="Show where you are"><span class="tb-i">📍</span><span class="tb-l">Me</span></button>
+      <button class="railtoggle" id="offlineToggle" title="Download this leg's map tiles so the map works with no signal" aria-label="Save this leg's map for offline"><span class="tb-i">⤓</span><span class="tb-l">Offline</span></button>
+      <button class="nighttoggle" id="nightToggle" title="Toggle night mode" aria-label="Toggle night mode"><span class="tb-i">☀️</span><span class="tb-l">Day</span></button>
       <div class="badge">AUG 29 — SEP 12 · 2026</div>
     </div>
   </div>

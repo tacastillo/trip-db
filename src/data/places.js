@@ -148,8 +148,19 @@ export const PLACES = [
   { id:"memilkkot", city:"jeju", cluster:"Seogwipo · South", cat:"food", lat:33.2494338, lng:126.563519, name:"Memilkkot Chicken (메밀꽃치킨)", note:"Buckwheat-battered fried chicken, stall inside Maeil Olle Market. Get the soy.", meta:"Recommended" },
 ];
 
+/* The trip's own calendar. It is here rather than derived from the `dates` strings
+   above because those are prose for a tab label and this is arithmetic: which leg a
+   date falls in, and which dates the day picker offers. Aug 29 is the flight over, so
+   the window opens a day before the first leg does and that date belongs to no leg.
+   `spans` are inclusive at both ends and the handover days overlap on purpose — you
+   are in two cities on Sep 4 — which legForDate() resolves in favour of arriving. */
+export const TRIP = { start:"2026-08-29", end:"2026-09-12" };
+
 export const LEGS = [
-  { id:"seoul", label:"Seoul", dates:"Aug 30 – Sep 4 · Sep 10–12" },
-  { id:"jeju",  label:"Jeju",  dates:"Sep 4 – 7" },
-  { id:"busan", label:"Busan", dates:"Sep 7 – 10" },
+  { id:"seoul", label:"Seoul", dates:"Aug 30 – Sep 4 · Sep 10–12",
+    spans:[["2026-08-30","2026-09-04"],["2026-09-10","2026-09-12"]] },
+  { id:"jeju",  label:"Jeju",  dates:"Sep 4 – 7",
+    spans:[["2026-09-04","2026-09-07"]] },
+  { id:"busan", label:"Busan", dates:"Sep 7 – 10",
+    spans:[["2026-09-07","2026-09-10"]] },
 ];
