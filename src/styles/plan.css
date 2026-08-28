@@ -154,6 +154,7 @@
 .card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
 
 
+.tb-i + .tb-l{margin-left:6px;}
 .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
   background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
   display:inline-flex; align-items:center; gap:6px; line-height:1;}

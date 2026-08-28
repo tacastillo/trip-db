@@ -7,6 +7,35 @@ Actions builds it on every push to `main` and hands the output to GitHub Pages.
 
 [Astro]: https://astro.build
 
+## Mobile first. Not mobile too.
+
+**This map is used on a phone, in a street, in Korea.** The desktop is where it gets
+edited; the phone is where it gets used, and every call goes to the phone. That is the
+first question about any change — what does this do at 390px, with a thumb, one-handed,
+in sunlight — and it is asked before the change is designed, not after it is built.
+
+What that means in practice:
+
+- **Drive the phone viewport first.** `devices["Pixel 7"]` and a 390px context, before
+  the 1280px one. Two defects shipped in the first cut of the offline/geolocation work
+  because they were only ever looked at on a desktop: four labelled toggles pushed the
+  title onto a second line, and the card's `max-height` sliced the Kakao and taxi buttons
+  in half. Both were invisible at 1280px and obvious at 390px.
+- **Every target is 44px.** The grab strip, the add button, the been-there tick, a day
+  chip, a Naver button. If a new control cannot be 44px, it is the wrong control — that
+  is what removed the up/down arrows from the plan rows.
+- **Header room is the scarcest thing on the page.** Anything that lands in `.toolbtns`
+  is an icon on a phone and a label on a desktop, through `client/toolbtn.js`. Four
+  labelled buttons do not fit next to the title, and the title is what tells you what
+  you are looking at.
+- **The thing you tap gets the room.** The card can take 60% of the screen, because on a
+  phone the card is the page; the map keeps the rest. A button sliced by the edge of its
+  own container reads as broken, not as "scroll for more".
+- **One media query, still.** 780px in `styles/mobile.css`, and the map and list swap
+  rather than stack. The base sheet is desktop-shaped for historical reasons and that is
+  not worth unpicking — but the phone block is where the argument is settled, so write
+  the phone rule first and let the desktop keep the leftovers.
+
 ## The shape of it
 
 ```
@@ -331,9 +360,10 @@ CI runs all four on every push and pull request, and nothing deploys unless they
 That is a backstop, not the plan: none of them see the page, so a green run says only
 that the data agrees with itself and the bundle built.
 
-For anything that changes behaviour or layout, **drive the real page** — this is
-a map, and unit checks do not see a route drawn under a card or a label off the
-edge. Serve it and script a browser:
+For anything that changes behaviour or layout, **drive the real page — the phone first**
+(see *Mobile first* below). This is a map, and unit checks do not see a route drawn under
+a card, a label off the edge, or a button sliced in half by the card it is in. Serve it
+and script a browser:
 
 ```sh
 npm run dev                    # http://localhost:4321/trip-db/
@@ -382,8 +412,8 @@ registers on `localhost` as well as https — talk to it over a `MessageChannel`
   `body.night`, `body.planning`, `body.routing`, `.side[data-sidetab]` — which Astro's
   scoping would rewrite out from under it. The stylesheets are imported in cascade
   order by the layout; keep them that way.
-- **Mobile**: one media query at 780px, in `styles/mobile.css`. The map and list swap
-  rather than stack.
+- **Mobile**: see *Mobile first* above. One media query at 780px, in
+  `styles/mobile.css`; the map and list swap rather than stack.
 - **Animation**: honour `prefers-reduced-motion` — the route draws complete and
   static instead of animating.
 - **Failure**: degrade, do not break. Missing tiles, no route, an unknown

@@ -72,6 +72,10 @@ queue runs, what to order.
 
 ## On the ground
 
+It is built for a phone first — the map and the list swap rather than stack, every
+control is a thumb-sized target, and the header collapses to icons so the title keeps
+its line. The desktop layout is the same page with more room.
+
 Three things the map does that only matter when you are standing in a street:
 
 - **Where you are.** The 📍 button puts a dot on the map, hangs a live distance off every

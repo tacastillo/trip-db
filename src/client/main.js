@@ -11,6 +11,7 @@ import { currentTab, map, night, railOn, setNight, setRailOn } from "./state.js"
 import { setTab } from "./tabs.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
+import { setToolBtn } from "./toolbtn.js";
 import { here, locating, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
@@ -27,7 +28,7 @@ export const nightBtn = document.getElementById("nightToggle");
    browser remembered otherwise, that is undone here rather than in the markup. */
 export function applyNight(){
   document.body.classList.toggle("night", night);
-  if (nightBtn) nightBtn.textContent = night ? "☀️ Day" : "🌙 Night";
+  setToolBtn(nightBtn, night ? "☀️" : "🌙", night ? "Day" : "Night");
 }
 applyNight();
 if (nightBtn) nightBtn.onclick = () => {

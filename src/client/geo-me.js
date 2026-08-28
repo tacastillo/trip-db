@@ -2,6 +2,7 @@ import { renderLegend } from "./legend.js";
 import { renderList, scrollListTop } from "./list.js";
 import { save, saved } from "./store.js";
 import { map } from "./state.js";
+import { setToolBtn } from "./toolbtn.js";
 import { PLACES } from "../data/places.js";
 import { metres } from "../lib/geo.js";
 import { fmtM } from "../lib/plan-core.js";
@@ -152,7 +153,7 @@ export function syncMeButton(){
   const b = document.getElementById("meToggle");
   if (!b) return;
   b.classList.toggle("on", locating);
-  b.textContent = locating ? (here ? "📍 Here" : "📍 …") : "📍 Me";
+  setToolBtn(b, "📍", locating ? (here ? "Here" : "…") : "Me");
   b.title = locating ? "Centre the map on you, or tap again to stop"
                      : "Show where you are and how far things are";
 }

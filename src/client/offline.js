@@ -1,5 +1,6 @@
 import { save, saved } from "./store.js";
 import { currentTab, night } from "./state.js";
+import { setToolBtn } from "./toolbtn.js";
 import { LEGS, PLACES } from "../data/places.js";
 import { offlinePack } from "../lib/tiles.js";
 
@@ -47,7 +48,7 @@ export function syncOfflineButton(){
   const st = packState(currentTab);
   const leg = (LEGS.find(l => l.id === currentTab) || {}).label || currentTab;
   b.classList.toggle("on", !!st);
-  b.textContent = st ? "⤓ Saved" : "⤓ Offline";
+  setToolBtn(b, "⤓", st ? "Saved" : "Offline");
   b.title = st
     ? `${leg}'s tiles are already on this device (${st.tiles} of them, saved ${st.at.slice(0, 10)}). Tap to refresh them.`
     : `Download ${leg}'s map tiles so the map works with no signal`;
@@ -57,18 +58,23 @@ export async function savePack(){
   const b = offlineBtn();
   const reg = swReady && await swReady;
   if (!reg || !navigator.serviceWorker.controller){
-    if (b){ b.textContent = "⤓ no worker"; b.title = "This browser is not running the offline worker, so tiles cannot be kept. Everything else still works."; }
+    if (b){
+      setToolBtn(b, "⤓", "no worker");
+      b.title = "This browser is not running the offline worker, so tiles cannot be kept. Everything else still works.";
+    }
     return;
   }
   if (packing) return;
   const style = night ? "dark_all" : "light_all";
   const urls = tileUrls(currentTab, style);
   packing = true;
-  if (b) b.textContent = `⤓ 0%`;
+  // the percentage takes the icon's place: the label beside it is hidden on the very
+  // device most likely to be doing this, standing in a hotel lobby
+  if (b) setToolBtn(b, "0%", "Saving");
   const ch = new MessageChannel();
   ch.port1.onmessage = (e) => {
     const m = e.data || {};
-    if (m.type === "cache-progress" && b) b.textContent = `⤓ ${Math.round(m.done / m.total * 100)}%`;
+    if (m.type === "cache-progress" && b) setToolBtn(b, `${Math.round(m.done / m.total * 100)}%`, "Saving");
     if (m.type === "cache-done"){
       packing = false;
       const offline = Object.assign({}, saved.offline);
