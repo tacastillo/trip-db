@@ -13,7 +13,7 @@
 import { DOW, closedFromHours, parseHours } from "../src/lib/hours.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, metres, distToPath } from "./lib.mjs";
+import { ROOT, metres, distToPath, colourDistance, contrast, cssVars, resolveColor, toHex } from "./lib.mjs";
 import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, TRIP } from "../src/data/places.js";
 import { SUBWAY } from "../src/data/subway.js";
 import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
@@ -29,6 +29,11 @@ const CITY_BOX = {                      // generous, just to catch a transposed 
   jeju:  [33.1, 126.1, 33.7, 127.0],
 };
 const STATION_ON_LINE_M = 400;          // a station should sit on the line that serves it
+/* How far the colour the page draws on the map has to stay from every line colour, and
+   how far the nine category pins stay from each other. Redmean distance; for scale, the
+   day accent that shipped before --track existed was 74 from Line 7's olive. */
+const TRACK_CLEARANCE = 130;
+const CAT_CLEARANCE = 45;
 
 const errors = [], warnings = [];
 const err  = (m) => errors.push(m);
@@ -280,54 +285,133 @@ for (const f of readdirSync(join(ROOT, "src/lib"))){
    styles/tokens.css is meant to be the only place a colour, a shadow, an icon size or a
    tap target is written down, so that swapping the palette is one edit rather than a
    hunt through eight stylesheets and a dozen modules. That is a convention, and a
-   convention nobody checks lasts about a fortnight — so this checks it. */
+   convention nobody checks lasts about a fortnight — so this checks it.
+
+   And it checks the palettes themselves. Picking colours off a swatch site kept
+   producing palettes that were unreadable somewhere nobody looked, so readability is a
+   rule here rather than something to squint at: every palette, in both themes, has to
+   clear a contrast floor before it can ship. Day's floor is higher than night's on
+   purpose — night is the page, day is the theme you switch to when the sun is on the
+   screen and night has stopped being readable, so being merely adequate is a failure of
+   its whole job. See "Night first" in CLAUDE.md. */
 {
   const tokensPath = "src/styles/tokens.css";
   const css = readFileSync(join(ROOT, tokensPath), "utf8");
-  /* the two theme blocks, read as declarations: :root (day) and body.night */
-  const block = (sel) => {
-    const out = {};
-    const re = new RegExp(`${sel}\\s*\\{([^}]*)\\}`, "g");
-    for (const m of css.matchAll(re))
-      for (const d of m[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) out[d[1]] = d[2].trim();
-    return out;
+  const PALETTES = [...css.matchAll(/\[data-palette="([\w-]+)"\]/g)].map(m => m[1])
+    .filter((v, i, a) => a.indexOf(v) === i);
+  if (!PALETTES.length) err(`no [data-palette=...] blocks in ${tokensPath}`);
+
+  const themeVars = (palette, night) => {
+    const want = [":root", `[data-palette="${palette}"]`];
+    const base = cssVars(css, want);
+    return night ? { ...base, ...cssVars(css, ["body.night"]) } : base;
   };
-  const day = block(":root"), night = { ...day, ...block("body\\.night") };
-  /* one level of var() is all the palette needs: --paper is var(--cream) is a hex */
-  const hex = (vars, name) => {
-    const v = (vars[name] || "").trim();
-    const via = v.match(/^var\((--[\w-]+)\)$/);
-    return (via ? (vars[via[1]] || "").trim() : v).toUpperCase();
+  const rgb = (vars, name) => resolveColor(vars[name], vars);
+  const ratio = (vars, a, b) => {
+    const x = rgb(vars, a), y = rgb(vars, b);
+    return x && y ? contrast(x, y) : null;
   };
 
+  /* what has to read against what, and how well. A pair this cannot resolve is
+     reported rather than skipped: a token nobody could read is a token nobody checked. */
+  const PAIRS = [
+    ["--ink", "--paper", 7, 10],            // body text
+    ["--muted", "--paper", 4.5, 5.5],       // notes, neighbourhoods, distances
+    ["--accent", "--paper", 4.5, 5.5],      // .pop-meta and .it-meta are small text
+    ["--on-accent", "--accent", 4.5, 4.5],  // text on a filled button
+    ["--ok", "--paper", 4.5, 5.5],
+    ["--on-ok", "--ok", 4.5, 4.5],
+    ["--warn", "--paper", 4.5, 5.5],
+    ["--ink", "--surface", 7, 10],          // the card and the sidebar
+    ["--muted", "--surface", 4.5, 5.5],
+    ["--scrim-ink", "--scrim", 4.5, 4.5],   // the banners over the map
+  ];
+
+  console.log("\ncontrast, by palette (night · day)");
+  for (const p of PALETTES){
+    const night = themeVars(p, true), day = themeVars(p, false);
+    const bits = [];
+    for (const [a, b, floorN, floorD] of PAIRS){
+      const rn = ratio(night, a, b), rd = ratio(day, a, b);
+      if (rn == null) { err(`${p}: night ${a} on ${b} is not a colour this can read`); continue; }
+      if (rd == null) { err(`${p}: day ${a} on ${b} is not a colour this can read`); continue; }
+      if (rn < floorN) err(`${p}, night: ${a} on ${b} is ${rn.toFixed(2)}:1, floor is ${floorN}:1`);
+      if (rd < floorD) err(`${p}, day: ${a} on ${b} is ${rd.toFixed(2)}:1, floor is ${floorD}:1 (day is the sunlight theme — its floor is the higher one)`);
+      bits.push(`${a.replace("--", "")}/${b.replace("--", "")} ${rn.toFixed(1)}·${rd.toFixed(1)}`);
+    }
+    console.log(`  ${p.padEnd(9)} ${bits.join("  ")}`);
+  }
+
+  /* The one colour the page draws on the map. Thirteen line colours are already there,
+     so an accent chosen to look right on a button can land on top of one — the day
+     accent of the palette this replaced was 74 from Line 7, which is a walk you cannot
+     pick out from a train. Nothing else would ever catch that. */
+  {
+    const vars = themeVars(PALETTES[0], true);
+    const lines = Object.values(RAIL).flat().map(l => [l.label, resolveColor(l.color, {})]);
+    const track = rgb(vars, "--track");
+    if (!track) err("--track is not a colour");
+    else {
+      const near = lines.map(([lb, lc]) => [lb, colourDistance(track, lc)]).sort((a, b) => a[1] - b[1])[0];
+      if (near && near[1] < TRACK_CLEARANCE)
+        err(`--track is ${Math.round(near[1])} from ${near[0]} — the walk drawn on the map would read as that line. Needs ${TRACK_CLEARANCE}.`);
+      console.log(`  --track clears every line by ${Math.round(near[1])} (nearest ${near[0]})`);
+    }
+  }
+
+  /* Nine pins that have to be tellable apart at 390px. A warning rather than an error:
+     each pin also carries its own icon, which does half of this job. */
+  {
+    const vars = themeVars(PALETTES[0], true);
+    const cats = CAT_ORDER.map(k => [k, rgb(vars, `--cat-${k}`)]).filter(c => c[1]);
+    for (let i = 0; i < cats.length; i++)
+      for (let j = i + 1; j < cats.length; j++){
+        const d = colourDistance(cats[i][1], cats[j][1]);
+        if (d < CAT_CLEARANCE)
+          warn(`--cat-${cats[i][0]} and --cat-${cats[j][0]} are ${Math.round(d)} apart; two pins that close lean on their icons alone`);
+      }
+    const onCat = rgb(vars, "--on-cat");
+    for (const [k, c] of cats){
+      const r = contrast(onCat, c);
+      if (r < 4.5) err(`--on-cat on --cat-${k} is ${r.toFixed(2)}:1 — the icon inside that pin needs 4.5:1`);
+    }
+  }
+
   for (const k of CAT_ORDER)
-    if (!day[`--cat-${k}`])
+    if (!cssVars(css, [":root"])[`--cat-${k}`])
       err(`no --cat-${k} in ${tokensPath} — a category names its own colour token, see catVar() in src/lib/design.js`);
 
   /* Four things cannot read a stylesheet: the two <meta name="theme-color"> tags, the
      manifest and the launcher icon. They are the only colours outside tokens.css, and
      this is what stops them going stale the next time the palette changes — which is
-     exactly what had happened to all four of them. */
-  const nightPaper = hex(night, "--paper"), dayPaper = hex(day, "--paper");
-  const nightAccent = hex(night, "--accent");
-  const layout = readFileSync(join(ROOT, "src/layouts/FieldMap.astro"), "utf8");
-  const meta = (scheme) => (layout.match(
-    new RegExp(`<meta name="theme-color" content="(#[0-9A-Fa-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`)) || [])[1];
-  if ((meta("dark") || "").toUpperCase() !== nightPaper)
-    err(`FieldMap.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
-  if ((meta("light") || "").toUpperCase() !== dayPaper)
-    err(`FieldMap.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
-  const mf2 = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
-  for (const k of ["background_color", "theme_color"])
-    if ((mf2[k] || "").toUpperCase() !== nightPaper)
-      err(`the manifest's ${k} is ${mf2[k]}; night --paper is ${nightPaper}`);
-  const svg = readFileSync(join(ROOT, "public/icon.svg"), "utf8");
-  const svgHex = [...svg.matchAll(/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/g)].map(m => m[1].toUpperCase());
-  for (const h of svgHex)
-    if (![nightPaper, nightAccent, hex(night, "--line")].includes(h))
-      err(`public/icon.svg paints ${h}, which is not the night paper, accent or line — the launcher icon is the trip's palette, not its own`);
+     exactly what had happened to all four of them. They follow the palette the page
+     ships with, which is the one in :root. */
+  {
+    const night = themeVars(PALETTES[0], true), day = themeVars(PALETTES[0], false);
+    const nightPaper = toHex(rgb(night, "--paper")), dayPaper = toHex(rgb(day, "--paper"));
+    const nightAccent = toHex(rgb(night, "--accent")), nightLine = toHex(rgb(night, "--line"));
+    const layout = readFileSync(join(ROOT, "src/layouts/FieldMap.astro"), "utf8");
+    const meta = (scheme) => (layout.match(
+      new RegExp(`<meta name="theme-color" content="(#[0-9A-Fa-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`)) || [])[1];
+    if ((meta("dark") || "").toUpperCase() !== nightPaper)
+      err(`FieldMap.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
+    if ((meta("light") || "").toUpperCase() !== dayPaper)
+      err(`FieldMap.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
+    /* and the palette it ships with has to be one that exists */
+    const shipped = (layout.match(/<html[^>]*data-palette="([\w-]+)"/) || [])[1];
+    if (!PALETTES.includes(shipped))
+      err(`FieldMap.astro ships data-palette="${shipped}", which is not a palette in ${tokensPath}`);
+    const mf2 = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
+    for (const k of ["background_color", "theme_color"])
+      if ((mf2[k] || "").toUpperCase() !== nightPaper)
+        err(`the manifest's ${k} is ${mf2[k]}; night --paper is ${nightPaper}`);
+    const svg = readFileSync(join(ROOT, "public/icon.svg"), "utf8");
+    for (const m of svg.matchAll(/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/g))
+      if (![nightPaper, nightAccent, nightLine].includes(m[1].toUpperCase()))
+        err(`public/icon.svg paints ${m[1]}, which is not the night paper, accent or line — the launcher icon is the trip's palette, not its own`);
+  }
 
-  /* And the other half of the same rule: nothing else may hold one. */
+  /* And the other half of the same rule: nothing else may hold a colour. */
   const LITERAL = /#[0-9A-Fa-f]{3,8}\b|\brgba?\(/;
   const sheets = readdirSync(join(ROOT, "src/styles")).filter(f => f !== "tokens.css");
   for (const f of sheets){

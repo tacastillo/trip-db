@@ -3,13 +3,13 @@
        512px launcher and a 32px tab alike. The safe area for a maskable icon is the
        middle 80%, so everything that matters sits inside r=205 of the centre.
        An SVG in public/ cannot read styles/tokens.css, so these four are the trip's
-       palette written out by hand — bark, cocoa, khaki, bark. check-data.mjs fails if
-       they stop matching the tokens. -->
-  <rect width="512" height="512" rx="96" fill="#1A120B"/>
-  <g fill="none" stroke="#3C2A21" stroke-width="14" stroke-linecap="round">
+       palette written out by hand — the night paper, its rules, and the accent.
+       check-data.mjs fails if they stop matching the tokens. -->
+  <rect width="512" height="512" rx="96" fill="#16171A"/>
+  <g fill="none" stroke="#38393C" stroke-width="14" stroke-linecap="round">
     <path d="M96 300 L200 236 L316 296 L416 232"/>
     <path d="M96 380 L188 328 L300 380 L416 320"/>
   </g>
-  <path d="M256 116c-49 0-88 39-88 88 0 62 76 140 84 148a6 6 0 0 0 8 0c8-8 84-86 84-148 0-49-39-88-88-88z" fill="#D5CEA3"/>
-  <circle cx="256" cy="204" r="33" fill="#1A120B"/>
+  <path d="M256 116c-49 0-88 39-88 88 0 62 76 140 84 148a6 6 0 0 0 8 0c8-8 84-86 84-148 0-49-39-88-88-88z" fill="#CBDC33"/>
+  <circle cx="256" cy="204" r="33" fill="#16171A"/>
 </svg>

@@ -25,10 +25,10 @@ export function stationDots(j){
   stops.forEach(s => {
     const c = STATION_COORDS[s.name]; if (!c) return;
     if (s.kind === "off"){
-      L.circleMarker(c, { radius: 7, color: cssVar("--accent"), weight: 2, opacity: .9,
+      L.circleMarker(c, { radius: 7, color: cssVar("--track"), weight: 2, opacity: .9,
         fill: false, interactive: false, className: "rs-ping" }).addTo(routeLayer);
     }
-    const fill = s.kind === "off" ? cssVar("--accent") : s.tint;
+    const fill = s.kind === "off" ? cssVar("--track") : s.tint;
     const dot = L.circleMarker(c, { radius: s.kind === "board" ? 5.5 : s.kind === "off" ? 7 : 8,
       color: cssVar("--pin-edge"), weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
     // a transfer wears both lines: the one arriving outside, the one leaving in the middle
@@ -73,10 +73,10 @@ export function showRoute(p){
   if (!j) return;
   document.body.classList.add("routing");
   const casing = cssVar("--casing");
-  const accent = cssVar("--accent");
+  const track = cssVar("--track");
   const shapes = j.legs.map(leg => {
     const walking = leg.kind === "walk";
-    const color = walking ? accent : leg.color;
+    const color = walking ? track : leg.color;
     // glow first so it sits under the casing; its opacity is the pulse, in CSS
     const glow = L.polyline([], { color, weight: walking ? 10 : 16, opacity: 1,
       lineCap: "round", lineJoin: "round", interactive: false, className: "rs-glow" }).addTo(routeLayer);
@@ -94,7 +94,7 @@ export function showRoute(p){
   const comet = L.polyline([], { color: cssVar("--pin-edge"), weight: 3, opacity: .95,
     lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
   const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: cssVar("--pin-edge"), weight: 2,
-    fillColor: accent, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+    fillColor: track, fillOpacity: 1, interactive: false }).addTo(routeLayer);
   stationDots(j);
   routeDraw = { shapes, comet, head, total, j };
   requestAnimationFrame(spaceLabels);

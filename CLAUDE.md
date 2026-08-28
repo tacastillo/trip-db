@@ -7,6 +7,26 @@ Actions builds it on every push to `main` and hands the output to GitHub Pages.
 
 [Astro]: https://astro.build
 
+## Night first. Day is the sunlight escape hatch.
+
+**This page is used in dark mode, essentially always.** Not "dark mode is the default" —
+`state.js` has said that for a while and it undersells it. Over a fortnight in Korea the
+light theme will be on screen for a few seconds, total, and only for one reason: standing
+in direct sun where the dark theme has stopped being readable.
+
+That settles a whole class of argument before it starts:
+
+- **Every judgement call goes to night.** If a colour has to be lovely in one theme and
+  merely fine in the other, it is lovely at night. Screenshot night first, and more of it.
+- **Day is not the pretty daytime theme. It is the high-contrast theme.** Its job is
+  legibility at 1200 nits with the sun behind you, so it wants a near-white ground, a
+  near-black ink and an accent dark enough to hold text — not a charming tint. Where the
+  two themes disagree, day takes the more contrasted option every time, and its floor in
+  `check-data.mjs` is deliberately higher than night's rather than equal to it.
+- **A palette is chosen at night and *checked* by day.** A candidate that only works on
+  paper is not a candidate. One that is beautiful at night and merely stark in sunlight
+  is exactly right.
+
 ## Mobile first. Not mobile too.
 
 **This map is used on a phone, in a street, in Korea.** The desktop is where it gets
@@ -67,6 +87,7 @@ page* below).
 | --- | --- |
 | `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
 | `theme.js` | `cssVar`, the one door from `styles/tokens.css` to what Leaflet paints |
+| `palette.js` | which of the four palettes is on; `?palette=` and the stored choice |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
 | `geo-me.js` | the blue dot, live distances, "nearest first" |
@@ -143,28 +164,41 @@ icon size or a tap target. Everything else names a token. That is not a style pr
 it is what makes swapping the palette one edit instead of a hunt through eight
 stylesheets and a dozen modules, and it is checked rather than hoped for.
 
-**Four hexes, and everything else derived.** Block 1 holds the palette — `--bark`,
-`--cocoa`, `--khaki`, `--cream` — and blocks 2 and 3 build the day and the night out of
-them with `color-mix()`, using plain white and black only as tint agents. Change those
-four lines and the page changes. Night is the same four with the roles swapped, which is
-why it is one block and not an override scattered through six sheets.
+**A palette is four decisions, not four swatches.** Block 1 declares `--pal-ground`,
+`--pal-accent`, `--pal-ok` and `--pal-warn`, written at the lightness *night* wants,
+because night is what this page is. Blocks 2 and 3 build the two themes out of them with
+`color-mix()`. Change those four lines and the page changes.
 
-Two colours are deliberately not derived. `--ok` (a walk saved, a spot ticked off) and
-`--warn` (shut today, pick a date) have to read as a different *kind* of thing at a
-glance, and a fifth tone of brown cannot do that. `--me` is a third: the dot that says
-where you are is every other map app's blue on purpose.
+The jobs matter more than the values. The ground stays near-neutral: the map already
+carries thirteen subway line colours and nine category pins, and a saturated ground
+competes with them — that is what went wrong with the navy palette. The accent is the
+*entire* chroma budget, which is what lets it shout — spreading that budget over four
+colours is what went wrong with the four-browns palette, where nothing could be
+emphasised against anything. `--ok` and `--warn` sit inside the palette because what
+reads as a different *kind* of thing depends on the accent: a green "ok" is invisible
+beside chartreuse, and an amber "warn" is its hue neighbour.
 
-**A category names its own colour.** `--cat-food` is the colour of the `food` category,
-and `catVar()` in `src/lib/design.js` is the only thing that builds that name. `CATS` in
-`data/places.js` holds no colour at all, so a renderer hands the browser a `var()` rather
-than a hex it had to be told, and the nine hues sit in block 4 with everything else.
-`check-data.mjs` fails if a category has no token to point at.
+**Four palettes ship, switched with `?palette=<name>` and then remembered**
+(`client/palette.js`). That is scaffolding, not a feature — picking colours off a swatch
+site kept failing because colours on colorhunt.co are not colours on a map at 390px at
+night. Deliberately not a button: header room is the scarcest thing here. When one wins,
+delete the others and the module with them.
 
-**What is a token and what is just a number.** Colours, shadows, icon sizes and the 44px
-tap target, because each of those was an argument that should be settled once. Not every
-measurement — a padding is a padding, and hoisting all of them would make one file that
-means nothing rather than one file that means something. Type sizes are still literals in
-the sheets; that is the obvious next thing to hoist, and it has not been done.
+**What the page draws on the map is not what it fills a button with.** `--track` — the
+walking leg of a ride, the get-off ring, the ring on the selected pin — is its own token
+because the map's colour space is already spoken for. An accent picked to look right on a
+button lands on top of a line: the day accent that shipped before this was 74 units from
+Line 7's olive, which is a walk you cannot pick out from a train. `--track` is a magenta
+that clears every line on both networks by 169, and `check-data.mjs` fails if a future
+one wanders closer than 130. `--me` is the same argument settled the same way.
+
+**Contrast is a rule, not a hope.** `check-data.mjs` resolves every token — `var()` chains
+and nested `color-mix()`, through `resolveColor()` in `tools/lib.mjs` — for every palette
+in both themes, and fails below a floor: 7:1 for body text, 4.5:1 for muted, the accent,
+and anything on a filled control. **Day's floors are the higher ones** (10:1 and 5.5:1),
+because day is the sunlight theme and being merely adequate is a failure of its whole job
+— see *Night first* above. It prints the table on every run, so the next palette can be
+judged before it is looked at.
 
 **Three ways out of the file.** The stylesheets read tokens by name. The map reads them
 through `cssVar()` in `client/theme.js`, which *resolves* rather than reads — a custom
@@ -494,13 +528,13 @@ Bundled modules export nothing to the console, so `src/client/main.js` publishes
 handle deliberately:
 
 ```js
-window.trip = { focus, select, deselect, setTab, setSideTab, setView,
+window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
                 startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
                 get selectedId(), get currentTab(), get plan(), get planOver(),
-                get here(), get locating(), get visited(), get hideVisited() }
+                get here(), get locating(), get visited(), get hideVisited(), get palette() }
 ```
 
 With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,

@@ -17,89 +17,150 @@
        layouts/FieldMap.astro and public/manifest.webmanifest, which cannot
        read CSS at all. check-data.mjs pins those three to --paper here, so
        they can never quietly drift from the page again.
+
+   Night is the page. Day is the sunlight escape hatch — see "Night first" in
+   CLAUDE.md. Block 2 is where the design lives; block 3 exists to be readable
+   with the sun behind you, which is why it is stark rather than charming.
    ========================================================================== */
 
 /* ---- 1. the palette -----------------------------------------------------
-   Four colours, and the only four hexes here that are not derived from
-   something else. Everything below mixes them with each other, or with plain
-   white and black as tint agents. Change these four and the page changes. */
-:root{
-  --bark:#1A120B;      /* darkest — night's paper, day's ink */
-  --cocoa:#3C2A21;     /* the mid dark — day's accent, night's rules */
-  --khaki:#D5CEA3;     /* the mid light — night's accent */
-  --cream:#E5E5CB;     /* lightest — day's paper, night's ink */
+   A palette is four decisions, each with a job, written at the lightness
+   night wants — because night is what this page is. Day derives its own
+   lightnesses from these in block 3.
 
-  /* The two exceptions, and they are semantic rather than decorative: --ok
-     (a walk saved, a spot ticked off, where you are) and --warn (shut today,
-     pick a date) have to read as a different *kind* of thing at a glance,
-     which a fifth tone of brown cannot do. They are a sage and an amber,
-     desaturated into the same warm register as the four. */
-  --ok-day:#3F6B4E;   --ok-night:#7FB894;
-  --warn-day:#A1601F; --warn-night:#E3A65C;
-  /* And one more: the dot that says where you are is every other map app's
-     blue on purpose — see .medot in map.css. */
+     --pal-ground   the near-neutral the page is made of. Keep it near-neutral:
+                    the map already carries thirteen subway line colours and
+                    nine category pins, and a saturated ground competes with
+                    them. That is what went wrong with the navy palette.
+     --pal-accent   the one saturated hue, and the whole chroma budget. It is
+                    the only thing allowed to shout, which is what lets it.
+                    That is what went wrong with the four-browns palette: the
+                    budget was spread across four colours and none could.
+     --pal-ok       a walk saved, a spot ticked off, where you are.
+     --pal-warn     shut today, pick a date.
+
+   --ok and --warn belong to the palette rather than sitting outside it,
+   because what reads as a *different kind of thing* depends on the accent: a
+   green "ok" is invisible beside chartreuse, and an amber "warn" is its hue
+   neighbour. Under `ember` the two swap back the other way round.
+
+   The palette in :root is the one the page ships with. The others below are
+   real alternatives, switched with ?palette=<name> and then remembered — see
+   client/palette.js. When one of them wins, delete the rest and this comment. */
+:root, [data-palette="charcoal"]{
+  --pal-ground:#16171A;
+  --pal-accent:#CBDC33;   /* chartreuse */
+  --pal-ok:#3FBF9A;       /* a teal, so it cannot be mistaken for the accent */
+  --pal-warn:#FF6B57;     /* a coral, ditto */
+}
+/* the same ground, a different accent: which half of it do you actually like */
+[data-palette="ember"]{
+  --pal-ground:#16171A;
+  --pal-accent:#FF5F3D;   /* vermilion */
+  --pal-ok:#4FC79A;
+  --pal-warn:#F2B33D;     /* amber — a coral warn would be the accent */
+}
+[data-palette="ice"]{
+  --pal-ground:#16171A;
+  --pal-accent:#5FD3E8;   /* ice */
+  --pal-ok:#7BD46A;       /* a green, since the accent has taken the cool end */
+  --pal-warn:#FF8A5B;
+}
+/* the palette this repo shipped with, kept as the thing to beat */
+[data-palette="origin"]{
+  --pal-ground:#1C1A17;
+  --pal-accent:#E2604A;   /* vermilion on warm near-black */
+  --pal-ok:#4FBF87;
+  --pal-warn:#E0A23F;
+}
+
+/* Two colours that are not the palette's to choose, because they are not
+   chrome — they are drawn on the map, where thirteen line colours are already
+   spoken for.
+
+   --track is what the page itself draws: the walking leg of a ride, the ring
+   on the station you get off at, the ring on the pin the card is about. It
+   used to be --accent, which was a bug rather than a choice — the accent is
+   picked to look right on a button, and a walk painted in a colour four units
+   from Line 7's olive is a walk you cannot pick out at Sindang. This magenta
+   is the furthest thing from every line on both networks, and check-data.mjs
+   fails if a future palette wanders toward one.
+
+   --me is the same argument settled the same way, and it is deliberately every
+   other map app's blue: this is the one place where matching everyone else
+   beats matching ourselves. */
+:root{
+  --track:#E0479E;
   --me:#2D6CB5;
 }
 
-/* ---- 2. the day ---------------------------------------------------------
-   Cream paper, bark ink, cocoa accent. */
-:root{
-  --paper:var(--cream);
-  --surface:color-mix(in srgb, white 55%, var(--cream));
-  --ink:var(--bark);
-  --muted:color-mix(in srgb, var(--cocoa) 74%, var(--cream));
-  --line:color-mix(in srgb, var(--khaki) 72%, var(--cream));
-  --line-2:color-mix(in srgb, var(--khaki) 38%, var(--cream));
-  --line-hover:color-mix(in srgb, var(--khaki) 62%, var(--cocoa) 38%);
-  --accent:var(--cocoa);
-  /* what sits on a filled accent — never assume white: by day this is cream
-     on cocoa, by night bark on khaki, and the token is what makes that one
-     flip rather than fourteen */
-  --on-accent:var(--cream);
-  --field:color-mix(in srgb, white 34%, var(--cream));
-  --hover:color-mix(in srgb, white 26%, var(--cream));
-  --sel:color-mix(in srgb, var(--khaki) 45%, var(--cream));
-  --mapbg:color-mix(in srgb, var(--khaki) 55%, var(--cream));
-  --tint:color-mix(in srgb, var(--cocoa) 8%, transparent);
-  --ok:var(--ok-day);
-  --on-ok:var(--cream);
-  --warn:var(--warn-day);
+/* ---- 2. night, which is the page ---------------------------------------
+   The ground carries everything; the accent is the only chroma in the chrome.
+   Surfaces step up from the ground by lifting it toward the ink, never by
+   adding a second hue. */
+body.night{
+  --paper:var(--pal-ground);
+  --surface:color-mix(in srgb, var(--ink) 7%, var(--pal-ground));
+  --ink:color-mix(in srgb, white 92%, var(--pal-ground));
+  --muted:color-mix(in srgb, var(--ink) 62%, var(--pal-ground));
+  --line:color-mix(in srgb, var(--ink) 16%, var(--pal-ground));
+  --line-2:color-mix(in srgb, var(--ink) 9%, var(--pal-ground));
+  --line-hover:color-mix(in srgb, var(--ink) 30%, var(--pal-ground));
+  --accent:var(--pal-accent);
+  /* what sits on a filled accent — never assume white. A chartreuse fill wants
+     the ground on it; a vermilion fill wants the ink. Mixing the two by the
+     accent's own lightness would need a calc nobody can read, so each theme
+     names one and check-data.mjs holds it to 4.5:1. */
+  --on-accent:var(--pal-ground);
+  --field:color-mix(in srgb, black 35%, var(--pal-ground));
+  --hover:color-mix(in srgb, var(--ink) 7%, var(--pal-ground));
+  /* the selected row is the one place the accent touches a surface, at the
+     strength where it reads as "this one" rather than as a colour */
+  --sel:color-mix(in srgb, var(--pal-accent) 16%, var(--pal-ground));
+  --mapbg:color-mix(in srgb, black 45%, var(--pal-ground));
+  --tint:color-mix(in srgb, var(--pal-accent) 14%, transparent);
+  --ok:var(--pal-ok);
+  --on-ok:var(--pal-ground);
+  --warn:var(--pal-warn);
   /* over the map: the banners' scrim, the panels that float on it, the casing
      painted under a drawn ride, and the ring around a pin */
-  --scrim:color-mix(in srgb, var(--bark) 88%, transparent);
-  --scrim-ink:var(--cream);
-  --glass:color-mix(in srgb, var(--surface) 94%, transparent);
-  --casing:color-mix(in srgb, white 85%, var(--cream));
-  --pin-edge:var(--surface);
+  --scrim:color-mix(in srgb, var(--ink) 92%, transparent);
+  --scrim-ink:var(--pal-ground);
+  --glass:color-mix(in srgb, var(--surface) 93%, transparent);
+  --casing:var(--pal-ground);
+  --pin-edge:var(--ink);
 }
 
-/* ---- 3. the night -------------------------------------------------------
-   The same four with the roles swapped: bark becomes the paper, cream the
-   ink, khaki the accent. Only these lines change — every rule in every other
-   sheet is already written against the names above. */
-body.night{
-  --paper:var(--bark);
-  --surface:color-mix(in srgb, var(--cocoa) 62%, var(--bark));
-  --ink:var(--cream);
-  --muted:color-mix(in srgb, var(--khaki) 60%, var(--cocoa));
-  --line:var(--cocoa);
-  --line-2:color-mix(in srgb, var(--cocoa) 60%, var(--bark));
-  --line-hover:color-mix(in srgb, var(--khaki) 42%, var(--cocoa));
-  --accent:var(--khaki);
-  --on-accent:var(--bark);
-  --field:color-mix(in srgb, black 32%, var(--bark));
-  --hover:color-mix(in srgb, var(--cocoa) 45%, var(--bark));
-  --sel:color-mix(in srgb, var(--cocoa) 78%, var(--bark));
-  --mapbg:color-mix(in srgb, black 45%, var(--bark));
-  --tint:color-mix(in srgb, var(--khaki) 14%, transparent);
-  --ok:var(--ok-night);
-  --on-ok:var(--bark);
-  --warn:var(--warn-night);
-  --scrim:color-mix(in srgb, var(--cream) 92%, transparent);
-  --scrim-ink:var(--bark);
-  --glass:color-mix(in srgb, var(--surface) 93%, transparent);
-  --casing:var(--bark);
-  --pin-edge:var(--cream);
+/* ---- 3. day, which is the sunlight escape hatch -------------------------
+   Not the daytime theme — the high-contrast one, for the few seconds a
+   fortnight when the sun is on the screen and night has stopped being
+   readable. So: a near-white ground carrying only a whisper of the palette's
+   hue, the ground colour itself as ink, and every semantic colour darkened
+   until it can hold text on white. Stark is the point. */
+:root{
+  --paper:color-mix(in srgb, var(--pal-accent) 4%, color-mix(in srgb, white 96%, var(--pal-ground)));
+  --surface:color-mix(in srgb, white 60%, var(--paper));
+  --ink:var(--pal-ground);
+  --muted:color-mix(in srgb, var(--ink) 73%, var(--paper));
+  --line:color-mix(in srgb, var(--ink) 15%, var(--paper));
+  --line-2:color-mix(in srgb, var(--ink) 8%, var(--paper));
+  --line-hover:color-mix(in srgb, var(--ink) 32%, var(--paper));
+  /* the same hue as night's accent, taken down until it carries text on white */
+  --accent:color-mix(in srgb, var(--pal-accent) 44%, black);
+  --on-accent:var(--paper);
+  --field:color-mix(in srgb, var(--ink) 4%, var(--paper));
+  --hover:color-mix(in srgb, var(--ink) 5%, var(--paper));
+  --sel:color-mix(in srgb, var(--pal-accent) 22%, var(--paper));
+  --mapbg:color-mix(in srgb, var(--ink) 10%, var(--paper));
+  --tint:color-mix(in srgb, var(--pal-accent) 12%, transparent);
+  --ok:color-mix(in srgb, var(--pal-ok) 46%, black);
+  --on-ok:var(--paper);
+  --warn:color-mix(in srgb, var(--pal-warn) 46%, black);
+  --scrim:color-mix(in srgb, var(--ink) 90%, transparent);
+  --scrim-ink:var(--paper);
+  --glass:color-mix(in srgb, var(--surface) 95%, transparent);
+  --casing:color-mix(in srgb, white 88%, var(--paper));
+  --pin-edge:var(--surface);
 }
 
 /* ---- 4. the categories --------------------------------------------------
@@ -110,35 +171,39 @@ body.night{
 
    They keep nine distinct hues on purpose — nine pins at 390px in sunlight
    have to be tellable apart, and the icon inside a pin is only half of that
-   job — but every one is pulled into this palette's warm, muted register and
-   is dark enough for --on-cat to read on it. They do not flip with the
-   theme: a pin sits on a map, not on the page. */
+   job. They do not flip with the theme and they do not follow the palette: a
+   pin sits on a map, not on the page, and the map looks the same either way.
+   check-data.mjs holds each one clear of the others, clear of every subway
+   line colour, and dark enough for --on-cat to read on it. */
 :root{
   --cat-hotel:#4A6472;
   --cat-food:#9E3B29;
   --cat-cafe:#7E5839;
-  --cat-bakery:#99505A;
+  --cat-bakery:#A2544F;
   --cat-dessert:#7D5273;
   --cat-bar:#7D6820;
   --cat-shopping:#456B4F;
-  --cat-landmark:#575B84;
-  --cat-beauty:#94456B;
+  --cat-landmark:#4E5490;
+  --cat-beauty:#A03C6E;
   /* the icon inside a pin and the number on a planned one */
-  --on-cat:color-mix(in srgb, white 78%, var(--cream));
+  --on-cat:#F4F4EE;
 }
 
 /* ---- 5. depth -----------------------------------------------------------
    Four shadows, because a page with a dozen one-off shadows reads as a dozen
-   different materials. */
+   different materials. Night's are deeper: a shadow on a dark ground has to
+   be darker than the ground to be seen at all. */
 :root{
-  --sh-1:0 1px 2px color-mix(in srgb, var(--bark) 18%, transparent);
-  --sh-2:0 2px 5px color-mix(in srgb, var(--bark) 30%, transparent);
-  --sh-3:0 4px 16px color-mix(in srgb, var(--bark) 14%, transparent);
-  --sh-4:0 14px 36px color-mix(in srgb, var(--bark) 18%, transparent);
+  --sh-1:0 1px 2px rgb(0 0 0 / .16);
+  --sh-2:0 2px 5px rgb(0 0 0 / .26);
+  --sh-3:0 4px 16px rgb(0 0 0 / .14);
+  --sh-4:0 14px 36px rgb(0 0 0 / .18);
 }
 body.night{
-  --sh-3:0 4px 16px color-mix(in srgb, black 40%, transparent);
-  --sh-4:0 14px 36px color-mix(in srgb, black 55%, transparent);
+  --sh-1:0 1px 2px rgb(0 0 0 / .40);
+  --sh-2:0 2px 5px rgb(0 0 0 / .50);
+  --sh-3:0 4px 16px rgb(0 0 0 / .45);
+  --sh-4:0 14px 36px rgb(0 0 0 / .60);
 }
 
 /* ---- 6. the measurements that carry a decision --------------------------
@@ -157,15 +222,14 @@ body.night{
 /* ---- 7. what every icon does -------------------------------------------
    Streamline icons, drawn by src/lib/icons.js on a 14x14 grid. Two rules for
    all of them: an icon is the size of the text it sits beside, and it takes
-   that text's colour — so a legend chip, a white-on-clay pin and a night-mode
-   button each colour their own icon and none needs a rule of its own. Only an
-   icon with no text beside it gets a size, and only from the scale above. */
+   that text's colour — so a legend chip, a pin and a night-mode button each
+   colour their own icon and none needs a rule of its own. Only an icon with
+   no text beside it gets a size, and only from the scale above. */
 .ic{width:1em; height:1em; flex:none; display:inline-block; vertical-align:-.14em;}
 /* On a filled dot the stroke is cream on colour at 12px, which is where a
    hairline starts to break up — the one place the set's own weight needs it. */
 .pindot .ic,.pin-b .ic,.pend-i .ic{stroke-width:1.3;}
 
 /* the two rules that are night mode and could not be a token */
-body.night .card{box-shadow:var(--sh-4);}
 body.night .leaflet-control-zoom a{background:var(--surface); color:var(--ink); border-color:var(--line);}
 body.carded .tilebanner{top:auto; bottom:14px;}

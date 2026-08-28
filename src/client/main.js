@@ -12,6 +12,7 @@ import { setTab } from "./tabs.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
+import { applyPalette, bootPalette, palette } from "./palette.js";
 import { here, locating, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
@@ -19,6 +20,7 @@ import { CATS, PLACES } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 
 /* ---------------- go ---------------- */
+bootPalette();       // before anything paints, so nothing paints in the wrong palette
 bootPlan();          // reads the link, so currentTab is right before anything renders
 renderLegend();
 renderList();
@@ -41,6 +43,18 @@ if (nightBtn) nightBtn.onclick = () => {
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
   if (sel && routeDraw) showRoute(sel);
 };
+
+/* Swapping palette while the page is up, for driving it from a browser: the map paints
+   from tokens through cssVar(), so whatever is already drawn has to be drawn again —
+   the same redraw the night toggle does, and for the same reason. */
+export function setPalette(name){
+  const now = applyPalette(name);
+  save({ palette: now });
+  drawRail();
+  const sel = selectedId && PLACES.find(x => x.id === selectedId);
+  if (sel && routeDraw) showRoute(sel);
+  return now;
+}
 
 export const railBtn = document.getElementById("railToggle");
 if (railBtn) railBtn.classList.toggle("on", railOn);
@@ -91,7 +105,7 @@ registerSW();
    Getters rather than values, because most of what is worth looking at is reassigned
    as the page runs. */
 window.trip = {
-  focus, select, deselect, setTab, setSideTab, setView,
+  focus, select, deselect, setTab, setSideTab, setView, setPalette,
   planAdd, planRemove, planToggle, planClear, planReorder, planHref,
   startLocating, stopLocating, savePack, packSize, setHideVisited,
   PLACES, CATS, RAIL,
@@ -107,5 +121,6 @@ window.trip = {
   get locating(){ return locating; },
   get visited(){ return [...visited]; },
   get hideVisited(){ return hideVisited; },
+  get palette(){ return palette; },
 };
 

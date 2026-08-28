@@ -278,3 +278,109 @@ export const bbox = (pts) => pts.reduce((b, p) => [
   Math.min(b[0], p[0]), Math.min(b[1], p[1]), Math.max(b[2], p[0]), Math.max(b[3], p[1]),
 ], [90, 180, -90, -180]).map(n => Number(n.toFixed(4)));
 
+
+/* ---------- colour ----------
+   Enough CSS colour to check styles/tokens.css from node, and no more. The page
+   resolves its own tokens in a browser (client/theme.js); this exists so
+   check-data.mjs can answer "is this palette readable" without one, which is the
+   only way a contrast floor is a rule rather than a hope.
+
+   Handles what tokens.css actually uses: hex, `white`, `black`, `transparent`,
+   var() chains, and `color-mix(in srgb, A p%, B)` nested to any depth. Anything
+   else returns null and the caller skips it rather than guessing — a token this
+   cannot read is a token nobody checked, which is worth knowing. */
+
+const NAMED = { white:[255,255,255], black:[0,0,0] };
+
+export function parseHex(h){
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(h.trim());
+  if (!m) return null;
+  const s = m[1].length === 3 ? m[1].replace(/./g, c => c + c) : m[1];
+  return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16));
+}
+export const toHex = (rgb) =>
+  "#" + rgb.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+
+/* split on top-level commas, so a nested color-mix survives being an argument */
+function splitArgs(s){
+  const out = []; let depth = 0, cur = "";
+  for (const ch of s){
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out.map(x => x.trim());
+}
+
+/** Resolve a token value to [r,g,b], or null if it is not a colour this understands.
+    `vars` is a flat map of custom property name -> declared value. */
+export function resolveColor(value, vars, seen = new Set()){
+  const v = String(value == null ? "" : value).trim();
+  if (!v) return null;
+  if (v === "transparent") return null;              // no colour to contrast against
+  if (NAMED[v]) return NAMED[v].slice();
+  const hex = parseHex(v);
+  if (hex) return hex;
+
+  const varRef = /^var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)$/.exec(v);
+  if (varRef){
+    if (seen.has(varRef[1])) return null;            // a cycle is not a colour
+    const next = new Set(seen).add(varRef[1]);
+    if (vars[varRef[1]] != null) return resolveColor(vars[varRef[1]], vars, next);
+    return varRef[2] ? resolveColor(varRef[2], vars, next) : null;
+  }
+
+  const mix = /^color-mix\(\s*in\s+srgb\s*,([\s\S]*)\)$/.exec(v);
+  if (mix){
+    const args = splitArgs(mix[1]);
+    if (args.length !== 2) return null;
+    const pct = (s) => { const m = /\s([\d.]+)%$/.exec(s); return m ? +m[1] / 100 : null; };
+    const bare = (s) => s.replace(/\s+[\d.]+%$/, "").trim();
+    let p1 = pct(args[0]), p2 = pct(args[1]);
+    if (p1 == null && p2 == null) p1 = 0.5;
+    if (p1 == null) p1 = 1 - p2;
+    const a = resolveColor(bare(args[0]), vars, seen);
+    const b = resolveColor(bare(args[1]), vars, seen);
+    /* Mixing with `transparent` changes alpha, not hue: what lands on screen is the
+       other colour over whatever is beneath it, which for a contrast check is the
+       other colour. */
+    if (!a) return b;
+    if (!b) return a;
+    return a.map((c, i) => c * p1 + b[i] * (1 - p1));
+  }
+  return null;
+}
+
+const channel = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+export const luminance = (rgb) => 0.2126 * channel(rgb[0]) + 0.7152 * channel(rgb[1]) + 0.0722 * channel(rgb[2]);
+
+/** WCAG contrast ratio, 1..21. */
+export function contrast(a, b){
+  const l1 = luminance(a), l2 = luminance(b);
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+/** How far apart two colours look. Redmean — cheap, and good enough to answer the only
+    question asked of it: could you mistake this for that subway line at arm's length. */
+export function colourDistance(a, b){
+  const rm = (a[0] + b[0]) / 2;
+  return Math.sqrt((2 + rm / 256) * (a[0] - b[0]) ** 2 + 4 * (a[1] - b[1]) ** 2
+                 + (2 + (255 - rm) / 256) * (a[2] - b[2]) ** 2);
+}
+
+/** Every custom property declared by the selectors matching `want`, in source order,
+    so a later block overrides an earlier one the way the cascade would. */
+export function cssVars(css, want){
+  const vars = {};
+  /* comments first: they are full of commas and the odd brace, and a selector list
+     read through one is not a selector list */
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const m of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)){
+    const selectors = m[1].split(",").map(s => s.trim());
+    if (!selectors.some(sel => want.includes(sel))) continue;
+    for (const d of m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) vars[d[1]] = d[2].trim();
+  }
+  return vars;
+}
