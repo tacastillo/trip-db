@@ -8,6 +8,7 @@ import { renderLegend } from "./legend.js";
 import { CATS, CLUSTERS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { fmtM, matchesQuery } from "../lib/plan-core.js";
+import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
 
 /* ---------------- sidebar list ---------------- */
 export const listEl = document.getElementById("list");
@@ -20,9 +21,26 @@ export function listed(p){
     && !(visitedHidden(p.id) && !planHas(p.id));
 }
 
+/* The one thing the list says about hours. A live open/shut chip on 137 rows would be
+   137 things to read past; the day you cannot go at all is the one worth a word. */
+function shutToday(p){
+  return closedDaysFor(p).indexOf(koreaClock().dow) >= 0;
+}
+
+/* The handful of places with no database row carry their closing day as prose in meta, and
+   the flag above is built from that same prose — so showing both would print "Closed today"
+   next to "Closed Mon". The flag wins there: it is the one that answers today. Only when the
+   meta is *nothing but* that clause, though — "Closed Tue · Catchtable" still has to say
+   Catchtable, which is the half you would act on. */
+const META_ONLY_CLOSED = /^closed\s+(?:mon|tue|wed|thu|fri|sat|sun)(?:\s*[–—\-\/,&]\s*(?:mon|tue|wed|thu|fri|sat|sun))*$/i;
+function metaSaysClosed(p){
+  return META_ONLY_CLOSED.test(String(p.meta || "").trim());
+}
+
 export function itemRow(p){
   const c = CATS[p.cat];
   const been = isVisited(p.id);
+  const shut = shutToday(p);
   const b = document.createElement("button");
   b.className = "item" + (selectedId === p.id ? " sel" : "") + (been ? " been" : "");
   b.dataset.id = p.id;
@@ -30,7 +48,8 @@ export function itemRow(p){
     <span class="it-body">
       <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
       <span class="it-note">${p.note}</span>
-      ${p.meta ? `<span class="it-meta">${p.meta}</span>` : ""}
+      ${shut ? '<span class="it-shut">Closed today</span>' : ""}
+      ${p.meta && !(shut && metaSaysClosed(p)) ? `<span class="it-meta">${p.meta}</span>` : ""}
       <span class="it-dist" data-dist="${p.id}"></span>
     </span>`;
   b.onclick = () => focus(p.id);

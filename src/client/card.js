@@ -8,16 +8,38 @@ import { isVisited, toggleVisited } from "./visited.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { dirBtnsHtml, hopHow } from "./plan-pane.js";
-import { fmtM, hotelFor, kakaoDirUrl, naverDirUrl, planLegs } from "../lib/plan-core.js";
+import { fmtM, hotelFor, kakaoDirUrl, koreaClock, naverDirUrl, planLegs } from "../lib/plan-core.js";
+import { DOW_SHORT } from "../lib/plan-core.js";
+import { fmtMin, openState } from "../lib/hours.js";
+
+/* Open or shut, right now, in Korea. Computed at render time rather than on a timer:
+   the card is rebuilt on every select, which is the only moment anyone reads this.
+   An hours string the parser does not recognise is printed verbatim instead — a line a
+   person can read beats a status nobody can trust. */
+export function hoursChipHtml(p){
+  if (!p.hours) return "";
+  const st = openState(p, koreaClock());
+  if (st.state === "unknown") return `<span class="pop-hours">${p.hours}</span>`;
+  if (st.state === "open")
+    return `<span class="pop-hours on">Open · til ${fmtMin(st.until)}</span>`;
+  if (st.opensAt == null) return `<span class="pop-hours">Closed</span>`;
+  const when = st.opensAhead === 0 ? "" : st.opensAhead === 1 ? " tomorrow" : ` ${DOW_SHORT[st.opensDow]}`;
+  return `<span class="pop-hours">Closed · opens ${fmtMin(st.opensAt)}${when}</span>`;
+}
 
 /* ---------------- map ---------------- */
 export function cardHtml(p){
   const c = CATS[p.cat];
   return `<button class="card-x" id="cardX" title="Close" aria-label="Close">✕</button>
-    <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+    <div class="pop-top">
+      <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+      ${hoursChipHtml(p)}
+    </div>
     <div class="pop-name">${p.name}</div>
+    ${p.ko ? `<div class="pop-ko" lang="ko">${p.ko}</div>` : ""}
     <div class="pop-hood">${p.cluster}</div>
     <div class="pop-note">${p.note}</div>
+    ${p.signature ? `<div class="pop-sig">${p.signature}</div>` : ""}
     ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}
     ${here ? `<div class="pop-here">📍 ${fmtM(distanceFrom(p))} from you</div>` : ""}
     <div class="card-acts">

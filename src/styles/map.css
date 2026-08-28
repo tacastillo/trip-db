@@ -20,10 +20,20 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 .card-x{position:absolute; top:7px; right:7px; width:28px; height:28px; border:none; background:none;
   cursor:pointer; color:var(--muted); font-size:16px; line-height:1; border-radius:7px; padding:0;}
 .card-x:hover{background:var(--line-2); color:var(--ink);}
+/* The category and the open/shut read share one row so the status costs no new line —
+   card height is the scarcest thing here, and the close button already owns the corner. */
+.pop-top{display:flex; align-items:baseline; justify-content:space-between; gap:8px; padding-right:26px;}
 .pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+.pop-hours{flex:none; font-size:10.5px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
+.pop-hours.on{color:var(--ok);}
 .pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px; padding-right:22px;}
+/* The hangul lives here and only here. It is what you hold up to a driver or a counter,
+   which is the card; in a list it is a script you cannot read sitting in the one line
+   whose job is to tell you which place this is. */
+.pop-ko{font-size:11.5px; color:var(--muted); margin:0 0 1px; line-height:1.3;}
 .pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
 .pop-note{font-size:12.5px; color:var(--ink);}
+.pop-sig{font-size:11.5px; color:var(--muted); line-height:1.4; margin-top:4px;}
 .pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
 .card-plan{margin-top:10px;}   /* the rest of it is in plan.css, after .pact */
 

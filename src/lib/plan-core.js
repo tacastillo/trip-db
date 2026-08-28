@@ -3,6 +3,7 @@
    into node. Anything that touches the page belongs in src/client/, and
    tools/check-data.mjs fails if something in this directory reaches for it. */
 
+import { DOW, closedFromHours } from "./hours.js";
 import { CATS, LEGS, PLACES, TRIP } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 import { STATION_COORDS, WALK_BEND, WALK_KMH } from "../data/routing.js";
@@ -37,7 +38,9 @@ export const REORDER_MAX_PASSES = 8;
 /* Past this, "walk it" stops being advice. */
 export const HOP_WALKABLE_M = 1200;
 
-export const DOW = ["mon","tue","wed","thu","fri","sat","sun"];
+/* DOW lives in hours.js, which is the module that has to agree with the source database
+   about what a weekday is called. Re-exported so the old callers keep their import. */
+export { DOW } from "./hours.js";
 export const DOW_LABEL = { mon:"Monday", tue:"Tuesday", wed:"Wednesday", thu:"Thursday",
                     fri:"Friday", sat:"Saturday", sun:"Sunday" };
 
@@ -104,10 +107,13 @@ export function planDow(day){
    addition rather than a timezone library. `now` is passed in by the caller so this
    stays testable; nothing here reads the clock unless asked to. */
 export const KST_OFFSET_MIN = 9 * 60;
-export function isoDay(now){
+export function koreaClock(now){
   const t = new Date((now || new Date()).getTime() + KST_OFFSET_MIN * 60000);
-  return t.toISOString().slice(0, 10);
+  return { day: t.toISOString().slice(0, 10),
+           dow: DOW[(t.getUTCDay() + 6) % 7],
+           minutes: t.getUTCHours() * 60 + t.getUTCMinutes() };
 }
+export function isoDay(now){ return koreaClock(now).day; }
 
 export const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 export const DOW_SHORT = { mon:"Mon", tue:"Tue", wed:"Wed", thu:"Thu", fri:"Fri", sat:"Sat", sun:"Sun" };
@@ -171,6 +177,18 @@ export function closedDays(meta){
   const out = [];
   for (let i = a; ; i = (i + 1) % 7){ out.push(DOW[i]); if (i === b || out.length > 7) break; }
   return out;
+}
+
+/* The one authority on which days a place is shut, whatever form that fact arrived in.
+   `closed` is the structured field synced from the trip database and wins outright — an
+   explicit [] means "open every day" and must not fall through to the prose, or a place
+   the database says opens daily would inherit a stale "Closed Mon" from a note. Failing
+   that, the hours string carries its own closing days. Only then do we read meta, which
+   is how the ~50 places that have no database row keep behaving exactly as they did. */
+export function closedDaysFor(place){
+  if (!place) return [];
+  if (Array.isArray(place.closed)) return place.closed;
+  return closedFromHours(place.hours) || closedDays(place.meta);
 }
 
 /** location.search -> a plan. Never reads location itself, so it can be tested. */
@@ -469,8 +487,8 @@ export function orderCautions(stops, city, day){
   });
   const dow = planDow(day);
   if (dow) stops.forEach((s, i) => {
-    if (s.place && closedDays(s.place.meta).indexOf(dow) >= 0) out.push({ kind:"closed", i, text:
-      `${s.place.name} is shut on a ${DOW_LABEL[dow]} — the note says "${s.place.meta}".` });
+    if (s.place && closedDaysFor(s.place).indexOf(dow) >= 0) out.push({ kind:"closed", i, text:
+      `${s.place.name} is shut on a ${DOW_LABEL[dow]}${s.place.hours ? ` — ${s.place.hours}` : s.place.meta ? ` — the note says "${s.place.meta}"` : ""}.` });
   });
   // hardest problems first
   const rank = { unknown:0, city:1, closed:2, order:3 };
@@ -503,7 +521,9 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
     const c = CATS[p.cat] || { label:p.cat, emoji:"" };
     lines.push(`${i + 1}. **${p.name}** — ${c.emoji} ${c.label} · ${p.cluster}`);
     lines.push(`   ${p.lat}, ${p.lng}`);
+    if (p.ko) lines.push(`   ${p.ko}`);
     if (p.note) lines.push(`   ${p.note}`);
+    if (p.hours) lines.push(`   Hours: ${p.hours}`);
     if (p.meta) lines.push(`   Check before you go: "${p.meta}"`);
     const ride = rideLine && rideLine(p);
     if (ride) lines.push(`   From the hotel: ${ride}`);
@@ -547,7 +567,8 @@ export function planShareText(plan, stops, href){
   stops.forEach((s, i) => {
     const p = s.place;
     if (!p){ lines.push(`${i + 1}. unknown spot "${s.id}"`); return; }
-    lines.push(`${i + 1}. ${p.name} — ${p.note || (CATS[p.cat] || {}).label || ""}`);
+    lines.push(`${i + 1}. ${p.name}${p.ko ? ` (${p.ko})` : ""} — ${p.note || (CATS[p.cat] || {}).label || ""}`);
+    if (p.hours) lines.push(`   ${p.hours}`);
     if (p.meta) lines.push(`   ${p.meta}`);
     const leg = legs[i];
     if (leg) lines.push(`   ${fmtM(leg.metres)} to the next stop · ${leg.naver}`);

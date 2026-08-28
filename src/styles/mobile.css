@@ -111,6 +111,13 @@
   .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
     max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
   .card-x{width:34px; height:34px; font-size:19px;}
+  /* Three lines can now land in that same box — the hangul, the hours and the signature.
+     Each is conditional, but they co-occur, so they are the smallest type on the card and
+     the row above stays on one line rather than wrapping the status under the category. */
+  .pop-top{padding-right:38px;}
+  .pop-hours{font-size:11px;}
+  .pop-ko{font-size:12.5px;}
+  .pop-sig{font-size:12px;}
   .leaflet-control-zoom{display:none;}
 }
 

@@ -92,6 +92,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | Constant | File | Source | Edit by hand? |
 | --- | --- | --- | --- |
 | `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
+| `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -297,9 +298,28 @@ Ordering advice is deterministic and computed here, never asked of anyone:
 `backtracks()` flags an adjacent pair that is shorter the other way round,
 `reorderByProximity()` offers a whole-day reorder and returns the identity order unless
 it genuinely wins, and `nearbySuggestions()` ranks unplanned spots by distance to what
-you already have. `closedDays()` reads the handful of `Closed Mon` shapes that actually
-occur in `meta` — it is not an hours parser and must not become one. Everything else in
-`meta` is shown verbatim and never interpreted.
+you already have.
+
+`closedDaysFor()` in `plan-core.js` is the one authority on which days a place is shut, and
+it reads three things in order. `closed` is the structured field synced from the trip's Notion
+database and wins outright — an explicit `[]` means *open every day* and must not fall through,
+or a place the database says opens daily would inherit a stale `Closed Mon` from a note. Then
+the `hours` string, which carries its own closing days. Only then `closedDays()`, the old
+anchored regex over the handful of `Closed Mon` shapes in `meta`, which is what keeps the ~40
+places with no database row behaving exactly as they always did.
+
+**`hours` is structured; `meta` is a sentence.** The distinction is the whole of
+`src/lib/hours.js`, and confusing the two is the mistake this paragraph exists to prevent.
+`hours` arrives already structured from the source database in one narrow 24h grammar
+(`Daily 09:00-22:00`, `Mon-Fri 18:30-26:00; Sat,Sun 15:00-26:00`, a comma for a lunch break,
+`; closed Tue`, `; LO 21:00`, and `26:00` meaning two in the morning), so parsing it is
+reading a field, not guessing at prose — and anything the grammar does not cover returns
+`null` and gets printed verbatim rather than guessed at. `meta` is still prose, still shown
+verbatim, and still must never be parsed into a schedule beyond that one regex.
+
+None of this schedules anything. There are no arrival times, no dwell times and no durations
+anywhere on this page and none should be invented; `hours` says when a door is open, never
+when you will be standing at it.
 
 ## What this browser remembers
 
@@ -379,9 +399,10 @@ npm run build                  # that it compiles at all
 node tools/check-data.mjs      # data consistency, and the src/lib fence
 node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
+node tools/test-hours.mjs      # the opening-hours grammar, no clock needed
 ```
 
-CI runs all four on every push and pull request, and nothing deploys unless they pass.
+CI runs all five on every push and pull request, and nothing deploys unless they pass.
 That is a backstop, not the plan: none of them see the page, so a green run says only
 that the data agrees with itself and the bundle built.
 
