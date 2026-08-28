@@ -3,7 +3,7 @@
 .vs-btn{flex:1; border:none; background:none; cursor:pointer; font-family:'Bricolage Grotesque',sans-serif;
   font-weight:600; font-size:13.5px; color:var(--muted); padding:9px 6px; border-radius:7px; min-height:40px;
   display:flex; align-items:center; justify-content:center; gap:6px; line-height:1;}
-.vs-btn.on{background:var(--surface); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.14);}
+.vs-btn.on{background:var(--surface); color:var(--ink); box-shadow:var(--sh-1);}
 .vs-ct{font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
 .vs-btn.on .vs-ct{color:var(--accent);}
 
@@ -26,6 +26,7 @@
     display:inline-flex; align-items:center; justify-content:center;}
   .tb-l{display:none;}
   .tb-i{font-size:15px; line-height:1;}
+  .tb-i .ic{width:var(--ic-l); height:var(--ic-l);}
   /* except when it is counting: a download says how far along it is */
   #offlineToggle .tb-i{font-size:13px; font-variant-numeric:tabular-nums;}
   .badge{font-size:10.5px; padding:4px 8px; border-radius:6px;}
@@ -62,30 +63,31 @@
      and the rail the hop rows hang off moves with them because it is the same token */
   .planpane{--px:14px; --gap:10px; --grab:44px; --num:26px; --ctrl:44px;}
   .pstop{padding:11px 14px;}
-  .pdrag{min-height:52px; font-size:16px;}
+  .pdrag{min-height:52px;}
+  .pdrag .ic{width:var(--ic-m); height:var(--ic-m);}
   .pname{font-size:15px;}
   .phood{font-size:12px;}
   .pnote{font-size:13px;}
   .phop{font-size:13px; padding-top:9px; padding-bottom:11px;}
   .planbtn{min-width:34px; min-height:34px;}
-  .pact{min-height:44px; font-size:13px;}
+  .pact{min-height:var(--tap); font-size:13px;}
   /* a thumb, not a cursor: the add control gets the full 44px Apple asks for */
-  .planbtn{width:44px; height:44px; min-width:44px; min-height:44px; font-size:22px; margin:6px 10px 0 2px;}
-  .planbtn.on{font-size:18px;}
-  .card-plan{min-height:44px; font-size:14px;}
-  .card-been{min-height:44px; font-size:13px;}
+  .planbtn{width:var(--tap); height:var(--tap); min-width:var(--tap); min-height:var(--tap); margin:6px 10px 0 2px;}
+  .planbtn .ic{width:var(--ic-xl); height:var(--ic-xl);}
+  .card-plan{min-height:var(--tap); font-size:14px;}
+  .card-been{min-height:var(--tap); font-size:13px;}
   /* the been-there tick is a thumb too, but it never takes room from the add button */
-  .beenbtn{width:34px; height:44px; min-width:34px; font-size:17px; margin:6px 10px 0 0;}
+  .beenbtn{width:34px; height:var(--tap); min-width:34px; font-size:17px; margin:6px 10px 0 0;}
   .pday{min-height:46px; padding:8px 11px;}
   .pday-d{font-size:12.5px;}
 
   /* the Naver button is the thing you tap while standing in a street, so it gets the
      whole row and a thumb-sized target rather than sharing a line with the distance */
   .phop-go{width:100%; margin-left:0; margin-top:2px;}
-  .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:44px; font-size:13.5px; margin-top:0;}
+  .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:var(--tap); font-size:13.5px; margin-top:0;}
   /* Kakao sits under it rather than beside the distance, which has the line to itself */
   .phop-a.alt{flex:1 1 0; min-width:0; min-height:40px; font-size:12.5px;}
-  .pop-route .phop-a{min-height:44px; font-size:13.5px;}
+  .pop-route .phop-a{min-height:var(--tap); font-size:13.5px;}
   .pop-route .phop-a.alt{min-height:40px;}
   .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}
@@ -110,7 +112,8 @@
      on with a thumb, so it gets the room and the map keeps the other 40%. */
   .card{top:9px; left:9px; right:9px; width:auto; max-width:none; padding:12px 14px 14px;
     max-height:60%; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;}
-  .card-x{width:34px; height:34px; font-size:19px;}
+  .card-x{width:34px; height:34px;}
+  .card-x .ic{width:var(--ic-m); height:var(--ic-m);}
   /* Three lines can now land in that same box — the hangul, the hours and the signature.
      Each is conditional, but they co-occur, so they are the smallest type on the card and
      the row above stays on one line rather than wrapping the status under the category. */
@@ -120,6 +123,16 @@
   .pop-sub{font-size:12px;}
   .pop-extra{font-size:12px;}
   .leaflet-control-zoom{display:none;}
+
+  /* the palette panel becomes a sheet: a 300px card floating top-right is a desktop
+     shape, and the bottom half of the screen is what a thumb actually reaches */
+  .pal-panel{right:8px; left:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
+    width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
+  .pal-panel.on{transform:none;}
+  .pal-row{padding:10px 12px; min-height:52px;}
+  .pal-txt b{font-size:14px;}
+  .pal-txt em{font-size:11.5px;}
+  .pal-sw i{width:13px; height:30px;}
 }
 
 @media (max-width:400px){

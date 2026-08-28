@@ -7,6 +7,7 @@ import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
 import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, legForDate, resolvePlan } from "../lib/plan-core.js";
+import { icon } from "../lib/icons.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
    few need a setter rather than a bare live binding. */
@@ -178,7 +179,7 @@ export function refreshPlanControls(){
   document.querySelectorAll("[data-plan-add]").forEach(b => {
     const on = planHas(b.dataset.planAdd);
     b.classList.toggle("on", on);
-    b.textContent = on ? "✓" : "+";
+    b.innerHTML = icon(on ? "check" : "add");
     b.title = on ? "Remove from the day" : "Add to the day";
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
@@ -186,7 +187,7 @@ export function refreshPlanControls(){
   if (cp && selectedId){
     const on = planHas(selectedId);
     cp.classList.toggle("done", on);
-    cp.textContent = on ? "✓ In the day" : "+ Add to the day";
+    cp.innerHTML = `${icon(on ? "check" : "add")} ${on ? "In the day" : "Add to the day"}`;
   }
 }
 

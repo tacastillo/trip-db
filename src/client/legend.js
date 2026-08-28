@@ -5,6 +5,8 @@ import { save } from "./store.js";
 import { active, currentTab } from "./state.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
 import { CATS, CAT_ORDER, PLACES } from "../data/places.js";
+import { icon } from "../lib/icons.js";
+import { catVar } from "../lib/design.js";
 
 /* ---------------- legend ---------------- */
 export let counts = {};
@@ -18,7 +20,7 @@ export function renderLegend(){
     const c = CATS[k];
     const b = document.createElement("button");
     b.className = "chip" + (active[k] ? "" : " off");
-    b.innerHTML = `<span class="dot" style="background:${c.color}"></span>${c.label}<span class="ct">${counts[k]}</span>`;
+    b.innerHTML = `<span class="dot" style="background:${catVar(k)}"></span>${c.label}<span class="ct">${counts[k]}</span>`;
     b.onclick = () => { active[k] = !active[k]; saveCats(); syncMarkers(); renderLegend(); renderList(); };
     legendEl.appendChild(b);
   });
@@ -33,7 +35,7 @@ export function renderLegend(){
   if (locating){
     const b = document.createElement("button");
     b.className = "chip near" + (nearFirst ? " on" : "");
-    b.innerHTML = "📍 Nearest first";
+    b.innerHTML = `${icon("pin")} Nearest first`;
     b.title = "Drop the neighbourhoods and list everything by how far away it is";
     b.onclick = () => { setNearFirst(!nearFirst); renderLegend(); };
     legendEl.appendChild(b);

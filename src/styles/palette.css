@@ -1,0 +1,43 @@
+/* The palette panel, which nothing on the page points at: five taps on the title opens
+   it. See client/palette.js for why it is hidden rather than a control.
+
+   A panel rather than a modal over the middle of the screen, and deliberately so — the
+   whole reason it exists is to judge a palette against the map, the pins and a card, so
+   it must not cover them. It sits against the right edge on a desktop and comes up as a
+   sheet on a phone, where the bottom half is what a thumb reaches. */
+.pal-panel{position:fixed; z-index:900; right:14px; top:14px; width:300px; max-width:calc(100vw - 28px);
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--sh-4); overflow:hidden;
+  opacity:0; transform:translateY(-8px); transition:opacity .16s ease-out, transform .16s ease-out;}
+.pal-panel.on{opacity:1; transform:none;}
+@media (prefers-reduced-motion:reduce){ .pal-panel{transition:none; opacity:1; transform:none;} }
+
+.pal-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  padding:12px 12px 10px 14px; border-bottom:1px solid var(--line-2);}
+.pal-head b{display:block; font-family:'Bricolage Grotesque',sans-serif; font-size:13.5px; font-weight:700; line-height:1.2;}
+.pal-head span{display:block; font-size:10.5px; color:var(--muted); margin-top:2px;}
+.pal-x{flex:none; width:32px; height:32px; border:none; background:none; color:var(--muted); cursor:pointer;
+  border-radius:8px; padding:0; display:flex; align-items:center; justify-content:center;}
+.pal-x:hover{background:var(--line-2); color:var(--ink);}
+.pal-x .ic{width:var(--ic-s); height:var(--ic-s);}
+
+.pal-list{padding:6px; display:flex; flex-direction:column; gap:2px;}
+/* A row is the palette it names: [data-palette] sets --pal-* on any element, so the
+   swatches below are that palette's own colours with nothing copied into JS. */
+.pal-row{display:flex; align-items:center; gap:11px; width:100%; text-align:left; cursor:pointer;
+  font-family:inherit; color:var(--ink); background:none; border:1px solid transparent;
+  border-radius:10px; padding:8px 10px; min-height:var(--tap);}
+.pal-row:hover{background:var(--hover);}
+.pal-row.on{background:var(--sel); border-color:var(--accent);}
+.pal-row:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.pal-sw{flex:none; display:flex; border-radius:6px; overflow:hidden; box-shadow:var(--sh-1);}
+.pal-sw i{display:block; width:11px; height:26px;}
+.pal-txt{min-width:0; flex:1;}
+.pal-txt b{display:block; font-size:13px; font-weight:600; line-height:1.2;}
+.pal-txt em{display:block; font-style:normal; font-size:10.5px; color:var(--muted); margin-top:2px;}
+.pal-tick{flex:none; color:var(--accent); opacity:0; display:flex;}
+.pal-tick .ic{width:var(--ic-s); height:var(--ic-s);}
+.pal-row.on .pal-tick{opacity:1;}
+
+/* the title is the way in, so stop a rapid five taps turning into a text selection */
+.title{-webkit-user-select:none; user-select:none;}

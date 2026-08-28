@@ -7,6 +7,26 @@ Actions builds it on every push to `main` and hands the output to GitHub Pages.
 
 [Astro]: https://astro.build
 
+## Night first. Day is the sunlight escape hatch.
+
+**This page is used in dark mode, essentially always.** Not "dark mode is the default" —
+`state.js` has said that for a while and it undersells it. Over a fortnight in Korea the
+light theme will be on screen for a few seconds, total, and only for one reason: standing
+in direct sun where the dark theme has stopped being readable.
+
+That settles a whole class of argument before it starts:
+
+- **Every judgement call goes to night.** If a colour has to be lovely in one theme and
+  merely fine in the other, it is lovely at night. Screenshot night first, and more of it.
+- **Day is not the pretty daytime theme. It is the high-contrast theme.** Its job is
+  legibility at 1200 nits with the sun behind you, so it wants a near-white ground, a
+  near-black ink and an accent dark enough to hold text — not a charming tint. Where the
+  two themes disagree, day takes the more contrasted option every time, and its floor in
+  `check-data.mjs` is deliberately higher than night's rather than equal to it.
+- **A palette is chosen at night and *checked* by day.** A candidate that only works on
+  paper is not a candidate. One that is beautiful at night and merely stark in sunlight
+  is exactly right.
+
 ## Mobile first. Not mobile too.
 
 **This map is used on a phone, in a street, in Korea.** The desktop is where it gets
@@ -66,6 +86,8 @@ page* below).
 | Module | What lives there |
 | --- | --- |
 | `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
+| `theme.js` | `cssVar`, the one door from `styles/tokens.css` to what Leaflet paints |
+| `palette.js` | which of the four palettes is on; `?palette=` and the stored choice |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
 | `geo-me.js` | the blue dot, live distances, "nearest first" |
@@ -96,10 +118,107 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
+| `ICONS` | `data/icons.js` | Streamline, via `tools/fetch-icons.mjs` | no — regenerate instead |
 
 Station **names are keys**. `ROUTES` is keyed by them and `PLACE_OFF` points at them,
 so renaming one silently breaks a route. `fetch-stations.mjs` never renames for that
 reason; it reports what it could not match and leaves it alone.
+
+## Icons, and why they are not emoji
+
+Every mark on this page is a [Streamline][] icon in the regular weight, drawn inline from
+`src/data/icons.js` by the one function in `src/lib/icons.js`. Emoji were the wrong
+alphabet for a field map: the same category is a different drawing on Android, on iOS and
+on a Samsung phone, half of them are pictures of American food, and none of them can take
+the colour of the thing they sit in — a category pin had a beige croissant on it whatever
+the pin was coloured.
+
+[Streamline]: https://www.streamlinehq.com/icons/streamline-regular
+
+Three rules hold the set together, and `tools/fetch-icons.mjs` enforces the first two:
+
+- **The regular weight, on the 14x14 grid.** A `-solid` or `-remix` sibling is a
+  different drawing at a different weight, and the older icons in the set sit on a
+  different grid — either one puts a second stroke width on the page. The generator
+  refuses both rather than trusting a name.
+- **Only what is used.** The set has 3,900 icons; twenty-five are copied into
+  `src/data/icons.js`, the same way Leaflet and the fonts are vendored. Nothing is
+  fetched at runtime and there is no icon font to load.
+- **`currentColor` and `1em`, always.** An icon takes the colour and the size of whatever
+  it sits in, so a legend chip, a white-on-clay pin and a night-mode button all work with
+  no rule of their own. `.ic` in `tokens.css` is the whole stylesheet for them.
+
+To change one, edit the `STREAMLINE` table in `tools/fetch-icons.mjs` — page name on the
+left, the set's own name on the right — and re-run it. `check-data.mjs` fails if a
+category names an icon that run never wrote. The set is CC BY 4.0; the attribution is in
+the generated file's header, which is why that header is not noise.
+
+One emoji survives, on purpose: `CATS[cat].emoji`, which `planShareText()` uses when a
+day is copied out as a message. A message pasted into KakaoTalk cannot carry an SVG.
+
+## One place for the look
+
+`src/styles/tokens.css` is the whole design system, in seven numbered blocks, and it is
+the only file in `src/styles/` or `src/client/` allowed to write a colour, a shadow, an
+icon size or a tap target. Everything else names a token. That is not a style preference:
+it is what makes swapping the palette one edit instead of a hunt through eight
+stylesheets and a dozen modules, and it is checked rather than hoped for.
+
+**A palette is four decisions, not four swatches.** Block 1 declares `--pal-ground`,
+`--pal-accent`, `--pal-ok` and `--pal-warn`, written at the lightness *night* wants,
+because night is what this page is. Blocks 2 and 3 build the two themes out of them with
+`color-mix()`. Change those four lines and the page changes.
+
+The jobs matter more than the values. The ground stays near-neutral: the map already
+carries thirteen subway line colours and nine category pins, and a saturated ground
+competes with them — that is what went wrong with the navy palette. The accent is the
+*entire* chroma budget, which is what lets it shout — spreading that budget over four
+colours is what went wrong with the four-browns palette, where nothing could be
+emphasised against anything. `--ok` and `--warn` sit inside the palette because what
+reads as a different *kind* of thing depends on the accent: a green "ok" is invisible
+beside chartreuse, and an amber "warn" is its hue neighbour.
+
+**Five palettes ship, and the way in is hidden.** Picking between them off a swatch site
+kept failing — colours on colorhunt.co are not colours on a map at 390px at night — so
+they stayed, and the choice is made against the real map instead. **Tap the title five
+times** (within about a second of each tap) and a panel comes up listing them;
+`client/palette.js` owns that, `styles/palette.css` dresses it, and the choice is
+remembered like night mode. `?palette=<name>` still works and is how a link or a script
+gets at it.
+
+There is no button on purpose. Header room is the scarcest thing here, and a control for
+something you touch twice a fortnight does not deserve a permanent 44px of it. The panel
+is a side sheet rather than a modal over the middle, because the entire point is judging
+a palette against the map, the pins and an open card — so it must not cover them.
+
+Each row in that panel carries its own `data-palette`, which is why the swatches are
+honest: `[data-palette="ember"]` sets `--pal-*` on **any** element, not just `<html>`, so
+a swatch painted in `var(--pal-accent)` inside that row is that palette's real accent.
+No colour is copied into JS to draw them.
+
+**What the page draws on the map is not what it fills a button with.** `--track` — the
+walking leg of a ride, the get-off ring, the ring on the selected pin — is its own token
+because the map's colour space is already spoken for. An accent picked to look right on a
+button lands on top of a line: the day accent that shipped before this was 74 units from
+Line 7's olive, which is a walk you cannot pick out from a train. `--track` is a magenta
+that clears every line on both networks by 169, and `check-data.mjs` fails if a future
+one wanders closer than 130. `--me` is the same argument settled the same way.
+
+**Contrast is a rule, not a hope.** `check-data.mjs` resolves every token — `var()` chains
+and nested `color-mix()`, through `resolveColor()` in `tools/lib.mjs` — for every palette
+in both themes, and fails below a floor: 7:1 for body text, 4.5:1 for muted, the accent,
+and anything on a filled control. **Day's floors are the higher ones** (10:1 and 5.5:1),
+because day is the sunlight theme and being merely adequate is a failure of its whole job
+— see *Night first* above. It prints the table on every run, so the next palette can be
+judged before it is looked at.
+
+**Three ways out of the file.** The stylesheets read tokens by name. The map reads them
+through `cssVar()` in `client/theme.js`, which *resolves* rather than reads — a custom
+property's computed value is its text, so `--accent` comes back as a `color-mix(...)`
+string, and handing that to a canvas is not the same as handing it a colour. And four
+things cannot read CSS at all: the two `<meta name="theme-color">` tags, the manifest and
+`public/icon.svg`. Those are pinned to `--paper` by `check-data.mjs`, because all four of
+them had silently kept a palette the page stopped using two palettes ago.
 
 ## Adding a place
 
@@ -421,13 +540,13 @@ Bundled modules export nothing to the console, so `src/client/main.js` publishes
 handle deliberately:
 
 ```js
-window.trip = { focus, select, deselect, setTab, setSideTab, setView,
+window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
                 startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
                 get selectedId(), get currentTab(), get plan(), get planOver(),
-                get here(), get locating(), get visited(), get hideVisited() }
+                get here(), get locating(), get visited(), get hideVisited(), get palette() }
 ```
 
 With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,
@@ -452,8 +571,12 @@ registers on `localhost` as well as https — talk to it over a `MessageChannel`
 
 ## Conventions worth keeping
 
-- **Themes**: every colour goes through a token on `:root` in `styles/tokens.css`,
-  overridden under `body.night`. Never hard-code a hex in a rule that both themes use.
+- **The look lives in `styles/tokens.css`, all of it.** See *One place for the look*
+  above. Nothing in `src/styles/` or `src/client/` may write a colour, a shadow, an icon
+  size or a tap target — name a token instead, and `check-data.mjs` fails the build if a
+  literal creeps back in.
+- **Icons, not emoji**: see *Icons, and why they are not emoji* above. A new mark comes
+  from the Streamline set through `tools/fetch-icons.mjs`, never from a character.
 - **Global CSS, never scoped.** The sheet is built on cross-cutting state classes —
   `body.night`, `body.planning`, `body.routing`, `.side[data-sidetab]` — which Astro's
   scoping would rewrite out from under it. The stylesheets are imported in cascade

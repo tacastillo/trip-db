@@ -1,18 +1,17 @@
 import { routeLayer } from "./map.js";
-import { map, night } from "./state.js";
-import { CATS } from "../data/places.js";
+import { map } from "./state.js";
 import { HOTEL_STATION, STATION_COORDS } from "../data/routing.js";
 import { lerpPt } from "../lib/geo.js";
 import { journeyFor } from "../lib/journey.js";
-
-export function cssVar(v){ return getComputedStyle(document.body).getPropertyValue(v).trim() || "#C8432A"; }
+import { cssVar } from "./theme.js";
+import { catToken } from "../lib/design.js";
 
 /* ---------------- drawing and animating the ride ---------------- */
 export let routeAnim = null, routeDraw = null;
 export const lessMotion = window.matchMedia("(prefers-reduced-motion:reduce)");
 
 export function stationDots(j){
-  const stops = [{ name: HOTEL_STATION, kind: "board", kicker: "Board", tint: CATS.hotel.color }];
+  const stops = [{ name: HOTEL_STATION, kind: "board", kicker: "Board", tint: cssVar(catToken("hotel")) }];
   j.rail.forEach((leg, i) => {
     const last = i === j.rail.length - 1;
     const next = last ? null : j.rail[i + 1];
@@ -26,12 +25,12 @@ export function stationDots(j){
   stops.forEach(s => {
     const c = STATION_COORDS[s.name]; if (!c) return;
     if (s.kind === "off"){
-      L.circleMarker(c, { radius: 7, color: cssVar("--accent"), weight: 2, opacity: .9,
+      L.circleMarker(c, { radius: 7, color: cssVar("--track"), weight: 2, opacity: .9,
         fill: false, interactive: false, className: "rs-ping" }).addTo(routeLayer);
     }
-    const fill = s.kind === "off" ? cssVar("--accent") : s.tint;
+    const fill = s.kind === "off" ? cssVar("--track") : s.tint;
     const dot = L.circleMarker(c, { radius: s.kind === "board" ? 5.5 : s.kind === "off" ? 7 : 8,
-      color: "#fff", weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+      color: cssVar("--pin-edge"), weight: 2.5, fillColor: fill, fillOpacity: 1, interactive: false }).addTo(routeLayer);
     // a transfer wears both lines: the one arriving outside, the one leaving in the middle
     if (s.kind === "transfer" && s.then){
       L.circleMarker(c, { radius: 3.6, stroke: false, fillColor: s.then, fillOpacity: 1,
@@ -73,11 +72,11 @@ export function showRoute(p){
   const j = journeyFor(p);
   if (!j) return;
   document.body.classList.add("routing");
-  const casing = night ? "#15120D" : "#ffffff";
-  const accent = cssVar("--accent");
+  const casing = cssVar("--casing");
+  const track = cssVar("--track");
   const shapes = j.legs.map(leg => {
     const walking = leg.kind === "walk";
-    const color = walking ? accent : leg.color;
+    const color = walking ? track : leg.color;
     // glow first so it sits under the casing; its opacity is the pulse, in CSS
     const glow = L.polyline([], { color, weight: walking ? 10 : 16, opacity: 1,
       lineCap: "round", lineJoin: "round", interactive: false, className: "rs-glow" }).addTo(routeLayer);
@@ -92,10 +91,10 @@ export function showRoute(p){
   shapes.forEach(s => { s.start = run; run += s.leg.len; });
   const total = run;
   // the moving head rides on top of everything the legs drew
-  const comet = L.polyline([], { color: "#fff", weight: 3, opacity: .95,
+  const comet = L.polyline([], { color: cssVar("--pin-edge"), weight: 3, opacity: .95,
     lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
-  const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: "#fff", weight: 2,
-    fillColor: accent, fillOpacity: 1, interactive: false }).addTo(routeLayer);
+  const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: cssVar("--pin-edge"), weight: 2,
+    fillColor: track, fillOpacity: 1, interactive: false }).addTo(routeLayer);
   stationDots(j);
   routeDraw = { shapes, comet, head, total, j };
   requestAnimationFrame(spaceLabels);

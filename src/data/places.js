@@ -2,7 +2,23 @@
    appending to PLACES, then run node tools/check-data.mjs, which catches the things
    the page will not: a cluster that is not in CLUSTERS renders a pin and no list row. */
 
-export const CATS = {"hotel": {"label": "Hotel", "emoji": "🏨", "color": "#3949AB"}, "food": {"label": "Food", "emoji": "🍖", "color": "#D64525"}, "cafe": {"label": "Cafe", "emoji": "☕", "color": "#7B4B27"}, "bakery": {"label": "Bakery", "emoji": "🥐", "color": "#D6477E"}, "dessert": {"label": "Dessert", "emoji": "🍰", "color": "#C77DBB"}, "bar": {"label": "Bar", "emoji": "🍸", "color": "#C99700"}, "shopping": {"label": "Shopping", "emoji": "🛍️", "color": "#2E8B57"}, "landmark": {"label": "Landmark", "emoji": "🏛️", "color": "#2D6CB5"}, "beauty": {"label": "Beauty", "emoji": "💅", "color": "#B0447A"}};
+/* What a category looks like. `icon` is the Streamline name the page draws (see
+   src/lib/icons.js) and `label` is what it is called. There is deliberately no colour
+   here: a category key names its own token — `food` draws itself in `--cat-food`, which
+   lives with every other colour in styles/tokens.css — and catVar() in src/lib/design.js
+   is the only thing that builds that name. `emoji` survives for one caller,
+   planShareText(), because a message pasted into KakaoTalk cannot carry an SVG. */
+export const CATS = {
+  "hotel":    { label:"Hotel", icon:"hotel", emoji:"🏨" },
+  "food":     { label:"Food", icon:"food", emoji:"🍖" },
+  "cafe":     { label:"Cafe", icon:"cafe", emoji:"☕" },
+  "bakery":   { label:"Bakery", icon:"bakery", emoji:"🥐" },
+  "dessert":  { label:"Dessert", icon:"dessert", emoji:"🍰" },
+  "bar":      { label:"Bar", icon:"bar", emoji:"🍸" },
+  "shopping": { label:"Shopping", icon:"shopping", emoji:"🛍️" },
+  "landmark": { label:"Landmark", icon:"landmark", emoji:"🏛️" },
+  "beauty":   { label:"Beauty", icon:"beauty", emoji:"💅" },
+};
 
 export const CAT_ORDER = ["hotel", "food", "cafe", "bakery", "dessert", "bar", "beauty", "shopping", "landmark"];
 

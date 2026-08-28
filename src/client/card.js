@@ -11,6 +11,8 @@ import { dirBtnsHtml, hopHow } from "./plan-pane.js";
 import { fmtM, hotelFor, kakaoDirUrl, koreaClock, naverDirUrl, planLegs } from "../lib/plan-core.js";
 import { DOW_SHORT } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
+import { icon } from "../lib/icons.js";
+import { catVar } from "../lib/design.js";
 
 /* Open or shut, right now, in Korea. Computed at render time rather than on a timer:
    the card is rebuilt on every select, which is the only moment anyone reads this.
@@ -30,19 +32,19 @@ export function hoursChipHtml(p){
 /* ---------------- map ---------------- */
 export function cardHtml(p){
   const c = CATS[p.cat];
-  return `<button class="card-x" id="cardX" title="Close" aria-label="Close">✕</button>
+  return `<button class="card-x" id="cardX" title="Close" aria-label="Close">${icon("close")}</button>
     <div class="pop-top">
-      <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
+      <div class="pop-cat" style="--c:${catVar(p.cat)}">${icon(c.icon)} ${c.label}</div>
       ${hoursChipHtml(p)}
     </div>
     <div class="pop-name">${p.name}${p.ko ? ` <span class="pop-ko" lang="ko">${p.ko}</span>` : ""}</div>
-    <div class="pop-sub">${[p.cluster, here ? `📍 ${fmtM(distanceFrom(p))}` : ""].filter(Boolean).join(" · ")}</div>
+    <div class="pop-sub">${[p.cluster, here ? `${icon("pin")} ${fmtM(distanceFrom(p))}` : ""].filter(Boolean).join(" · ")}</div>
     <div class="pop-note">${p.note}</div>
     ${p.signature || p.meta ? `<div class="pop-extra">${
       [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
        p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
     <div class="card-acts">
-      <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
+      <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")} ${planHas(p.id) ? "In the day" : "Add to the day"}</button>
       <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen"><span class="tickbox${isVisited(p.id) ? " on" : ""}"></span> Been</button>
     </div>
     ${planningMode() ? hopStripHtml(p) : routeStripHtml(p)}`;
@@ -93,7 +95,7 @@ export function hopStripHtml(p){
   if (!leg) return "";
   const line = leg.line
     ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
-       <span class="pr-txt">${leg.line.from} <span class="pr-arr">→</span> ${leg.line.to}</span></div>`
+       <span class="pr-txt">${leg.line.from} ${icon("next", "pr-arr")} ${leg.line.to}</span></div>`
     : "";
   const kicker = fromHome ? `From ${from.name}, where the day starts`
     : i > 0 ? `From stop ${i}, ${from.name}`
@@ -109,7 +111,7 @@ export function routeStripHtml(p){
   const rows = j.rail.map((leg, i) => {
     const last = i === j.rail.length - 1;
     return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
-      <span class="pr-txt"><span class="pr-arr">→</span>
+      <span class="pr-txt">${icon("next", "pr-arr")}
       <span class="${last ? "pr-off" : "pr-to"}">${leg.to}</span>
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
@@ -118,7 +120,7 @@ export function routeStripHtml(p){
   const home = hotelFor(p.city);
   const links = home ? { naver: naverDirUrl(home, p), kakao: kakaoDirUrl(home, p) } : null;
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">🚶 ${walk} to the door · ≈ ${j.minutes} min door to door</div>
+    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div>
     ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;
 }
 

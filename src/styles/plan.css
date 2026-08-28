@@ -9,6 +9,7 @@
 .sidetab.on{color:var(--ink); border-bottom-color:var(--accent);}
 .st-ct{font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
 .sidetab.on .st-ct{color:var(--accent);}
+.sidetab .ic{width:var(--ic-m); height:var(--ic-m);}
 
 #side[data-sidetab="plan"] .sum,
 #side[data-sidetab="plan"] .searchwrap,
@@ -28,6 +29,7 @@
   cursor:pointer; color:var(--muted); font-size:14px; line-height:1; padding:4px 6px; border-radius:6px; display:none;}
 .searchclear.on{display:block;}
 .searchclear:hover{color:var(--ink); background:var(--line-2);}
+.searchclear .ic{width:var(--ic-xs); height:var(--ic-xs);}
 
 /* a row is a button, so the add control has to be its sibling, never its child */
 .itemrow{display:flex; align-items:flex-start;}
@@ -39,11 +41,12 @@
   font-family:inherit; font-size:19px; font-weight:600; line-height:1; width:34px; height:34px; border-radius:9px;
   margin:7px 12px 0 2px; display:flex; align-items:center; justify-content:center; padding:0;
   transition:background .12s, color .12s, transform .12s;}
-.planbtn:hover{background:var(--accent); color:#fff;}
+.planbtn:hover{background:var(--accent); color:var(--on-accent);}
 .planbtn:active{transform:scale(.94);}
 .planbtn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-.planbtn.on{background:var(--ok); border-color:var(--ok); color:#fff; font-size:16px;}
-.planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
+.planbtn.on{background:var(--ok); border-color:var(--ok); color:var(--on-ok);}
+.planbtn .ic{width:var(--ic-m); height:var(--ic-m);}
+.planbtn.on:hover{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
 
 .planpane{flex:1; min-height:0; overflow-y:auto; padding:2px 0 16px;}
 .phead{padding:12px 16px 10px; border-bottom:1px solid var(--line-2); display:flex; flex-direction:column; gap:7px;}
@@ -69,9 +72,10 @@
   align-items:center; justify-content:center; touch-action:none; -webkit-user-select:none; user-select:none;}
 .pdrag:hover{color:var(--ink);}
 .pdrag:active{cursor:grabbing; background:var(--line);}
+.pdrag .ic{width:var(--ic-m); height:var(--ic-m);}
 .pnum-i{width:var(--num); height:var(--num); border-radius:50%; display:flex; align-items:center;
-  justify-content:center; font-size:11px; font-weight:700; color:#fff; margin-top:1px;
-  box-shadow:0 1px 2px rgba(0,0,0,.2); font-variant-numeric:tabular-nums;}
+  justify-content:center; font-size:11px; font-weight:700; color:var(--on-cat); margin-top:1px;
+  box-shadow:var(--sh-1); font-variant-numeric:tabular-nums;}
 .pbody{min-width:0; text-align:left; background:none; border:none; padding:0; cursor:pointer;
   color:var(--ink); font-family:inherit; display:block;}
 .pname{display:block; font-size:14px; font-weight:600; line-height:1.3;}
@@ -83,6 +87,7 @@
   font-size:13px; line-height:1; padding:0; border-radius:8px; display:flex; align-items:center;
   justify-content:center;}
 .pdrop:hover{color:var(--accent); background:var(--line-2);}
+.pdrop .ic{width:var(--ic-s); height:var(--ic-s);}
 
 /* The hop between two stops. It hangs off a dashed rail drawn down the centre of the
    number column, so the numbers, the rail and every hop line up in one straight
@@ -94,20 +99,21 @@
   font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums;}
 .phop-d{flex:none; margin-right:2px;}
 .phop-d b{color:var(--ink); font-weight:700;}
-.phop-l{color:#fff; background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10.5px;}
+.phop-l{color:var(--on-cat); background:var(--ln); font-weight:700; border-radius:20px; padding:2px 8px; font-size:10.5px;}
 .phop-s{color:var(--muted);}
+.phop-arr{width:var(--ic-xs); height:var(--ic-xs); opacity:.7; margin:0 1px;}
 
 /* The Naver link is the only thing here that actually navigates anybody anywhere, and
    it has proved the most trustworthy part of the page, so it is a filled control with
    a real target rather than a footnote in the hop row. Mobile takes it to 44px. */
 .phop-a{display:inline-flex; align-items:center; gap:5px; flex:none;
-  background:var(--accent); color:#fff; text-decoration:none; font-weight:700; font-size:12px;
+  background:var(--accent); color:var(--on-accent); text-decoration:none; font-weight:700; font-size:12px;
   border:1px solid var(--accent); border-radius:20px; padding:7px 14px; min-height:32px; line-height:1;
-  box-shadow:0 1px 3px rgba(0,0,0,.14); transition:filter .12s, transform .12s;}
+  box-shadow:var(--sh-1); transition:filter .12s, transform .12s;}
 .phop-a:hover{filter:brightness(1.08);}
 .phop-a:active{transform:scale(.97);}
 .phop-a:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-.phop-a-x{opacity:.8; font-weight:600;}
+.phop-a-x{opacity:.75; width:var(--ic-xs); height:var(--ic-xs);}
 
 /* The two ends of the day. Same row, same rail, same hotel dot — the day is bracketed
    by them, and they are what the numbered stops hang between. .start opens the rail and
@@ -123,7 +129,8 @@
   border-left:2px dashed var(--line); padding:0 0 0 calc(var(--num) / 2 + var(--gap) - 1px);
   display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted);}
 .pend-i{width:var(--num); height:var(--num); border-radius:50%; flex:none; display:flex; align-items:center;
-  justify-content:center; font-size:11px; box-shadow:0 1px 2px rgba(0,0,0,.18);}
+  justify-content:center; color:var(--on-cat); box-shadow:var(--sh-1);}
+.pend-i .ic{width:var(--ic-s); height:var(--ic-s);}
 .pend-t{min-width:0;}
 
 .pcaution{margin:8px 14px; border:1px solid var(--line); border-left:3px solid var(--warn); border-radius:8px;
@@ -131,7 +138,7 @@
 .pcaution.closed{border-left-color:var(--accent);}
 .pcaution-fix{margin-top:6px; border:1px solid var(--ok); background:none; color:var(--ok); cursor:pointer;
   font-family:inherit; font-size:11px; font-weight:600; border-radius:20px; padding:3px 10px;}
-.pcaution-fix:hover{background:var(--ok); color:#fff;}
+.pcaution-fix:hover{background:var(--ok); color:var(--on-ok);}
 
 .psec{padding:14px 16px 4px;}
 .psec-h{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:600; color:var(--muted);
@@ -149,46 +156,47 @@
 .pacts{display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:12px var(--px) 6px;}
 .pact{border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; font-family:inherit;
   font-size:12px; font-weight:600; border-radius:9px; padding:8px 10px; line-height:1; min-height:34px;
-  display:flex; align-items:center; justify-content:center;}
+  display:flex; align-items:center; justify-content:center; gap:7px;}
 .pact:hover{border-color:var(--accent); color:var(--accent);}
 .pact.done{border-color:var(--ok); color:var(--ok);}
 
 /* the card's own add control carries the same weight as the one in the list — it is
    the same job, and on a phone the card is where most of it gets done */
-.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; min-height:38px; font-size:13px;
+.card-plan{margin-top:10px; width:100%; display:flex; align-items:center; justify-content:center; gap:7px; min-height:38px; font-size:13px;
   border-color:var(--accent); color:var(--accent); background:var(--line-2);}
-.card-plan:hover{background:var(--accent); color:#fff;}
-.card-plan.done{background:var(--ok); border-color:var(--ok); color:#fff;}
-.card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:#fff;}
+.card-plan:hover{background:var(--accent); color:var(--on-accent);}
+.card-plan.done{background:var(--ok); border-color:var(--ok); color:var(--on-ok);}
+.card-plan.done:hover{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
 
 
+.tb-i{display:inline-flex; align-items:center;}
+.tb-i .ic{width:var(--ic-m); height:var(--ic-m);}
 .tb-i + .tb-l{margin-left:6px;}
 .railtoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
   background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
   display:inline-flex; align-items:center; gap:6px; line-height:1;}
-.railtoggle:hover{border-color:#cdbfa6;}
-.railtoggle.on{background:var(--accent); color:#fff; border-color:var(--accent);}
-body.night .railtoggle:hover{border-color:#4a4234;}
-.raillegend{position:absolute; left:14px; bottom:14px; z-index:500; background:rgba(255,255,255,.94);
-  border:1px solid var(--line); border-radius:10px; padding:9px 12px 10px; box-shadow:0 4px 16px rgba(0,0,0,.13);
+.railtoggle:hover{border-color:var(--line-hover);}
+.railtoggle.on{background:var(--accent); color:var(--on-accent); border-color:var(--accent);}
+.raillegend{position:absolute; left:14px; bottom:14px; z-index:500; background:var(--glass);
+  border:1px solid var(--line); border-radius:10px; padding:9px 12px 10px; box-shadow:var(--sh-3);
   max-width:210px; display:flex; flex-wrap:wrap; gap:5px 13px;}
 .raillegend .rl-h{flex-basis:100%; font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:2px;}
 .rl-item{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--ink); white-space:nowrap;}
 .rl-bar{width:15px; height:4px; border-radius:2px; flex:none;}
-body.night .raillegend{background:rgba(30,26,20,.93);}
 
 /* the ride from the hotel, as printed in the popup */
 .pop-route{margin-top:9px; padding-top:8px; border-top:1px solid var(--line-2); font-size:11.5px;}
 .pr-k{display:block; font-size:9px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--muted); margin-bottom:5px;}
 .pr-step{display:flex; align-items:baseline; gap:7px; line-height:1.6;}
-.pr-line{display:inline-block; color:#fff; font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap;}
+.pr-line{display:inline-block; color:var(--on-cat); font-weight:700; font-size:10px; padding:1px 6px; border-radius:5px; white-space:nowrap;}
 .pr-to{font-weight:700; color:var(--ink);}
 .pr-off{font-weight:800; color:var(--accent);}
-.pr-arr{color:var(--muted);}
+.pr-arr{color:var(--muted); width:var(--ic-xs); height:var(--ic-xs); align-self:center;}
 .pr-tag{font-size:8.5px; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:var(--muted);
   border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
 .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+.pr-walk .ic{width:var(--ic-s); height:var(--ic-s); margin-right:2px;}
 /* in the card there is nothing to sit beside, so it spans the width and reads as the
    action the card is for */
 /* in the card there is a whole width to spend: Naver takes the row, Kakao the one
@@ -209,10 +217,10 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
   border:1px solid var(--line); background:var(--surface); color:var(--ink);
   border-radius:9px; padding:6px 9px; display:flex; flex-direction:column; gap:2px; min-height:38px;}
 .pday:hover{border-color:var(--accent);}
-.pday.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+.pday.on{background:var(--accent); border-color:var(--accent); color:var(--on-accent);}
 .pday-d{font-size:11.5px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums;}
 .pday-l{font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap;}
-.pday.on .pday-l{color:rgba(255,255,255,.85);}
+.pday.on .pday-l{color:color-mix(in srgb, var(--on-accent) 82%, transparent);}
 /* today, when today is on this trip: a marker rather than a selection */
 .pday.today{border-color:var(--ok);}
 .pday.today .pday-d::after{content:' ·'; color:var(--ok);}

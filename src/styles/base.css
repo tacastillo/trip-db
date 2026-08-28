@@ -2,8 +2,7 @@
 .nighttoggle{font-family:'Bricolage Grotesque',sans-serif; cursor:pointer; border:1.5px solid var(--line);
   background:var(--surface); color:var(--ink); border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600;
   display:inline-flex; align-items:center; gap:6px; line-height:1;}
-.nighttoggle:hover{border-color:#cdbfa6;}
-body.night .nighttoggle:hover{border-color:#4a4234;}
+.nighttoggle:hover{border-color:var(--line-hover);}
 html,body{height:100%;}
 body{margin:0; font-family:'Inter',system-ui,sans-serif; color:var(--ink); background:var(--paper); -webkit-font-smoothing:antialiased;}
 .disp{font-family:'Bricolage Grotesque',system-ui,sans-serif;}
