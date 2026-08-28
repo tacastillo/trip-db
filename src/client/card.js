@@ -35,16 +35,15 @@ export function cardHtml(p){
       <div class="pop-cat" style="color:${c.color}">${c.emoji} ${c.label}</div>
       ${hoursChipHtml(p)}
     </div>
-    <div class="pop-name">${p.name}</div>
-    ${p.ko ? `<div class="pop-ko" lang="ko">${p.ko}</div>` : ""}
-    <div class="pop-hood">${p.cluster}</div>
+    <div class="pop-name">${p.name}${p.ko ? ` <span class="pop-ko" lang="ko">${p.ko}</span>` : ""}</div>
+    <div class="pop-sub">${[p.cluster, here ? `📍 ${fmtM(distanceFrom(p))}` : ""].filter(Boolean).join(" · ")}</div>
     <div class="pop-note">${p.note}</div>
-    ${p.signature ? `<div class="pop-sig">${p.signature}</div>` : ""}
-    ${p.meta ? `<div class="pop-meta">${p.meta}</div>` : ""}
-    ${here ? `<div class="pop-here">📍 ${fmtM(distanceFrom(p))} from you</div>` : ""}
+    ${p.signature || p.meta ? `<div class="pop-extra">${
+      [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
+       p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
     <div class="card-acts">
       <button class="pact card-plan" id="cardPlan">${planHas(p.id) ? "✓ In the day" : "+ Add to the day"}</button>
-      <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen">${isVisited(p.id) ? "☑ Been" : "◻ Been"}</button>
+      <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen"><span class="tickbox${isVisited(p.id) ? " on" : ""}"></span> Been</button>
     </div>
     ${planningMode() ? hopStripHtml(p) : routeStripHtml(p)}`;
 }

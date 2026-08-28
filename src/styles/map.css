@@ -26,15 +26,21 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 .pop-cat{display:inline-flex; align-items:center; gap:6px; font-size:10px; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
 .pop-hours{flex:none; font-size:10.5px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
 .pop-hours.on{color:var(--ok);}
-.pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px; padding-right:22px;}
-/* The hangul lives here and only here. It is what you hold up to a driver or a counter,
-   which is the card; in a list it is a script you cannot read sitting in the one line
-   whose job is to tell you which place this is. */
-.pop-ko{font-size:11.5px; color:var(--muted); margin:0 0 1px; line-height:1.3;}
-.pop-hood{font-size:11px; color:var(--muted); margin-bottom:6px;}
+.pop-name{font-family:'Bricolage Grotesque',sans-serif; font-size:16px; font-weight:700; margin:5px 0 1px;
+  padding-right:22px; line-height:1.25;}
+/* The hangul lives here and only here, and it rides the name's own line rather than taking
+   one of its own — it is what you hold up to a driver, so it belongs beside the name it
+   translates, and the room to its right was empty anyway. In a list it is a script you
+   cannot read sitting in the one line whose job is to say which place this is. */
+.pop-ko{font-size:12px; font-weight:500; color:var(--muted); white-space:nowrap;}
+/* Neighbourhood and distance share a row; each was a short line in a wide card. */
+.pop-sub{font-size:11px; color:var(--muted); margin-bottom:6px;}
 .pop-note{font-size:12.5px; color:var(--ink);}
-.pop-sig{font-size:11.5px; color:var(--muted); line-height:1.4; margin-top:4px;}
-.pop-meta{font-size:11.5px; font-weight:600; color:var(--accent); margin-top:6px;}
+/* So do what to order and what to check — different weights, one line, no dead space. */
+.pop-extra{font-size:11.5px; line-height:1.4; margin-top:5px;}
+.pop-sig{color:var(--muted);}
+.pop-sig + .pop-meta::before{content:"·"; color:var(--line-2); margin:0 5px; font-weight:400;}
+.pop-meta{font-weight:600; color:var(--accent);}
 .card-plan{margin-top:10px;}   /* the rest of it is in plan.css, after .pact */
 
 /* tile fallback banner */
@@ -62,7 +68,7 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
 .geobanner{top:auto; bottom:14px;}
 body.carded .geobanner{bottom:56px;}
 
-.pop-here{font-size:11.5px; color:var(--ok); font-weight:600; margin-top:6px; font-variant-numeric:tabular-nums;}
+/* .pop-here folded into .pop-sub — see cardHtml() */
 /* add-to-day and been-there, side by side: the first is wider because it is the one
    that changes what the page is doing */
 .card-acts{display:grid; grid-template-columns:1.6fr 1fr; gap:7px; margin-top:10px;}

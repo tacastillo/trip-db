@@ -116,8 +116,9 @@
      the row above stays on one line rather than wrapping the status under the category. */
   .pop-top{padding-right:38px;}
   .pop-hours{font-size:11px;}
-  .pop-ko{font-size:12.5px;}
-  .pop-sig{font-size:12px;}
+  .pop-ko{font-size:13px;}
+  .pop-sub{font-size:12px;}
+  .pop-extra{font-size:12px;}
   .leaflet-control-zoom{display:none;}
 }
 

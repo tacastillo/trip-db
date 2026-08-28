@@ -49,4 +49,15 @@
 .beenbtn:hover{color:var(--ok); border-color:var(--ok);}
 .beenbtn.on{color:var(--ok); border-color:var(--ok);}
 .beenbtn:focus-visible{outline:2px solid var(--ok); outline-offset:2px;}
+
+/* Drawn, not typed. ☑ and ◻ are different widths in every font that has both — and plenty
+   have only one — so ticking a spot shifted the row and read as a glyph failing to render.
+   The box below is the same 15px square either way; only the fill and the tick change. */
+.tickbox{display:inline-block; width:15px; height:15px; box-sizing:border-box; position:relative;
+  border:1.5px solid currentColor; border-radius:4px; vertical-align:-2px; flex:none;
+  transition:background-color .12s, border-color .12s;}
+.pact .tickbox{margin-right:7px;}
+.tickbox.on{background:var(--ok); border-color:var(--ok);}
+.tickbox.on::after{content:""; position:absolute; left:4px; top:1px; width:3px; height:7px;
+  border:solid var(--surface); border-width:0 2px 2px 0; transform:rotate(43deg);}
 .chip.been.on,.chip.near.on{border-color:var(--ok); color:var(--ok);}

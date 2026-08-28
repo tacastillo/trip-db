@@ -57,7 +57,7 @@ export function itemRow(p){
   const been_b = document.createElement("button");
   been_b.className = "beenbtn" + (been ? " on" : "");
   been_b.dataset.been = p.id;
-  been_b.textContent = been ? "☑" : "◻";
+  been_b.innerHTML = `<span class="tickbox${been ? " on" : ""}"></span>`;
   been_b.title = been ? "Been there — tap to un-tick" : "Mark as been to";
   been_b.setAttribute("aria-pressed", been ? "true" : "false");
   been_b.onclick = () => {
