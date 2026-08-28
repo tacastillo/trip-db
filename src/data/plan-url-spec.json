@@ -5,7 +5,7 @@
   "params": {
     "city": "one of the leg ids: seoul | jeju | busan",
     "stops": "comma-separated place ids, in visiting order; duplicates collapse; at most 12",
-    "day": "YYYY-MM-DD. A label, and the only thing that decides which weekday closures apply. No schedule is computed from it. Read from a link and written back out, but the page itself no longer offers a field for setting one.",
+    "day": "YYYY-MM-DD, and one of the trip's own dates. A label, and the only thing that decides which weekday closures apply; no schedule is computed from it. The plan pane offers the trip's fifteen days as chips, and a day with no date is a valid day.",
     "title": "percent-encoded free text, at most 60 characters"
   },
   "unknownParamsArePreserved": true,
@@ -33,5 +33,6 @@
     "how busy anywhere is, or how long the queue runs"
   ],
   "directions": "Each consecutive pair of stops gets a Naver Maps directions link built from the two lat/lng pairs. See naverDirUrl() in the inline script for the exact grammar.",
-  "goodUseOfThis": "Read the plan, then add what the map cannot know: when each place is busy, what to order, how long a queue tends to run, and whether the order makes sense for the hours involved."
+  "goodUseOfThis": "Read the plan, then add what the map cannot know: when each place is busy, what to order, how long a queue tends to run, and whether the order makes sense for the hours involved.",
+  "storedLocally": "This browser also remembers the last day you were building, the category filters, night mode and which spots you have ticked off as visited. None of that is in the link and none of it is on a server: a link names stops, and a link that names stops always wins over what was remembered."
 }

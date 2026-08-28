@@ -33,3 +33,27 @@ body.planning .leaflet-marker-icon.mk-plan{opacity:1;}
   box-shadow:0 6px 20px rgba(0,0,0,.25); display:none; text-align:center;}
 
 
+
+/* where you are. The dot is Leaflet's own blue rather than the trip's accent on
+   purpose: every map app on the phone uses that colour for "you", and this is the one
+   place on the page where matching everyone else beats matching ourselves. */
+.medot{position:relative; width:18px; height:18px; border-radius:50%; background:#2D6CB5; border:3px solid #fff;
+  box-shadow:0 0 0 1px rgba(45,108,181,.5), 0 2px 6px rgba(0,0,0,.35);}
+.medot::after{content:''; position:absolute; inset:-7px; border-radius:50%;
+  border:2px solid rgba(45,108,181,.45); animation:mePulse 2.4s ease-out infinite;}
+@keyframes mePulse{0%{transform:scale(.6); opacity:.9;} 100%{transform:scale(1.5); opacity:0;}}
+@media (prefers-reduced-motion:reduce){ .medot::after{animation:none; opacity:.35;} }
+/* a spot you have already been to is context, not a candidate */
+.leaflet-marker-icon.mk-been{filter:saturate(.25); opacity:.6;}
+
+/* Its own banner at the foot of the map, because "no tiles" and "location is blocked"
+   can both be true and are two different things to fix. An open card pushes the tile
+   banner down here too, so this one steps up rather than landing on top of it. */
+.geobanner{top:auto; bottom:14px;}
+body.carded .geobanner{bottom:56px;}
+
+.pop-here{font-size:11.5px; color:var(--ok); font-weight:600; margin-top:6px; font-variant-numeric:tabular-nums;}
+/* add-to-day and been-there, side by side: the first is wider because it is the one
+   that changes what the page is doing */
+.card-acts{display:grid; grid-template-columns:1.6fr 1fr; gap:7px; margin-top:10px;}
+.card-acts .pact{margin-top:0;}

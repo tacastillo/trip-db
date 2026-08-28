@@ -11,7 +11,8 @@
 import * as core from "../src/lib/plan-core.js";
 import { metres } from "../src/lib/geo.js";
 import { metres as libMetres } from "./lib.mjs";
-import { PLACES } from "../src/data/places.js";
+import { PLACES, LEGS, TRIP } from "../src/data/places.js";
+import * as tiles from "../src/lib/tiles.js";
 import { STATION_COORDS } from "../src/data/routing.js";
 
 let failures = 0;
@@ -215,6 +216,97 @@ ok("an unknown id at the end does not swallow the hop home",
   (core.homeLeg(R(["gwangjang","nosuchplace"]), "seoul", null, PLACES) || {}).a?.id === "gwangjang");
 ok("the brief says where the day ends",
   core.planBriefMarkdown({ city:"seoul", ids:[] }, day, "", null, null).includes("Ends back at **Novotel"));
+
+/* ---------- the calendar ---------- */
+
+group("dates, and which leg they land in");
+ok("a date reads back as a weekday and a label",
+  core.planDow("2026-09-01") === "tue" && core.fmtDay("2026-09-01") === "Tue 1 Sep");
+ok("nonsense is not a date", core.fmtDay("2026-13-45") === "" && core.fmtDay("tomorrow") === "");
+ok("the trip is fifteen days, first to last", core.tripDays().length === 15
+  && core.tripDays()[0].day === TRIP.start
+  && core.tripDays()[14].day === TRIP.end);
+ok("every trip day but the flight over sits in a leg",
+  core.tripDays().filter(d => !d.leg).map(d => d.day).join() === "2026-08-29");
+ok("a middle-of-the-leg date lands where you are", core.legForDate("2026-09-02") === "seoul"
+  && core.legForDate("2026-09-08") === "busan");
+/* the handover days are in two spans at once; arriving wins, because a day plan made
+   on the 4th is a day in Jeju */
+ok("a handover day belongs to where you are going",
+  core.legForDate("2026-09-04") === "jeju" && core.legForDate("2026-09-07") === "busan"
+  && core.legForDate("2026-09-10") === "seoul");
+ok("a date off the trip belongs to nobody", core.legForDate("2026-10-01") === null
+  && core.legForDate("") === null);
+ok("the trip window knows its own edges", core.inTrip("2026-08-29") && core.inTrip("2026-09-12")
+  && !core.inTrip("2026-08-28") && !core.inTrip("2026-09-13"));
+ok("what day it is in Korea is nine hours ahead of UTC",
+  core.isoDay(new Date("2026-09-01T20:00:00Z")) === "2026-09-02"
+  && core.isoDay(new Date("2026-09-01T14:59:00Z")) === "2026-09-01");
+ok("the day rolls over a month end", core.nextDay("2026-08-31") === "2026-09-01");
+
+/* ---------- handing the day to somebody else ---------- */
+
+group("the calendar file");
+const icsPlan = { city:"seoul", ids:["novotel","gwangjang","onion"], day:"2026-09-01", title:"Jongno, tea & a bagel" };
+const icsStops = R(icsPlan.ids);
+const ics = core.planIcs(icsPlan, icsStops, "https://example.test/index.html?x=1", { now:new Date("2026-08-28T09:00:00Z") });
+ok("a day with a date makes one all-day event", !!ics
+  && (ics.match(/BEGIN:VEVENT/g) || []).length === 1
+  && ics.includes("DTSTART;VALUE=DATE:20260901")
+  && ics.includes("DTEND;VALUE=DATE:20260902"));
+/* no hop on this map has a time behind it, so an .ics full of invented 10:30s would
+   look authoritative exactly where it is least true */
+ok("and never invents a time of day", !/DTSTART:\d{8}T/.test(ics) && !ics.includes("DURATION"));
+ok("a day with no date has nothing to hang an event on",
+  core.planIcs({ city:"seoul", ids:["gwangjang"], day:"" }, R(["gwangjang"]), "") === null);
+ok("commas and semicolons in a name survive the escape",
+  core.icsEscape('A, B; C\\D') === 'A\\, B\\; C\\\\D');
+ok("every line fits in 75 octets, folded", ics.split("\r\n")
+  .every(l => Buffer.byteLength(l, "utf8") <= 75));
+ok("the fold can be unfolded back to the text it came from",
+  ics.replace(/\r\n /g, "").includes("Gwangjang Market"));
+ok("it ends where the day ends", ics.replace(/\r\n /g, "").includes("Ends back at Novotel"));
+
+group("the day as a message");
+const msg = core.planShareText(icsPlan, icsStops, "https://example.test/i?x=1");
+ok("it opens with the title, the date and the city",
+  msg.split("\n")[0] === "Jongno, tea & a bagel · Tue 1 Sep · Seoul");
+ok("every stop is numbered and carries a link you can follow",
+  (msg.match(/^\d+\. /gm) || []).length === 3 && (msg.match(/map\.naver\.com/g) || []).length >= 3);
+ok("and it says where the day ends", msg.includes("Ends back at Novotel"));
+ok("an unknown id is said out loud rather than dropped",
+  core.planShareText({ city:"seoul", ids:["nope"] }, R(["nope"]), "").includes('unknown spot "nope"'));
+
+group("the other map everyone here uses");
+const kFrom = pick("novotel"), kTo = pick("gwangjang");
+ok("Kakao's web link names the destination, not a pair",
+  core.kakaoDirUrl(kFrom, kTo) === `https://map.kakao.com/link/to/${encodeURIComponent(kTo.name)},${kTo.lat},${kTo.lng}`);
+ok("its app scheme carries both ends and a manner of travel",
+  core.kakaoAppUrl(kFrom, kTo, "walk") === `kakaomap://route?sp=${kFrom.lat},${kFrom.lng}&ep=${kTo.lat},${kTo.lng}&by=FOOT`);
+ok("the taxi link is the destination and nothing else",
+  core.kakaoTaxiUrl(kTo).startsWith("kakaot://taxi?dest_lat=") && core.kakaoTaxiUrl(kTo).includes("dest_name="));
+ok("a hop carries both maps and a taxi",
+  core.planLegs(R(["novotel","gwangjang"]), null)[0].kakao.includes("map.kakao.com"));
+
+group("the offline tile pack");
+LEGS.forEach(l => {
+  const pack = tiles.offlinePack(PLACES.filter(p => p.city === l.id));
+  const keys = new Set(pack.map(t => `${t.z}/${t.x}/${t.y}`));
+  ok(`${l.id} packs a sane number of tiles, none of them twice`,
+    pack.length > 50 && pack.length < 2500 && keys.size === pack.length, `${pack.length} tiles`);
+  ok(`${l.id}'s own spots are all inside it`, PLACES.filter(p => p.city === l.id).every(p =>
+    keys.has(`16/${tiles.lngToX(p.lng, 16)}/${tiles.latToY(p.lat, 16)}`)));
+});
+ok("the pack is the same pack twice running",
+  JSON.stringify(tiles.offlinePack(seoul)) === JSON.stringify(tiles.offlinePack(seoul)));
+ok("no places, no pack", tiles.offlinePack([]).length === 0);
+/* Worked by hand off the Web Mercator formulas rather than remembered: Seoul City Hall
+   at zoom 13 is x = (126.9779 + 180) / 360 * 2^13 = 6985.4, y = 3172.9. */
+ok("the tile maths is the standard slippy scheme",
+  tiles.lngToX(126.9779, 13) === 6985 && tiles.latToY(37.5663, 13) === 3172);
+ok("a zoom level is four tiles where the one above it was one",
+  tiles.lngToX(126.9779, 14) >> 1 === tiles.lngToX(126.9779, 13)
+  && tiles.latToY(37.5663, 14) >> 1 === tiles.latToY(37.5663, 13));
 
 /* ---------- the two metres() ---------- */
 

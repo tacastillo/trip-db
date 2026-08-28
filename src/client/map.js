@@ -3,6 +3,7 @@ import { plan, planHas, planStops } from "./plan-state.js";
 import { routeDraw, spaceLabels } from "./route.js";
 import { deselect, select, selectedId } from "./selection.js";
 import { active, currentTab, map, night, railOn, setMap } from "./state.js";
+import { isVisited, visitedHidden } from "./visited.js";
 import { isMobile } from "./view.js";
 import { CATS, PLACES } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
@@ -75,7 +76,16 @@ export function setBaseLayer(){
   baseLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
     attribution: "© OpenStreetMap © CARTO", subdomains: "abcd", maxZoom: 20,
   });
-  baseLayer.on("load", () => { tilesOk = true; document.getElementById("tilebanner").style.display = "none"; });
+  /* One tile that actually arrives is the test, not the layer's own "load" — that fires
+     once every tile has settled, errors included, so with the tiles unreachable it used
+     to mark them fine and the banner never appeared. A theme switch builds a new layer
+     and asks the question again. */
+  tilesOk = false;
+  baseLayer.on("tileload", () => {
+    tilesOk = true;
+    document.getElementById("tilebanner").style.display = "none";
+  });
+  baseLayer.on("tileerror", () => { if (!tilesOk) showTileBanner(); });
   baseLayer.addTo(map);
 }
 
@@ -170,15 +180,23 @@ export function syncMarkers(){
       if (selectedId === p.id) markPin(p.id, true);
     }
     const el = m.getElement();
-    if (el) el.classList.toggle("mk-plan", !!n);
+    if (el){
+      el.classList.toggle("mk-plan", !!n);
+      // been-there pins stay on the map and step back rather than disappearing: the
+      // filter for hiding them outright is the chip in the legend
+      el.classList.toggle("mk-been", isVisited(p.id) && !n);
+    }
     // a planned stop stays on the map whatever the chips say — otherwise its number
     // in the plan points at a pin that isn't there
-    if (p.city === currentTab && (active[p.cat] || planHas(p.id))) { if (!map.hasLayer(m)) m.addTo(map); }
+    const on = p.city === currentTab && (active[p.cat] || planHas(p.id))
+               && !(visitedHidden(p.id) && !planHas(p.id));
+    if (on) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
   // filtering the selected pin away shouldn't leave its card and ride stranded
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
-  if (sel && !(sel.city === currentTab && (active[sel.cat] || planHas(sel.id)))) deselect();
+  if (sel && !(sel.city === currentTab && (active[sel.cat] || planHas(sel.id))
+               && !(visitedHidden(sel.id) && !planHas(sel.id)))) deselect();
 }
 
 export function markPin(id, on){

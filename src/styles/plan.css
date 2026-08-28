@@ -182,5 +182,45 @@ body.night .raillegend{background:rgba(30,26,20,.93);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
 /* in the card there is nothing to sit beside, so it spans the width and reads as the
    action the card is for */
-.pop-route .phop-a{margin:8px 0 0; width:100%; justify-content:center; min-height:36px; font-size:12px;}
+/* in the card there is a whole width to spend: Naver takes the row, Kakao and the taxi
+   share the one under it */
+.pop-route .phop-go{width:100%; margin:8px 0 0;}
+.pop-route .phop-a{margin:0; flex:1 1 100%; justify-content:center; min-height:36px; font-size:12px;}
+.pop-route .phop-a.alt{flex:1 1 0; min-width:0;}
 
+
+/* The day picker. Fifteen chips in a sideways scroller rather than a date field: the
+   trip is a fortnight long, so every date anyone would ever want is a tap, and nobody
+   has to type 2026-09-11 on a phone. The date still schedules nothing — it decides the
+   weekday-closure cautions and gives the calendar file a day to sit on. */
+.pdays{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  margin:0 calc(var(--px) * -1); padding:2px var(--px) 4px;}
+.pdays::-webkit-scrollbar{display:none;}
+.pday{flex:none; cursor:pointer; font-family:inherit; text-align:left; line-height:1.15;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  border-radius:9px; padding:6px 9px; display:flex; flex-direction:column; gap:2px; min-height:38px;}
+.pday:hover{border-color:var(--accent);}
+.pday.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+.pday-d{font-size:11.5px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.pday-l{font-size:9.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); white-space:nowrap;}
+.pday.on .pday-l{color:rgba(255,255,255,.85);}
+/* today, when today is on this trip: a marker rather than a selection */
+.pday.today{border-color:var(--ok);}
+.pday.today .pday-d::after{content:' ·'; color:var(--ok);}
+.pday.clear{opacity:.75;}
+.pdays.asking .pday{animation:daysAsk .5s ease-in-out 2;}
+@keyframes daysAsk{50%{border-color:var(--warn); background:var(--field);}}
+@media (prefers-reduced-motion:reduce){ .pdays.asking .pday{animation:none; border-color:var(--warn);} }
+
+/* Kakao beside Naver: the same shape, none of the fill. Naver is what this map's links
+   are built and tested against, so it stays the one that looks like the answer. */
+/* they move as one: on the row if there is room, under it if there is not */
+.phop-go{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-left:auto;}
+.phop-a.alt{background:none; color:var(--accent); box-shadow:none; padding:7px 11px; font-weight:600;}
+.phop-a.alt:hover{background:var(--field);}
+.phop-a.taxi{border-color:var(--line); color:var(--ink);}
+/* an action that needs something else chosen first, said in the button rather than by
+   greying it out into something you cannot tell is a button at all */
+.pact.off{border-style:dashed; color:var(--muted);}
+.pact.off:hover{color:var(--accent);}
+.card-been{margin-top:0;}

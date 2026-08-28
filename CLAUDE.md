@@ -12,7 +12,7 @@ Actions builds it on every push to `main` and hands the output to GitHub Pages.
 ```
 .github/workflows/      the checks, the build and the Pages deploy
 astro.config.mjs        base:'/trip-db/'; output goes to dist/, which is gitignored
-public/                 copied verbatim: vendor/ (Leaflet, fonts) and .nojekyll
+public/                 copied verbatim: vendor/ (Leaflet, fonts), sw.js, the manifest, .nojekyll
 src/
   pages/index.astro     the one page; there is no router and no second page
   layouts/FieldMap.astro  <head>, the @font-face block, leaflet's css and js
@@ -37,6 +37,10 @@ page* below).
 | Module | What lives there |
 | --- | --- |
 | `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
+| `store.js` | the one localStorage key, and the only place that touches it |
+| `visited.js` | been-there ticks and the filter that hides them |
+| `geo-me.js` | the blue dot, live distances, "nearest first" |
+| `offline.js` | registering the worker, downloading a leg's tile pack |
 | `view.js` | the mobile map/list switch, `isMobile` |
 | `legend.js` `list.js` `card.js` | the sidebar's three renderers |
 | `map.js` | `initMap`, `drawRail`, `syncMarkers`, `fitCity`, the Leaflet layers |
@@ -44,7 +48,7 @@ page* below).
 | `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
 | `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
 | `tabs.js` `rail-legend.js` | the leg tabs and the subway key |
-| `main.js` | the boot sequence, the two toggle buttons, `window.trip` |
+| `main.js` | the boot sequence, the four toggle buttons, `window.trip` |
 
 Shared mutable state is an `export let` read elsewhere as a live binding, which is
 why almost every read is still a bare name. A value only gets a setter when a module
@@ -58,7 +62,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 
 | Constant | File | Source | Edit by hand? |
 | --- | --- | --- | --- |
-| `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS` | `data/places.js` | you | yes — this is the trip |
+| `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -110,8 +114,8 @@ Jeju has no metro. Both are handled, not broken: the card opens, no ride draws.
 
 ## How a day plan is carried
 
-A plan is a list of place ids in the query string and nothing else — no server, no
-`localStorage`:
+A plan is a list of place ids in the query string — no server, and nothing about it that
+a link cannot carry:
 
 ```
 index.html?city=seoul&day=2026-09-01&stops=novotel,gyeongbok,bukchon&title=Jongno
@@ -132,6 +136,13 @@ that quietly would have broken shared links for everyone but a browser.
 Rotted links degrade rather than break. An id the map no longer has is **kept**, shown
 as its own row and flagged — dropping it would quietly amputate a stop from a link
 someone else shared. Unknown query params ride along untouched.
+
+**A link beats the store, always.** The browser remembers the day you were last building
+(see *What this browser remembers* below), but a URL that names `stops` is somebody
+handing you their day: `restored()` in `plan-boot.js` takes the link whole and never
+seeds, reorders or replaces it. A URL with no stops in it is not a shared day, it is just
+the page, so the day you were building comes back rather than being thrown away — and is
+written back into the address bar, or "Copy link" would hand over a link to an empty page.
 
 **A day starts at the hotel.** The first stop added to an empty day puts the leg's home
 base in front of it first — `planSeedStart()` in `plan-state.js`, off `hotelFor()` — because
@@ -154,10 +165,20 @@ link — or, for a spot not in the day yet, the same measured from the last stop
 which is what you are weighing before you tap add. The hotel ride is the wrong answer
 mid-plan, and its red streak buries the numbered pins the plan is being read off.
 
-**There is no date field.** `day` is still decoded, re-encoded and honoured — a shared link
-that carries one still gets its `closedDays()` cautions — but nothing on the page asks for
-one. Weekday closures are worth catching when a link states the day; asking someone to
-type a date to build a list of stops is not.
+**The date is a row of chips, never a field.** There used to be no way to set `day` at all,
+for a good reason: asking someone to type 2026-09-11 to build a list of stops is a worse
+deal than losing the weekday cautions. A fortnight of dates is a different question —
+`TRIP` and each leg's `spans` in `places.js` are the trip's own calendar, `tripDays()`
+turns them into fifteen chips and `legForDate()` says which leg a date lands in, so
+choosing a day costs one tap. A handover day sits in two spans at once and resolves to the
+leg you are *arriving* in, because a day planned on the 4th is a day in Jeju.
+
+It still schedules nothing. The date decides the `closedDays()` cautions and gives the
+calendar file a day to sit on; no arrival time, dwell time or duration exists anywhere on
+this page and none should be invented. On a morning of the trip an empty day opens on
+today (in Korean time — `isoDay()` adds nine fixed hours rather than pulling in a timezone
+library) and in the leg you are in. A day that arrives off a link keeps its own date,
+always.
 
 **Nothing is ever drawn between two stops on the map.** A planned stop takes its number
 onto its own pin and everything else steps back — `body.planning` fades the other markers
@@ -185,6 +206,25 @@ home, the planning card and the hotel-ride card go through that one function, so
 and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
 link stops resolving.
 
+**Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea
+navigates with and Kakao T is what hails the taxi, so every hop, the walk home and both
+cards carry them next to the Naver button — one `dirBtnsHtml()` group, so the three move
+together and no button ever wraps onto a line by itself. Naver stays the filled one
+because it is the link this repository builds, pins and tests. Kakao's web link is
+destination-only on purpose: `map.kakao.com/link/to` takes one place, not a pair, which
+on the ground is right anyway — it starts you where you are standing. `kakaoTaxiUrl()` is
+an app scheme, so it is only rendered on a coarse pointer; a button that resolves to
+nothing on a laptop is worse than no button. Like `naverDirUrl()`, none of the three could
+be reached from the environment they were written in.
+
+**A day can leave the page three ways**, and none of them invents anything: "Copy link"
+(the URL), "Copy as a message" (`planShareText()` — numbered stops and the links you would
+actually follow, for texting someone), and "Add to a calendar" (`planIcs()`). The .ics is
+deliberately **one all-day event** carrying the order in its description rather than a
+timed schedule: no hop on this map has a time behind it, and an .ics full of invented
+10:30s would look most authoritative exactly where it is least true. Without a date there
+is nothing to hang an event on, so the button says so and takes you to the day chips.
+
 `hopLine()` names the line for a hop, but only when both stations sit on one line and no
 transfer has to be guessed. That restraint is the whole point: `STATION_COORDS` holds the
 thirty-odd stops the routes happen to use, not the network, so routing through it sends
@@ -206,6 +246,64 @@ it genuinely wins, and `nearbySuggestions()` ranks unplanned spots by distance t
 you already have. `closedDays()` reads the handful of `Closed Mon` shapes that actually
 occur in `meta` — it is not an hours parser and must not become one. Everything else in
 `meta` is shown verbatim and never interpreted.
+
+## What this browser remembers
+
+One key, `trip-db/v1`, and `src/client/store.js` is the only module that touches
+`localStorage` — everything else calls `save({...})` and reads `saved`. It holds the day
+you were last building, the category chips, night mode, the rail toggle, which side tab
+was open, which spots you have ticked off as been-to, and when each leg's tiles were
+downloaded. Nothing else, and nothing anywhere near a server.
+
+Two rules make that safe. A locked-down Safari **throws** rather than returning null, so
+every touch is wrapped and `storeOk` goes false; the plan pane then says out loud that
+this browser will not remember anything, because silently forgetting a day is worse than
+not having offered. And the store is never the authority on a shared plan — see *A link
+beats the store* above.
+
+**Been-there is a tick, not a field.** `visited.js` keeps it, the row strikes its name
+through, the pin desaturates, and a chip appears in the legend to hide them all — but only
+once at least one exists, because a chip that says "0 been" on the first morning is a
+control asking to be explained. Nothing that is in the day is ever hidden by it: its number
+on the map has to point at a pin. It is not in the link either. What you have already eaten
+is not part of the day you are handing somebody.
+
+## Where you are
+
+Opt-in, and it stays that way: a page that asks for a location on load gets refused once
+and never asked again. The 📍 button starts a `watchPosition`; `geo-me.js` draws the dot
+with its accuracy circle (Leaflet blue, not the trip's accent — this is the one place where
+matching every other map app beats matching ourselves), fills every "N m away" in the list
+**in place** rather than re-rendering it, and offers "nearest first", which drops the
+neighbourhood headings for one list in walking order. The button then recentres, and stops
+only once the map is already on you.
+
+Distances go through the same `metres()` as everything else, so a row and a hop agree.
+Refusal, a timeout and a browser with no geolocation at all each say something specific in
+`#geobanner`, which is a separate banner from the tile one because they can both be true.
+
+## Working with no signal
+
+`public/sw.js` is a service worker, copied to the site verbatim — no build step behind it,
+no imports, and it has to keep working on its own at `/trip-db/sw.js`. Everything the page
+is made of already ships in this repository, so the shell (Leaflet, both fonts, the bundle,
+the page) is precached on install and answered cache-first afterwards; navigations are
+network-first so a deploy is picked up the moment there is a network.
+
+Street tiles are the exception — they are CARTO's, and the only honest way to have them in
+Jeju is to fetch them on hotel wifi and keep them. The ⤓ button downloads the current
+leg's pack: `src/lib/tiles.js` works out which tiles that is (the whole city at zooms 11–13,
+where it is cheap, and 450m around every spot at 14–16, where it is not — a bounding box of
+Seoul at zoom 16 is a quarter of a million tiles, and nine-tenths of them are hillside), and
+the worker fetches them four at a time and reports progress back. CARTO serves the same tile
+from `a.`–`d.` and Leaflet picks the subdomain from the tile's coordinates, so both the
+download and the lookup normalise to `a.` — cache it under four names and the pack you
+downloaded is the pack you never hit.
+
+`check-data.mjs` holds this together in the two places nothing else would notice: it fails
+if `sw.js` precaches a file that is not in `public/` (rename a vendored font and the page
+still builds, still works online, and quietly stops working offline) and if a leg's pack
+grows past what anyone would download.
 
 ## The pure half
 
@@ -249,9 +347,11 @@ handle deliberately:
 ```js
 window.trip = { focus, select, deselect, setTab, setSideTab, setView,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
+                startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
-                get selectedId(), get currentTab(), get plan(), get planOver() }
+                get selectedId(), get currentTab(), get plan(), get planOver(),
+                get here(), get locating(), get visited(), get hideVisited() }
 ```
 
 With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,
@@ -264,6 +364,15 @@ ran together because their spans were never made block.
 Install Playwright outside the repo — a scratch directory, not here. Chromium is
 usually already on the machine; point `executablePath` at it rather than downloading
 another one.
+
+Three of the newer things need the browser to be set up for them, and are worth driving
+because nothing in `tools/` can see them: grant `permissions: ["geolocation"]` and set a
+`geolocation` on the context to exercise the dot and the distances; use
+`context.clock.setFixedTime()` to land inside the trip window and check that an empty day
+opens on today in the right leg; and use a fresh context per case when testing what the
+store remembers, since the whole point is that it survives a reload. The service worker
+registers on `localhost` as well as https — talk to it over a `MessageChannel` the way
+`offline.js` does, and read `caches.open("trip-db-shell-v1")` to see what it kept.
 
 ## Conventions worth keeping
 
@@ -281,6 +390,8 @@ another one.
   station — the page keeps working and says what it can.
 - **Vendoring**: Leaflet and both fonts live in `public/vendor/`, so the page pulls
   nothing from a CDN. The only thing fetched at runtime is street tiles from CARTO,
-  and losing them degrades to pins-on-a-blank-canvas with a banner saying so. Leaflet
-  stays a plain `<script>` setting `window.L`; that is what keeps `libFail()` honest.
+  and losing them degrades to pins-on-a-blank-canvas with a banner saying so — cached
+  ones are served by the worker first, so that banner is now about the tiles you never
+  downloaded rather than about having no signal. Leaflet stays a plain `<script>` setting
+  `window.L`; that is what keeps `libFail()` honest.
 - **Comments** explain why a thing is the way it is, not what the line does.

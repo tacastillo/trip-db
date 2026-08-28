@@ -1,10 +1,12 @@
 import { drawRail, syncMarkers } from "./map.js";
 import { renderPlan } from "./plan-pane.js";
 import { resyncSelection, selectedId } from "./selection.js";
+import { save } from "./store.js";
+import { setTab } from "./tabs.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, legForDate, resolvePlan } from "../lib/plan-core.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
    few need a setter rather than a bare live binding. */
@@ -70,8 +72,32 @@ export function syncPlanUrl(){
   }, 400);
 }
 
+/* The link is still the only thing you can share, and it is still the truth when one
+   names stops. This is the other half: a day you were part way through building when
+   the phone locked is not somebody else's, and losing it to a reload was never a
+   decision anyone made. Only the four fields the URL itself carries are kept. */
+export function savePlan(){
+  save({ plan: { city: plan.city, ids: plan.ids.slice(), day: plan.day, title: plan.title } });
+}
+
+/** The date is a label and a source of closure cautions, never a schedule — see
+    plan-core's closedDays(). Picking one on an empty day also moves you to the leg you
+    are actually in that day, because that is the only reason the spans exist. */
+export function setPlanDay(day){
+  plan.day = day || "";
+  const leg = legForDate(plan.day);
+  if (leg && !plan.ids.length && leg !== plan.city){
+    plan.city = leg;
+    setTab(leg);
+  }
+  syncPlanUrl();
+  savePlan();
+  renderPlan();
+}
+
 export function afterPlanChange(){
   syncPlanUrl();
+  savePlan();
   renderPlan();
   syncMarkers();
   drawRail();
@@ -146,6 +172,7 @@ export function refreshPlanControls(){
 
 export function setSideTab(t){
   sideTab = t;
+  save({ sideTab: t });
   document.getElementById("side").dataset.sidetab = t;
   [["tabPlaces","places"],["tabPlan","plan"]].forEach(([id, v]) => {
     const b = document.getElementById(id);

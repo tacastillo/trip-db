@@ -3,6 +3,7 @@ import { renderList } from "./list.js";
 import { drawRail, fitCity, syncMarkers } from "./map.js";
 import { renderPlan } from "./plan-pane.js";
 import { plan } from "./plan-state.js";
+import { syncOfflineButton } from "./offline.js";
 import { renderRailLegend } from "./rail-legend.js";
 import { deselect } from "./selection.js";
 import { map, railOn, setCurrentTab } from "./state.js";
@@ -35,6 +36,8 @@ export function setTab(id){
   if (!plan.ids.length) plan.city = id;
   renderPlan();
   syncMarkers();
+  // the tile pack is per leg, so the button is answering a different question now
+  syncOfflineButton();
   const hasRail = (RAIL[id] || []).length > 0;
   const rt = document.getElementById("railToggle");
   const rl = document.getElementById("raillegend");
