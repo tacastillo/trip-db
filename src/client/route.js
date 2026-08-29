@@ -95,7 +95,9 @@ export function showRoute(p){
     lineCap: "round", lineJoin: "round", interactive: false }).addTo(routeLayer);
   const head = L.circleMarker(j.legs[0].pts[0], { radius: 4.5, color: cssVar("--pin-edge"), weight: 2,
     fillColor: track, fillOpacity: 1, interactive: false }).addTo(routeLayer);
-  stationDots(j);
+  // no platforms on a walk: the board dot names HOTEL_STATION, which is not where a
+  // walk out of the front door starts
+  if (j.rail.length) stationDots(j);
   routeDraw = { shapes, comet, head, total, j };
   requestAnimationFrame(spaceLabels);
   hideComet();

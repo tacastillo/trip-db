@@ -54,7 +54,9 @@ export function planHotelLine(p){
   if (!j) return null;
   const hops = j.rail.map(l => `${l.label} to ${l.to}`).join(", then ");
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m` : `${(j.walk / 1000).toFixed(1)} km`;
-  return `${hops}${hops ? ", then " : ""}${walk} on foot, about ${j.minutes} min door to door`;
+  // nothing to ride: the whole journey is the walk, so it is not "door to door" after a ride
+  if (!hops) return `${walk} on foot, about ${j.minutes} min`;
+  return `${hops}, then ${walk} on foot, about ${j.minutes} min door to door`;
 }
 
 /* Debounced, because Safari throttles replaceState at 100 calls in 30 seconds and

@@ -13,7 +13,8 @@ import { metres } from "../src/lib/geo.js";
 import { metres as libMetres } from "./lib.mjs";
 import { PLACES, LEGS, TRIP } from "../src/data/places.js";
 import * as tiles from "../src/lib/tiles.js";
-import { STATION_COORDS } from "../src/data/routing.js";
+import { STATION_COORDS, WALK_BEND } from "../src/data/routing.js";
+import * as journey from "../src/lib/journey.js";
 
 let failures = 0;
 const ok = (name, pass, detail) => {
@@ -357,6 +358,30 @@ ok("the tile maths is the standard slippy scheme",
 ok("a zoom level is four tiles where the one above it was one",
   tiles.lngToX(126.9779, 14) >> 1 === tiles.lngToX(126.9779, 13)
   && tiles.latToY(37.5663, 14) >> 1 === tiles.latToY(37.5663, 13));
+
+/* ---------- the ride has to beat the walk ---------- */
+
+/* The station table is rooted at one hotel, so the nearest station with a ROUTES entry
+   is not the station anybody would use for a spot in the hotel's own street. DDP is the
+   case that made this rule: a block from the door, and the page routed Line 4 out to
+   Dongdaemun, a transfer, Line 1 back down and a kilometre on foot. */
+group("the ride has to beat the walk");
+const ddp = pick("ddp");
+const ddpJ = journey.journeyFor(ddp);
+ok("a spot in the hotel's own neighbourhood walks rather than rides",
+  ddpJ && !ddpJ.rail.length, ddpJ ? `rides ${ddpJ.rail.map(l => l.label).join(", ")}` : "no journey at all");
+ok("and the walk it offers is the one you would actually take",
+  ddpJ && Math.abs(ddpJ.walk - metres([ddp.lat, ddp.lng], [pick("novotel").lat, pick("novotel").lng]) * WALK_BEND) < 1,
+  ddpJ && `${Math.round(ddpJ.walk)} m`);
+const far = journey.journeyFor(pick("gyeongbok"));
+ok("a spot across town keeps its ride", far && far.rail.length > 0);
+ok("nothing inside the walk threshold is left riding a train it would beat on foot",
+  PLACES.every(p => {
+    const j = journey.journeyFor(p), w = journey.walkJourney(p);
+    return !j || !j.rail.length || !w || j.minutes <= w.minutes + journey.RIDE_WORTH_MIN;
+  }));
+ok("the hotel itself is still where a ride starts, not somewhere you ride to",
+  journey.journeyFor(pick("novotel")) === null);
 
 /* ---------- the two metres() ---------- */
 

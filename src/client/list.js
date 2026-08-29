@@ -125,7 +125,7 @@ export function renderList(){
   document.getElementById("hoodCount").textContent = hoods;
   const sub = document.getElementById("sumSub");
   // rail geometry isn't the test — Busan draws lines but has no station table yet
-  if (sub) sub.textContent = PLACES.some(p => p.city === currentTab && journeyFor(p))
+  if (sub) sub.textContent = PLACES.some(p => { const j = journeyFor(p); return p.city === currentTab && j && j.rail.length; })
     ? "tap a spot for the ride there from the hotel"
     : "tap a spot to see it on the map";
   fillDistances();
