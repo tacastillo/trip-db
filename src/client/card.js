@@ -7,7 +7,7 @@ import { deselect } from "./selection.js";
 import { isVisited, toggleVisited } from "./visited.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { dirBtnsHtml, hopHow } from "./plan-pane.js";
+import { hopHow, kakaoBtnHtml, naverBtnHtml } from "./plan-pane.js";
 import { fmtM, hotelFor, kakaoDirUrl, koreaClock, naverDirUrl, planLegs } from "../lib/plan-core.js";
 import { DOW_SHORT } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
@@ -30,8 +30,15 @@ export function hoursChipHtml(p){
 }
 
 /* ---------------- map ---------------- */
+/* One row of controls, not three. What you do here is add the stop, tick it off, and
+   hand yourself to something that navigates — on a phone those are four taps that fit
+   on one 44px line, and three stacked full-width rows were most of the card. The two
+   hand-offs live in the same container as the two actions so a single grid can lay them
+   out four-up on a phone and keep the desktop's stacked shape; the route strip above is
+   now text only. Naver stays the filled one wherever it lands. */
 export function cardHtml(p){
   const c = CATS[p.cat];
+  const strip = planningMode() ? hopStripHtml(p) : routeStripHtml(p);
   return `<button class="card-x" id="cardX" title="Close" aria-label="Close">${icon("close")}</button>
     <div class="pop-top">
       <div class="pop-cat" style="--c:${catVar(p.cat)}">${icon(c.icon)} ${c.label}</div>
@@ -43,11 +50,13 @@ export function cardHtml(p){
     ${p.signature || p.meta ? `<div class="pop-extra">${
       [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
        p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
-    <div class="card-acts">
-      <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")} ${planHas(p.id) ? "In the day" : "Add to the day"}</button>
+    ${strip.html}
+    <div class="card-acts${strip.links ? " four" : ""}">
+      <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")}<span>${
+        planHas(p.id) ? `In<span class="ca-l"> the day</span>` : `Add<span class="ca-l"> to the day</span>`}</span></button>
       <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen"><span class="tickbox${isVisited(p.id) ? " on" : ""}"></span> Been</button>
-    </div>
-    ${planningMode() ? hopStripHtml(p) : routeStripHtml(p)}`;
+      ${strip.links ? naverBtnHtml(strip.links.naver, p.name, "Naver") + kakaoBtnHtml(strip.links.kakao, p.name) : ""}
+    </div>`;
 }
 export const cardEl = document.getElementById("card");
 export function showCard(p){
@@ -74,6 +83,9 @@ export function hideCard(){
 }
 
 
+/* No route to say anything about — the card still has its two actions, just no hand-off. */
+export const NO_STRIP = { html: "", links: null };
+
 /* Mid-plan the useful question is not "how do I get here from the hotel" — it is "what
    is between the stop before this one and this one". That is the same hop the plan pane
    already words, so it is worded the same way here: the distance, the line only where
@@ -90,9 +102,9 @@ export function hopStripHtml(p){
   // same hop the pane draws above stop one, worded the same way
   const fromHome = i === 0 || (i < 0 && !planned.length);
   const from = fromHome ? home : (i > 0 ? stops[i - 1].place : planned[planned.length - 1]);
-  if (!from || from.id === p.id) return "";
+  if (!from || from.id === p.id) return NO_STRIP;
   const leg = planLegs([{ id:from.id, place:from }, { id:p.id, place:p }], planOffFor)[0];
-  if (!leg) return "";
+  if (!leg) return NO_STRIP;
   const line = leg.line
     ? `<div class="pr-step"><span class="pr-line" style="background:${leg.line.color}">${leg.line.label}</span>
        <span class="pr-txt">${leg.line.from} ${icon("next", "pr-arr")} ${leg.line.to}</span></div>`
@@ -100,22 +112,22 @@ export function hopStripHtml(p){
   const kicker = fromHome ? `From ${from.name}, where the day starts`
     : i > 0 ? `From stop ${i}, ${from.name}`
             : `From your last stop, ${from.name}`;
-  return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
-    <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>
-    ${dirBtnsHtml(leg, p.name, "Open in Naver Maps")}</div>`;
+  return { links: { naver: leg.naver, kakao: leg.kakao },
+    html: `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
+      <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div></div>` };
 }
 
 export function routeStripHtml(p){
   const j = journeyFor(p);
-  if (!j) return "";
+  if (!j) return NO_STRIP;
   const home = hotelFor(p.city);
   const links = home ? { naver: naverDirUrl(home, p), kakao: kakaoDirUrl(home, p) } : null;
   // Close enough that the subway is the long way round — see buildJourney(). One line,
-  // because there is nothing to say about a walk except how far and how long.
+  // kicker and all: there is nothing to say about a walk except where from, how far and
+  // how long, and a heading of its own over a single line is a line spent on nothing.
   if (!j.rail.length)
-    return `<div class="pop-route"><span class="pr-k">From the hotel</span>
-      <div class="pr-walk">${icon("walk")} ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div>
-      ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;
+    return { links, html: `<div class="pop-route"><div class="pr-walk">${icon("walk")}
+      <span class="pr-k in">From the hotel</span> ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div></div>` };
   const rows = j.rail.map((leg, i) => {
     const last = i === j.rail.length - 1;
     return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
@@ -125,8 +137,7 @@ export function routeStripHtml(p){
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
   // the traced ride names the platforms; Naver is what you actually follow on the day
-  return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div>
-    ${links ? dirBtnsHtml(links, p.name, "Open in Naver Maps") : ""}</div>`;
+  return { links, html: `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
+    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>` };
 }
 

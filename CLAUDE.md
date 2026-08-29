@@ -380,12 +380,14 @@ own left edge — that alignment is the reason those are tokens and not literals
 **The Naver button is the payload, not a footnote.** It is the one control on the page
 that actually navigates a person somewhere, and on the ground it is what gets followed —
 so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
-desktop, full width at 44px on a phone, and the wide two thirds of the card's own button
-row. It shares that row with Kakao rather than stacking above it because a card is a sheet
-over the map you are reading: four full-width controls under the note is most of a phone
-screen spent on buttons. In a hop row it still takes the line to itself. Every hop, the
-walk home, the planning card and the hotel-ride card go through that one function, so it
-looks and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
+desktop, full width at 44px on a phone, and one of four controls on the card's own action
+bar. On a card it is not a footnote under the route strip any more: the strip is text, and
+`Add · Been · Naver · Kakao` share one 44px row, because three stacked full-width rows were
+150px of a 390px card — most of what was on screen was buttons, over the map they cover.
+Four columns is why the labels shorten to `Add` and `Naver` on a phone; the desktop card
+keeps the words and the stacked shape out of the same grid. In a hop row Naver still takes
+the line to itself. Every hop, the walk home, the planning card and the hotel-ride card go
+through that one function, so it looks and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
 link stops resolving.
 
 **Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea navigates

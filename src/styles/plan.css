@@ -196,14 +196,10 @@
   border:1px solid var(--line); border-radius:4px; padding:1px 4px; margin-left:3px; white-space:nowrap;}
 .pr-tag.hop{color:var(--accent); border-color:var(--accent);}
 .pr-walk{margin-top:5px; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums;}
+/* a walk out of the door is one line, so its kicker rides in that line rather than
+   taking one of its own — a heading over a single line is a line spent on nothing */
+.pr-k.in{display:inline; margin:0;}
 .pr-walk .ic{width:var(--ic-s); height:var(--ic-s); margin-right:2px;}
-/* in the card there is nothing to sit beside, so it spans the width and reads as the
-   action the card is for */
-/* in the card there is a whole width to spend: Naver takes the row, Kakao the one
-   under it */
-.pop-route .phop-go{width:100%; margin:8px 0 0;}
-.pop-route .phop-a{margin:0; flex:1 1 100%; justify-content:center; min-height:36px; font-size:12px;}
-.pop-route .phop-a.alt{flex:1 1 0; min-width:0;}
 
 
 /* The day picker. Fifteen chips in a sideways scroller rather than a date field: the
