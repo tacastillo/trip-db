@@ -13,7 +13,8 @@
 
   .head{padding:11px 14px 0; padding-left:max(14px, env(safe-area-inset-left));
     padding-right:max(14px, env(safe-area-inset-right));}
-  /* the leg tabs already carry the dates, so the eyebrow and the trip badge are just height */
+  /* the nav trigger already carries the leg and its dates, so the eyebrow and the trip
+     badge below are just height */
   .eyebrow{display:none;}
   .badge{display:none;}
   .titlerow{align-items:center; gap:10px; margin-top:0; flex-wrap:nowrap;}
@@ -31,49 +32,14 @@
   #offlineToggle .tb-i{font-size:13px; font-variant-numeric:tabular-nums;}
   .badge{font-size:10.5px; padding:4px 8px; border-radius:6px;}
 
-  /* tabs scroll sideways instead of wrapping */
-  .tabs{gap:20px; margin-top:10px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;}
-  .tabs::-webkit-scrollbar{display:none;}
-  .tab{flex:none; padding-bottom:10px;}
-  .tab-l{font-size:14px; white-space:nowrap;}
-  /* The legs scroll under it; the link does not move. Its own left rule separates the
-     two so a half-scrolled leg does not read as sitting next to "Korean".
-     Everything here is width the three legs need back: at 390px they fit the row exactly
-     with nothing to spare, and a leg whose dates are sliced in half by the divider reads
-     as broken rather than as more to scroll. So the link gives up its second line and
-     some of its type, and the row gives up some of its gaps. */
-  .tabrow{gap:8px;}
-  /* margin-top goes so align-self:stretch can have the whole row: the legs are 43px and
-     the row is 53px, so the link reaches its 44 by filling what is already there rather
-     than by taking another ten from the header. */
-  .tabout{padding-left:10px; border-left:1px solid var(--line-2); align-self:stretch;
-    margin-top:0; display:flex; flex-direction:column; justify-content:flex-end;}
-  .tabout .tab-l{font-size:13px;}
-  .tabout .tab-d{display:none;}
-  .tabs{gap:16px;}
-  /* The last of it comes from the dates, which are the reminder rather than the target:
-     the label is what a thumb aims at, and a point of type off the line under it buys
-     Busan's "Sep 7 – 10" the room to finish the word. */
-  .tab-d{font-size:10.5px;}
-
-  /* ---- the cheat sheet ---- */
-  .phtier,.phgroup{padding-left:14px; padding-right:14px;}
-  .phjump,.phsearchwrap,.phcount{padding-left:max(14px, env(safe-area-inset-left));
-    padding-right:max(14px, env(safe-area-inset-right));}
-  .phfoot{padding-bottom:max(30px, env(safe-area-inset-bottom));}
-  /* under 16px iOS zooms the whole page the moment the field takes focus */
-  .phsearchwrap .searchbox{font-size:16px;}
-  /* the one column you read out loud gets the size; the other two keep their places */
-  .ph-say{font-size:20px;}
-  .phhear-b .ph-say{font-size:18px;}
-  .phrow{padding:12px 0;}
-  /* three columns of numbers do not fit a thumb-width screen, so the native column
-     goes under the sino one rather than being squeezed into a third of the row */
-  .phnum{grid-template-columns:3.2em 1fr; gap:4px 10px;}
-  .phnum-e{grid-column:2;}
-  .phnum.h{grid-template-columns:3.2em 1fr;}
-  .phnum.h span:last-child{display:none;}
+  /* One control instead of four, so none of the squeezing round one needed is needed:
+     the leg dates are back at their own size and there is nothing left to overflow.
+     The row is a few pixels taller than the tabs were — a bordered 44px target where
+     there used to be 43px of bare text — and the gaps above and below give back what
+     they can of it. */
+  .navrow{margin-top:8px; padding-bottom:8px;}
+  .navtrig{max-width:100%;}
+  .nv-l{font-size:14px;}
 
   .viewswitch{display:flex; gap:4px; margin-top:11px; padding:3px; border-radius:10px; background:var(--line-2);}
 
@@ -182,6 +148,14 @@
   .pal-panel{right:8px; left:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
     width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
   .pal-panel.on{transform:none;}
+  /* and the nav menu with it, for the same reason: the bottom half is the thumb's half */
+  .nv-menu{left:8px; right:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
+    width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
+  .nv-menu.on{transform:none;}
+  .nv-row{padding:10px 12px; min-height:52px;}
+  .nv-txt b{font-size:14px;}
+  .nv-txt em{font-size:11.5px;}
+
   .pal-row{padding:10px 12px; min-height:52px;}
   .pal-txt b{font-size:14px;}
   .pal-txt em{font-size:11.5px;}
@@ -190,14 +164,6 @@
 
 @media (max-width:400px){
   .title{font-size:18px;}
-  /* A 360px phone is 30px short of fitting three legs, their dates and the link. The
-     link keeps its arrow — without it "Korean" reads as a fourth city — so the rest
-     comes off the type and the gaps. */
-  .tabs{gap:13px;}
-  .tab-d{font-size:10px;}
-  .tabout .tab-l{font-size:12px;}
-  .tabout{padding-left:8px;}
-  .tabrow{gap:6px;}
   .badge{font-size:10px; letter-spacing:-.01em;}
   .raillegend{max-width:52vw;}
 }

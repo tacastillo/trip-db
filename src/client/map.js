@@ -2,7 +2,7 @@ import { fitPlan } from "./plan-map.js";
 import { plan, planBody, planHas } from "./plan-state.js";
 import { routeDraw, spaceLabels } from "./route.js";
 import { deselect, select, selectedId } from "./selection.js";
-import { active, currentTab, map, night, railOn, setMap } from "./state.js";
+import { active, currentTab, map, night, railOn, setMap, statedCity } from "./state.js";
 import { isVisited, visitedHidden } from "./visited.js";
 import { isMobile } from "./view.js";
 import { CATS, PLACES } from "../data/places.js";
@@ -137,8 +137,10 @@ export function initMap(){
   syncMarkers();
   if (document.body.classList.contains("planning")) drawRail();
   // opening a plan link and landing on the whole city hides the very thing the link
-  // was for, so a day in the URL frames itself instead
-  if (planBody().some(s => s.place)) fitPlan(); else fitCity();
+  // was for, so a day in the URL frames itself instead — unless the URL also named a
+  // different city, which is a more recent instruction than a day left in the store.
+  const elsewhere = statedCity && statedCity !== plan.city;
+  if (!elsewhere && planBody().some(s => s.place)) fitPlan(); else fitCity();
 
   // Tiles are the one thing still fetched live. Everything else ships with the page,
   // so losing them degrades to pins-on-a-blank-canvas rather than a broken map.

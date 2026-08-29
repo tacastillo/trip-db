@@ -70,7 +70,7 @@ src/
   layouts/FieldMap.astro  Shell plus leaflet's css and js, and client/main.js
   components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData · PhraseHeader
   styles/               plain global CSS, imported in cascade order by the layout
-  data/                 the trip and the vendored OSM geometry
+  data/                 the trip, the cheat sheet, the vendored OSM geometry
   lib/                  pure: no DOM, no Leaflet, no page state — node imports this
   client/               everything that touches the page
 tools/                  maintenance scripts; not part of the build
@@ -102,7 +102,8 @@ page* below).
 | `route.js` | drawing and animating the ride, the station labels |
 | `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
 | `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
-| `tabs.js` `rail-legend.js` | the leg tabs and the subway key |
+| `tabs.js` `rail-legend.js` | switching leg, and the subway key |
+| `nav.js` | the one menu — Cities and Tools — and the trigger that says where you are |
 | `main.js` | the map page's boot sequence, the four toggle buttons, `window.trip` |
 | `phrases-boot.js` | the whole cheat sheet page — its own entry, never imported by `main.js` |
 
@@ -121,6 +122,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
 | `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
 | `TIERS`, `GROUPS`, `PHRASES`, `NUMBERS` | `data/phrases.js` | you | yes — this is the cheat sheet |
+| `TOOLS` | `data/tools.js` | you | yes — what sits under Tools in the nav menu |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -538,6 +540,15 @@ situation is a heading inside them. `check-data.mjs` fails if the first tier gro
 dozen, because the whole point of it is that it is learnable; past that it is the sheet again
 with a heading on it.
 
+**The `say` column is not romanization, and it is never to be corrected.** It is one
+person's phonetic spelling, worked over by saying the rows out loud until each came out
+right, for a mouth that reads English. Accuracy to Korean phonology is the one axis it does
+not optimise for, and "improving" it along that axis is exactly how this page lost a dozen
+rows once already: `jay-SONG-HAM-nee-da` was rewritten to `jweh-song-ham-nee-da`, which is
+genuinely closer to 죄송합니다 and which nobody can say. `rom` is where the correct spelling
+lives, and it is right there in the same row. A row that is nearer the real sound and
+unreadable aloud is a broken row. Only its author changes this column.
+
 **Stress is data, and it is painted rather than shouted.** `say:"*kahm*-sah-*ham*-nee-da"`,
 and `sayParts()` in `lib/phrases.js` turns each marked run into a span the stylesheet paints
 in `--accent`. CAPITALS were the obvious way and the wrong one: they change the letterforms,
@@ -573,12 +584,10 @@ understood and never confidently wrong. Anything that is not a whole positive nu
 `null` and the field says so out loud, rather than leaving the last good reading sitting
 there looking like the answer.
 
-**The way in is the leg-tabs row, and that was measured.** A fifth button in `.toolbtns`
-wraps the title at 390px — the defect the offline work shipped once already. The tabs row had
-room, scrolls sideways on a phone, and is where a thumb already is. It cost the three legs
-about thirty pixels of type and gaps at 390px and again at 360px (see `mobile.css`), which is
-the trade: the leg *label* is the tap target and the date under it is the reminder, and a
-date sliced in half by the divider reads as broken rather than as more to scroll.
+**The way in is the one menu — see *Getting around* below.** The first cut put a "Korean"
+pill at the end of the leg tabs, which was wrong twice: it read as a fourth city, and four
+things did not fit a row with space for two and a half. It is a *Tools* row in the nav menu
+now.
 
 **What they say back is collapsed.** Nine `hear:true` rows — how many people, for here or to
 go, cash or card. Recognising a sentence is a different job from producing one, and
@@ -587,6 +596,49 @@ else has started talking. One control per group, ephemeral, nothing stored.
 
 The page is precached like everything else, and the worker's navigation branch now keys on
 `url.pathname` — see *Working with no signal* below.
+
+## Getting around
+
+One trigger and one menu, in the row the three leg tabs used to have. `client/nav.js` owns
+both, `data/tools.js` is what sits under *Tools*, and `styles/nav.css` dresses it.
+
+**Four things did not fit that row.** Seoul · Jeju · Busan already filled it at 390px, and
+adding the cheat sheet meant taking about thirty pixels of type and gaps off the legs to
+stop Busan's dates being sliced in half. A fifth button in `.toolbtns` was never an option
+— that wraps the title, which is the defect the offline work shipped once already. So the
+row holds one control and the choices moved into a sheet, where there is room for the next
+tool as well. The row is a few pixels taller than the tabs were, because a bordered 44px
+target is taller than 43px of bare text; that is the trade and it is the right way round.
+
+**The trigger says where you are, not what it does.** `Seoul · Aug 30 – Sep 4` on the map,
+`Korean · cheat sheet` on the phrase page. That is the leg tabs' one real job — telling you
+which leg you are looking at and when it is — kept.
+
+**The menu is two questions with one answer each**, and they are different kinds of thing,
+which is the whole reason the cheat sheet is not a fourth pill: *Cities* is where the map
+points, *Tools* is which page you are on. On the phrase page the map itself is a Tools row,
+because that is where the cities live and a second "back" button beside the trigger would
+be 44px spent twice.
+
+**`nav.js` is imported by both pages, so it may import neither `map.js` nor `tabs.js`.** It
+is handed its city handler the way `palette.js` is handed its redraw: `main.js` calls
+`setNavHandler(setTab)` and picking a city switches leg in place; the phrase page sets no
+handler, so picking a city there is a link to `index.html?city=<id>` instead. `tabs.js`
+imports `syncNav` from `nav.js` and never the reverse, which is what keeps the two off a
+cycle. The sheet is anchored by handing CSS `--nv-top`/`--nv-left` rather than by writing
+`top`/`left`, because the phone puts it at the bottom of the screen instead and an inline
+style would beat the media query that does that.
+
+**A stated city moves the map; it does not re-home your day.** `?city=` is the plan
+grammar's own parameter and a link has always beaten the store, but `restored()` used it to
+set `plan.city` as well — so arriving on `?city=jeju` with a Seoul day in the store filed
+that day under Jeju: Seoul stops, a Jeju hotel at both ends, the wrong closed-day cautions.
+Rare enough to go unnoticed while only a shared link carried it, and a routine tap the
+moment the menu existed. `setTab` had always drawn the right line (a day survives you
+flicking through the cities), so boot draws it too: a stated city sets the *tab*, and moves
+the day only when the day is empty. `map.js` needs the same fact — a restored day frames
+itself on load, and that framing used to drag the map straight back to the day's leg — so
+`statedCity` lives in `state.js` where both can read it.
 
 ## Working with no signal
 
@@ -684,6 +736,7 @@ handle deliberately:
 
 ```js
 window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
+                openNav, closeNav,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
                 startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,

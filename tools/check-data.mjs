@@ -19,6 +19,7 @@ import { SUBWAY } from "../src/data/subway.js";
 import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
 import { RAIL } from "../src/data/rail.js";
 import { GROUPS as PH_GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS as PH_TIERS } from "../src/data/phrases.js";
+import { TOOLS } from "../src/data/tools.js";
 import { hasStress, saySpoken } from "../src/lib/phrases.js";
 import { wonReading } from "../src/lib/won.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
@@ -318,6 +319,16 @@ for (const leg of LEGS){
     const page = f.replace(/\.astro$/, ".html");
     if (!listed.includes(page))
       err(`src/pages/${f} builds ${page}, which public/sw.js does not precache — it would not work offline`);
+  }
+  /* And what the nav menu points at. A tool naming a page that is not there is a dead
+     row in the one menu on the site, and a tool whose page is not precached is a row
+     that works right up until you are in Jeju with no signal. */
+  const pages = readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))
+    .map(f => f.replace(/\.astro$/, ".html"));
+  for (const t of TOOLS){
+    if (!pages.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which is not a page in src/pages/`);
+    if (!listed.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which public/sw.js does not precache`);
+    if (!ICONS[t.icon]) err(`TOOLS "${t.id}" names icon "${t.icon}", which tools/fetch-icons.mjs never wrote`);
   }
   const mf = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
   if (mf.start_url !== "./index.html") err(`the manifest starts at ${mf.start_url}; build.format is "file", so it has to be ./index.html`);

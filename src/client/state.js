@@ -29,3 +29,10 @@ export const setNight = (v) => { night = v; };
 
 export let railOn = saved.railOn !== false;
 export const setRailOn = (v) => { railOn = v; };
+
+/* Whether the URL named a city, and which. Read by map.js: a day restored from the store
+   frames itself on boot, which quietly drags the map back to that day's leg — fine when
+   you just reloaded, wrong when you have this moment asked for another city from the nav
+   menu. Stating a city is the more recent instruction, so it wins over the framing. */
+export let statedCity = "";
+export const setStatedCity = (v) => { statedCity = v || ""; };

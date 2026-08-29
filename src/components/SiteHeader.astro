@@ -1,6 +1,5 @@
 ---
 import { icon } from "../lib/icons.js";
-const base = import.meta.env.BASE_URL;
 ---
 <header class="head">
   <div class="eyebrow">Food-first field map</div>
@@ -22,16 +21,12 @@ const base = import.meta.env.BASE_URL;
     <button class="vs-btn on" id="vsMap" data-view="map" aria-pressed="true"><Fragment set:html={icon("map")} /> Map</button>
     <button class="vs-btn" id="vsList" data-view="list" aria-pressed="false"><Fragment set:html={icon("list")} /> List <span class="vs-ct" id="vsCount"></span></button>
   </div>
-  <!-- The way to the cheat sheet, and it lives here rather than in .toolbtns for a
-       measured reason: at 390px four icon toggles already take ~181px of the title row
-       and a fifth wraps the title, which is the defect the offline work shipped once
-       already. This row has room — it scrolls sideways on a phone — and a thumb is
-       using it anyway. Outside #tabs because tabs.js appends the legs into that. -->
-  <div class="tabrow">
-    <div class="tabs" id="tabs"></div>
-    <a class="tab tabout" href={`${base}phrases.html`} title="Korean phrases, said out loud">
-      <span class="tab-l">Korean <Fragment set:html={icon("next")} /></span>
-      <span class="tab-d">cheat sheet</span>
-    </a>
+  <!-- Where the three leg tabs and the cheat-sheet pill were. Four things did not fit a
+       row with space for two and a half; client/nav.js says the rest. -->
+  <div class="navrow">
+    <button class="navtrig" id="navTrig" aria-haspopup="dialog" aria-expanded="false" aria-label="Go to a city or a tool">
+      <span><span class="nv-l">Seoul</span><span class="nv-d"></span></span>
+      <Fragment set:html={icon("chevron")} />
+    </button>
   </div>
 </header>

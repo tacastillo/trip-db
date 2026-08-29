@@ -16,6 +16,7 @@ import "../styles/map.css";
 import "../styles/plan.css";
 import "../styles/ride.css";
 import "../styles/palette.css";
+import "../styles/nav.css";
 import "../styles/phrases.css";
 import "../styles/mobile.css";
 
@@ -49,7 +50,9 @@ const FONTS = `
 <!-- data-palette ships set for the same reason body ships class="night": the first
      paint should be the right one. client/palette.js corrects it if a link or this
      browser asked for another. -->
-<html lang="en" data-palette="glacier">
+<!-- data-base is here because a bundled module cannot see astro.config's base, and
+     client/nav.js builds links to the site's other page out of it. -->
+<html lang="en" data-palette="glacier" data-base={base}>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />

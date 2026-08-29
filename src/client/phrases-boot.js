@@ -2,6 +2,7 @@ import { NUMBERS, PHRASES, PRICE_PRESETS } from "../data/phrases.js";
 import { countMatching, sayParts, sections } from "../lib/phrases.js";
 import { wonReading } from "../lib/won.js";
 import { bootBasemap } from "./basemap.js";
+import { bootNav, closeNav, openNav } from "./nav.js";
 import { registerSW } from "./offline.js";
 import { armPaletteEgg, bootPalette } from "./palette.js";
 import { night, setNight } from "./state.js";
@@ -188,6 +189,9 @@ function syncJump(){
 bootPalette();       // before anything paints, so nothing paints in the wrong palette
 bootBasemap();       // no tiles here, but the choice is the site's and the panel shows it
 applyNight();
+/* No handler is set: this page has no map to switch, so nav.js turns a city into a link
+   to index.html?city=<id> rather than calling something that is not here. */
+bootNav();
 render();
 
 if (nightBtn) nightBtn.onclick = () => {
@@ -226,7 +230,7 @@ registerSW();
 /* The same handle main.js publishes, for the same reason: a bundled module exposes
    nothing, and CLAUDE.md's browser-driving recipe reaches for this. */
 window.trip = {
-  jumpTo, showPrice, wonReading, sections, countMatching,
+  jumpTo, showPrice, wonReading, sections, countMatching, openNav, closeNav,
   PHRASES, NUMBERS,
   setQuery(q){ searchEl.value = q == null ? "" : String(q); searchEl.oninput(); return query; },
   get query(){ return query; },

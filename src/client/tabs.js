@@ -8,25 +8,17 @@ import { renderRailLegend } from "./rail-legend.js";
 import { deselect } from "./selection.js";
 import { map, railOn, setCurrentTab } from "./state.js";
 import { isMobile, setView } from "./view.js";
-import { LEGS } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
+import { syncNav } from "./nav.js";
 
-/* ---------------- build tabs ---------------- */
-export const tabsEl = document.getElementById("tabs");
-LEGS.forEach(leg => {
-  const b = document.createElement("button");
-  b.className = "tab" + (leg.id === "seoul" ? " active" : "");
-  b.dataset.tab = leg.id;
-  b.innerHTML = `<span class="tab-l">${leg.label}</span>
-                 <span class="tab-d">${leg.dates}</span>`;
-  b.onclick = () => setTab(leg.id);
-  tabsEl.appendChild(b);
-});
-
-/* ---------------- tabs ---------------- */
+/* ---------------- which leg the map is on ---------------- */
+/* The three tabs this file used to build are one trigger and one menu now — see
+   client/nav.js. Everything below is unchanged: switching leg is still the same dozen
+   things, and nav.js calls straight into it. The import goes one way (this file reads
+   syncNav, nav.js never reads this one), which is what keeps the two off a cycle. */
 export function setTab(id){
   setCurrentTab(id);
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === id));
+  syncNav();
   deselect();
   renderLegend();
   renderList();
