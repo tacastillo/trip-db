@@ -1,0 +1,19 @@
+---
+import { icon } from "../lib/icons.js";
+const base = import.meta.env.BASE_URL;
+---
+<!-- The same .head as the map page, with what this page has no use for taken out: no leg
+     tabs, no map/list switch, no rail, me or offline toggle. What is left is the way back
+     and the theme, and the title keeps its class because client/palette.js arms the
+     five-tap panel on `.title` and the palette is worth judging here too. -->
+<header class="head">
+  <div class="eyebrow">Say it like it's spelled</div>
+  <div class="titlerow">
+    <div class="title disp">Korean <span class="amp">·</span> cheat sheet</div>
+    <div class="toolbtns">
+      <a class="railtoggle phback" href={base} title="Back to the map" aria-label="Back to the map"
+        ><span class="tb-i" set:html={icon("map")} /><span class="tb-l">Map</span></a>
+      <button class="nighttoggle" id="nightToggle" title="Toggle night mode" aria-label="Toggle night mode"><span class="tb-i" set:html={icon("day")} /><span class="tb-l">Day</span></button>
+    </div>
+  </div>
+</header>

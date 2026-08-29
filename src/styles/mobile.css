@@ -37,6 +37,43 @@
   .tabs::-webkit-scrollbar{display:none;}
   .tab{flex:none; padding-bottom:10px;}
   .tab-l{font-size:14px; white-space:nowrap;}
+  /* The legs scroll under it; the link does not move. Its own left rule separates the
+     two so a half-scrolled leg does not read as sitting next to "Korean".
+     Everything here is width the three legs need back: at 390px they fit the row exactly
+     with nothing to spare, and a leg whose dates are sliced in half by the divider reads
+     as broken rather than as more to scroll. So the link gives up its second line and
+     some of its type, and the row gives up some of its gaps. */
+  .tabrow{gap:8px;}
+  /* margin-top goes so align-self:stretch can have the whole row: the legs are 43px and
+     the row is 53px, so the link reaches its 44 by filling what is already there rather
+     than by taking another ten from the header. */
+  .tabout{padding-left:10px; border-left:1px solid var(--line-2); align-self:stretch;
+    margin-top:0; display:flex; flex-direction:column; justify-content:flex-end;}
+  .tabout .tab-l{font-size:13px;}
+  .tabout .tab-d{display:none;}
+  .tabs{gap:16px;}
+  /* The last of it comes from the dates, which are the reminder rather than the target:
+     the label is what a thumb aims at, and a point of type off the line under it buys
+     Busan's "Sep 7 – 10" the room to finish the word. */
+  .tab-d{font-size:10.5px;}
+
+  /* ---- the cheat sheet ---- */
+  .phtier,.phgroup{padding-left:14px; padding-right:14px;}
+  .phjump,.phsearchwrap,.phcount{padding-left:max(14px, env(safe-area-inset-left));
+    padding-right:max(14px, env(safe-area-inset-right));}
+  .phfoot{padding-bottom:max(30px, env(safe-area-inset-bottom));}
+  /* under 16px iOS zooms the whole page the moment the field takes focus */
+  .phsearchwrap .searchbox{font-size:16px;}
+  /* the one column you read out loud gets the size; the other two keep their places */
+  .ph-say{font-size:20px;}
+  .phhear-b .ph-say{font-size:18px;}
+  .phrow{padding:12px 0;}
+  /* three columns of numbers do not fit a thumb-width screen, so the native column
+     goes under the sino one rather than being squeezed into a third of the row */
+  .phnum{grid-template-columns:3.2em 1fr; gap:4px 10px;}
+  .phnum-e{grid-column:2;}
+  .phnum.h{grid-template-columns:3.2em 1fr;}
+  .phnum.h span:last-child{display:none;}
 
   .viewswitch{display:flex; gap:4px; margin-top:11px; padding:3px; border-radius:10px; background:var(--line-2);}
 
@@ -153,6 +190,14 @@
 
 @media (max-width:400px){
   .title{font-size:18px;}
+  /* A 360px phone is 30px short of fitting three legs, their dates and the link. The
+     link keeps its arrow — without it "Korean" reads as a fourth city — so the rest
+     comes off the type and the gaps. */
+  .tabs{gap:13px;}
+  .tab-d{font-size:10px;}
+  .tabout .tab-l{font-size:12px;}
+  .tabout{padding-left:8px;}
+  .tabrow{gap:6px;}
   .badge{font-size:10px; letter-spacing:-.01em;}
   .raillegend{max-width:52vw;}
 }

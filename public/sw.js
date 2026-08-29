@@ -25,6 +25,7 @@ const TILE_MAX = 4000;
 const SHELL_FILES = [
   "./",
   "./index.html",
+  "./phrases.html",
   "./manifest.webmanifest",
   "./icon.svg",
   "./vendor/leaflet/leaflet.js",
@@ -105,16 +106,27 @@ self.addEventListener("fetch", (e) => {
 
   // The page itself: network first, so a deploy is picked up the moment there is a
   // network, and the cached copy is what is left when there is not.
+  //
+  // Keyed on the path and never on the request. Two pages now share this branch, so a
+  // fixed "./index.html" key would file the phrase page under the map page's name and
+  // then serve the phrase page to anyone opening the map offline. But keying on `req`
+  // is worse: a shared day is index.html?city=…&stops=…, and every distinct query string
+  // would become its own cache entry, so a link nobody had opened verbatim would have
+  // nothing to fall back to. The pathname is the page; the query is what the page reads.
   if (req.mode === "navigate"){
+    const page = url.origin + url.pathname;
     e.respondWith((async () => {
       try {
         const res = await fetch(req);
         const cache = await caches.open(SHELL);
-        cache.put(new URL("./index.html", self.registration.scope), res.clone());
+        // cache.put throws on a redirected response, and a bare path redirecting to its
+        // .html is exactly the shape a second page invites
+        if (res && res.ok && !res.redirected) cache.put(page, res.clone());
         return res;
       } catch (err){
         const cache = await caches.open(SHELL);
-        return (await cache.match(new URL("./index.html", self.registration.scope)))
+        return (await cache.match(page))
+            || (await cache.match(new URL("./index.html", self.registration.scope)))
             || (await cache.match(new URL("./", self.registration.scope)))
             || Response.error();
       }

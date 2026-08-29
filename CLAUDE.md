@@ -1,9 +1,10 @@
 # Working on trip-db
 
-A field map for one trip to Korea: Seoul, Jeju, Busan. It is an [Astro][] site with
-no framework and no islands: `.astro` files carry the markup, plain CSS carries the
-look, and the behaviour is a handful of ES modules under `src/client/`. GitHub
-Actions builds it on every push to `main` and hands the output to GitHub Pages.
+A field map for one trip to Korea: Seoul, Jeju, Busan, and a Korean cheat sheet beside it.
+It is an [Astro][] site with no framework and no islands: `.astro` files carry the markup,
+plain CSS carries the look, and the behaviour is a handful of ES modules under
+`src/client/`. GitHub Actions builds it on every push to `main` and hands the output to
+GitHub Pages.
 
 [Astro]: https://astro.build
 
@@ -63,9 +64,11 @@ What that means in practice:
 astro.config.mjs        base:'/trip-db/'; output goes to dist/, which is gitignored
 public/                 copied verbatim: vendor/ (Leaflet, fonts), sw.js, the manifest, .nojekyll
 src/
-  pages/index.astro     the one page; there is no router and no second page
-  layouts/FieldMap.astro  <head>, the @font-face block, leaflet's css and js
-  components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData
+  pages/index.astro     the map; there is no router
+  pages/phrases.astro   the Korean cheat sheet — the only other page
+  layouts/Shell.astro   <head>, the @font-face block, the theme metas; both pages
+  layouts/FieldMap.astro  Shell plus leaflet's css and js, and client/main.js
+  components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData · PhraseHeader
   styles/               plain global CSS, imported in cascade order by the layout
   data/                 the trip and the vendored OSM geometry
   lib/                  pure: no DOM, no Leaflet, no page state — node imports this
@@ -100,7 +103,8 @@ page* below).
 | `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
 | `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
 | `tabs.js` `rail-legend.js` | the leg tabs and the subway key |
-| `main.js` | the boot sequence, the four toggle buttons, `window.trip` |
+| `main.js` | the map page's boot sequence, the four toggle buttons, `window.trip` |
+| `phrases-boot.js` | the whole cheat sheet page — its own entry, never imported by `main.js` |
 
 Shared mutable state is an `export let` read elsewhere as a live binding, which is
 why almost every read is still a bare name. A value only gets a setter when a module
@@ -116,6 +120,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | --- | --- | --- | --- |
 | `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
 | `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
+| `TIERS`, `GROUPS`, `PHRASES`, `NUMBERS` | `data/phrases.js` | you | yes — this is the cheat sheet |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -502,6 +507,87 @@ Distances go through the same `metres()` as everything else, so a row and a hop 
 Refusal, a timeout and a browser with no geolocation at all each say something specific in
 `#geobanner`, which is a separate banner from the tile one because they can both be true.
 
+## The other page: the Korean cheat sheet
+
+There are two pages now, and the second one is `src/pages/phrases.astro`. `build.format`
+is `"file"`, so it is a real `phrases.html` at the root of the site — same rule that keeps
+`index.html` resolving for every plan link ever shared.
+
+**The layout is split, and the split is the load-bearing part.** `Shell.astro` is what both
+pages are made of — the tokens, the fonts, the two `theme-color` metas, `<html data-palette>`
+and `<body class="night">`. `FieldMap.astro` is Shell plus Leaflet and `client/main.js`, and
+the phrase page uses Shell directly. It has to: `main.js` imports `map.js`, which needs
+`window.L`, and four of its modules (`view.js`, `tabs.js`, `list.js`, `plan-boot.js`)
+dereference the map page's own markup as they evaluate — importing it on a page with no map
+takes that page down before it paints. `check-data.mjs` now pins the metas to `Shell.astro`,
+and checks that every layout goes through Shell and every page through a layout, because a
+page that quietly skipped it would build, deploy and work while wearing the browser's
+colours instead of the trip's.
+
+Two things about `Shell.astro` are not cosmetic. `<slot name="head" />` is the **last** thing
+before `</head>` and must stay there: Astro injects the bundled stylesheets at that point,
+so leaflet.css coming through the slot is what lets the nine project sheets land after it and
+override it. And Shell re-derives `const base = import.meta.env.BASE_URL` — it is not
+inherited from the layout wrapping it.
+
+**Tiers, not situations.** The starting draft was sorted into Basics · Restaurants · Cafes ·
+Markets · Transport, which is how a phrasebook has always been sorted and is sorted for the
+person who wrote it. On a phone you do not scroll to a chapter. So `TIERS` in
+`src/data/phrases.js` is the top level — *every day*, *this trip*, *if it comes up* — and the
+situation is a heading inside them. `check-data.mjs` fails if the first tier grows past a
+dozen, because the whole point of it is that it is learnable; past that it is the sheet again
+with a heading on it.
+
+**Stress is data, and it is painted rather than shouted.** `say:"*kahm*-sah-*ham*-nee-da"`,
+and `sayParts()` in `lib/phrases.js` turns each marked run into a span the stylesheet paints
+in `--accent`. CAPITALS were the obvious way and the wrong one: they change the letterforms,
+so the word is read twice — once to decode it, once to find the emphasis. Colour touches
+neither. `--accent` is the page's whole chroma budget and already carries an enforced
+contrast floor in both themes, so this needed no token of its own. Every row must carry a
+mark; `check-data.mjs` fails if one does not, because a row that lost its marks in an edit
+still renders — just flat, which is the one thing the column was redesigned to stop being.
+
+**Three columns, three jobs, and the order on screen is not the order in the table.** `say`
+is the only one you use with your mouth, so it is the big one; `en` is a label above it;
+`rom` is for typing into Papago and is sized like the footnote it is. `alt` is never
+rendered at all — it is the synonyms search matches, because the word you reach for is
+almost never the word in the Meaning column: you think "bill", the sheet says "Check,
+please"; you think "toilet", it says "bathroom".
+
+**`ko` is present and deliberately empty.** This sheet ships romanization only, which makes
+it a study sheet rather than something you can point at — you cannot show `gyesanhae juseyo`
+to anybody, and it cannot read a menu. That was the call; the field is there so adding
+hangul later is a rendering change and a fill-in-the-column job rather than a re-entry of
+every row. `check-data.mjs` fails if `ko` is filled in or if hangul turns up in the other
+three columns.
+
+**The price reader is the one thing computed rather than listed.** The hard part of Korean
+money is not vocabulary, it is that Korean counts in 만 — ten-thousands — so 15,000 is
+"man ocheon", and the regrouping happens behind your eyes while a queue forms. `wonReading()`
+in `lib/won.js` does it from the same syllables `NUMBERS` displays, and `check-data.mjs` pins
+the two together so a typo fixed in one cannot leave the other saying the old thing. It
+deliberately does **not** smooth the sound changes — 육만 is really closer to "yungman" —
+because that would mean encoding assimilation rules from memory with nothing here able to
+check them, the same trap as an unverifiable app scheme. Mechanical concatenation is always
+understood and never confidently wrong. Anything that is not a whole positive number returns
+`null` and the field says so out loud, rather than leaving the last good reading sitting
+there looking like the answer.
+
+**The way in is the leg-tabs row, and that was measured.** A fifth button in `.toolbtns`
+wraps the title at 390px — the defect the offline work shipped once already. The tabs row had
+room, scrolls sideways on a phone, and is where a thumb already is. It cost the three legs
+about thirty pixels of type and gaps at 390px and again at 360px (see `mobile.css`), which is
+the trade: the leg *label* is the tap target and the date under it is the reminder, and a
+date sliced in half by the divider reads as broken rather than as more to scroll.
+
+**What they say back is collapsed.** Nine `hear:true` rows — how many people, for here or to
+go, cash or card. Recognising a sentence is a different job from producing one, and
+interleaving the two doubled the height of every section for rows you only need once somebody
+else has started talking. One control per group, ephemeral, nothing stored.
+
+The page is precached like everything else, and the worker's navigation branch now keys on
+`url.pathname` — see *Working with no signal* below.
+
 ## Working with no signal
 
 `public/sw.js` is a service worker, copied to the site verbatim — no build step behind it,
@@ -538,10 +624,21 @@ That is why the receipt records `style` and why the button says **Re-save** rath
 "Saved" when it does not match what is on. A button that is wrong about working offline is
 wrong in the one place you cannot check.
 
-`check-data.mjs` holds this together in the three places nothing else would notice: it fails
-if `sw.js` precaches a file that is not in `public/` (rename a vendored font and the page
-still builds, still works online, and quietly stops working offline), if the layer's tile
-URL and the pack's stop agreeing, and if a leg's pack grows past what anyone would download.
+**Navigations are keyed on the path, and both halves of that matter.** The branch used to
+write every successful navigation under a fixed `./index.html`, which was harmless with one
+page and is not with two: visit the cheat sheet online, go offline, and the map page would
+serve you the cheat sheet. But keying on the request instead is worse — `new URL("./index.html")`
+strips the query string, and that is exactly what makes a shared `index.html?stops=…` link work
+offline after a single visit to the bare page. So the key is `url.origin + url.pathname`: the
+pathname is the page, the query is what the page reads. (`cache.put` also throws on a
+redirected response, which a second page makes likelier, so that is guarded.)
+
+`check-data.mjs` holds this together in the places nothing else would notice: it fails if
+`sw.js` precaches a file that is not in `public/` (rename a vendored font and the page still
+builds, still works online, and quietly stops working offline), if a page in `src/pages/`
+is *not* precached (it would build, deploy and work online with no offline copy at all), if
+the layer's tile URL and the pack's stop agreeing, and if a leg's pack grows past what anyone
+would download.
 
 ## The pure half
 
@@ -564,9 +661,10 @@ node tools/check-data.mjs      # data consistency, and the src/lib fence
 node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 node tools/test-hours.mjs      # the opening-hours grammar, no clock needed
+node tools/test-phrases.mjs    # the cheat sheet's stress marks and the price reader
 ```
 
-CI runs all five on every push and pull request, and nothing deploys unless they pass.
+CI runs all six on every push and pull request, and nothing deploys unless they pass.
 That is a backstop, not the plan: none of them see the page, so a green run says only
 that the data agrees with itself and the bundle built.
 

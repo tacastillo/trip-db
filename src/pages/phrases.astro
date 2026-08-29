@@ -1,0 +1,35 @@
+---
+import Shell from "../layouts/Shell.astro";
+import PhraseHeader from "../components/PhraseHeader.astro";
+import { icon } from "../lib/icons.js";
+---
+<!-- Shell rather than FieldMap: this page has no map, and client/main.js reaches into the
+     map page's own markup as it evaluates. See src/client/phrases-boot.js. -->
+<Shell title="Korean cheat sheet — Tim &amp; Marisa · Korea">
+  <div class="app">
+    <PhraseHeader />
+    <div class="phpage" id="phpage">
+      <!-- The bar is sticky and the list is rendered under it. Both are filled by
+           phrases-boot.js; what ships in the markup is the shape, so the first paint is
+           not a blank column. -->
+      <div class="phbar">
+        <div class="phjump" id="phjump"></div>
+        <div class="phsearchwrap searchwrap">
+          <!-- Outside the list it filters, for the reason plan.css:20 gives on the map
+               page: re-rendering under a focused input loses focus mid-word. -->
+          <input class="searchbox" id="phsearch" type="search" autocomplete="off"
+            spellcheck="false"
+            placeholder="Search — try “bill”, “toilet”, “discount”" aria-label="Search the cheat sheet" />
+          <button class="searchclear" id="phsearchClear" title="Clear" aria-label="Clear the search" set:html={icon("close")} />
+        </div>
+        <div class="phcount" id="phcount" hidden></div>
+      </div>
+      <div id="phlist"></div>
+      <div class="phfoot">
+        <b>Beyond this sheet:</b> Papago handles real-time voice translation well, and is
+        the honest backup for anything a restaurant or a clinic says that is not here.
+      </div>
+    </div>
+  </div>
+  <script>import "../client/phrases-boot.js";</script>
+</Shell>
