@@ -13,7 +13,8 @@
 
   .head{padding:11px 14px 0; padding-left:max(14px, env(safe-area-inset-left));
     padding-right:max(14px, env(safe-area-inset-right));}
-  /* the leg tabs already carry the dates, so the eyebrow and the trip badge are just height */
+  /* the nav trigger already carries the leg and its dates, so the eyebrow and the trip
+     badge below are just height */
   .eyebrow{display:none;}
   .badge{display:none;}
   .titlerow{align-items:center; gap:10px; margin-top:0; flex-wrap:nowrap;}
@@ -31,12 +32,14 @@
   #offlineToggle .tb-i{font-size:13px; font-variant-numeric:tabular-nums;}
   .badge{font-size:10.5px; padding:4px 8px; border-radius:6px;}
 
-  /* tabs scroll sideways instead of wrapping */
-  .tabs{gap:20px; margin-top:10px; overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;}
-  .tabs::-webkit-scrollbar{display:none;}
-  .tab{flex:none; padding-bottom:10px;}
-  .tab-l{font-size:14px; white-space:nowrap;}
+  /* One control instead of four, so none of the squeezing round one needed is needed:
+     the leg dates are back at their own size and there is nothing left to overflow.
+     The row is a few pixels taller than the tabs were — a bordered 44px target where
+     there used to be 43px of bare text — and the gaps above and below give back what
+     they can of it. */
+  .navrow{margin-top:8px; padding-bottom:8px;}
+  .navtrig{max-width:100%;}
+  .nv-l{font-size:14px;}
 
   .viewswitch{display:flex; gap:4px; margin-top:11px; padding:3px; border-radius:10px; background:var(--line-2);}
 
@@ -145,6 +148,14 @@
   .pal-panel{right:8px; left:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
     width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
   .pal-panel.on{transform:none;}
+  /* and the nav menu with it, for the same reason: the bottom half is the thumb's half */
+  .nv-menu{left:8px; right:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
+    width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
+  .nv-menu.on{transform:none;}
+  .nv-row{padding:10px 12px; min-height:52px;}
+  .nv-txt b{font-size:14px;}
+  .nv-txt em{font-size:11.5px;}
+
   .pal-row{padding:10px 12px; min-height:52px;}
   .pal-txt b{font-size:14px;}
   .pal-txt em{font-size:11.5px;}

@@ -21,5 +21,12 @@ import { icon } from "../lib/icons.js";
     <button class="vs-btn on" id="vsMap" data-view="map" aria-pressed="true"><Fragment set:html={icon("map")} /> Map</button>
     <button class="vs-btn" id="vsList" data-view="list" aria-pressed="false"><Fragment set:html={icon("list")} /> List <span class="vs-ct" id="vsCount"></span></button>
   </div>
-  <div class="tabs" id="tabs"></div>
+  <!-- Where the three leg tabs and the cheat-sheet pill were. Four things did not fit a
+       row with space for two and a half; client/nav.js says the rest. -->
+  <div class="navrow">
+    <button class="navtrig" id="navTrig" aria-haspopup="dialog" aria-expanded="false" aria-label="Go to a city or a tool">
+      <span><span class="nv-l">Seoul</span><span class="nv-d"></span></span>
+      <Fragment set:html={icon("chevron")} />
+    </button>
+  </div>
 </header>

@@ -1,7 +1,7 @@
 import { renderList } from "./list.js";
 import { renderPlan } from "./plan-pane.js";
 import { placeQuery, plan, savePlan, setPlaceQuery, setPlan, setPlanOver, setSideTab, syncPlanUrl } from "./plan-state.js";
-import { setCurrentTab } from "./state.js";
+import { setCurrentTab, setStatedCity } from "./state.js";
 import { saved } from "./store.js";
 import { LEGS, TRIP } from "../data/places.js";
 import { PLAN_MAX_STOPS, PLAN_PARAMS, decodePlanQuery, inTrip, isoDay, legForDate } from "../lib/plan-core.js";
@@ -21,11 +21,20 @@ export function restored(search){
   const mine = saved.plan && Array.isArray(saved.plan.ids) ? saved.plan : null;
   const plan = linked || !mine
     ? { city: got.city, ids: got.ids, day: got.day, title: got.title, extra: got.extra }
-    : { city: q.get(PLAN_PARAMS.city) ? got.city : (mine.city || got.city),
+    : { city: mine.city || got.city,
         ids: mine.ids.slice(0, PLAN_MAX_STOPS),
         day: got.day || mine.day || "",
         title: got.title || mine.title || "",
         extra: got.extra };
+  /* Which leg the map opens on, which is not the same question as which leg a day
+     belongs to — setTab has always kept those apart (a day survives you flicking through
+     the cities), and boot has to as well now that the nav menu makes ?city= a routine tap
+     rather than something only a shared link carried. Stating a city moves the map; it
+     moves a day you were already building only when that day is empty. Without this,
+     tapping "Jeju" on the cheat sheet re-homed a Seoul day to Jeju: Seoul stops under a
+     Jeju hotel, and the wrong closed-day cautions. */
+  const stated = q.get(PLAN_PARAMS.city) ? got.city : "";
+  if (stated && !plan.ids.length) plan.city = stated;
   /* The day you are on is the day you are planning, nine mornings out of fifteen. Only
      ever filled in when nothing else stated one — a restored day keeps its own date,
      and a date outside the trip is nobody's business of ours. */
@@ -34,17 +43,21 @@ export function restored(search){
     if (inTrip(today, TRIP)){
       plan.day = today;
       const leg = legForDate(today);
-      if (leg && !plan.ids.length) plan.city = leg;
+      /* but not over a city the link stated: that is somebody saying where to go. */
+      if (leg && !plan.ids.length && !stated) plan.city = leg;
     }
   }
-  return { plan, over: got.over, linked, restored: !linked && !!mine && mine.ids.length > 0 };
+  /* Last, so today's leg above has had its say: the map opens on the stated city if
+     there is one, and otherwise on wherever the day ended up. */
+  return { plan, stated, tab: stated || plan.city, over: got.over, linked, restored: !linked && !!mine && mine.ids.length > 0 };
 }
 
 export function bootPlan(){
   const boot = restored(location.search);
   setPlan(boot.plan);
   setPlanOver(boot.over);
-  setCurrentTab(plan.city);
+  setStatedCity(boot.stated);
+  setCurrentTab(boot.tab);
   // a restored day belongs in the address bar too, or "Copy link" would hand over a
   // link to an empty page
   if (boot.restored){ savePlan(); syncPlanUrl(); }
@@ -63,8 +76,11 @@ export function bootPlan(){
   document.getElementById("tabPlan").onclick = () => setSideTab("plan");
   const c = document.getElementById("planCount");
   if (c) c.textContent = plan.ids.length || "";
-  if (plan.ids.length) setSideTab("plan");
-  else if (saved.sideTab === "plan") setSideTab("plan");
+  /* ...but not when you asked for a different city than the day belongs to: the pane
+     would open on somebody else's leg. The day is still there, one tap away. */
+  const elsewhere = boot.stated && boot.stated !== plan.city;
+  if (plan.ids.length && !elsewhere) setSideTab("plan");
+  else if (saved.sideTab === "plan" && !elsewhere) setSideTab("plan");
   renderPlan();
 }
 

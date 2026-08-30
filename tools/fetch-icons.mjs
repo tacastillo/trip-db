@@ -63,6 +63,10 @@ const STREAMLINE = {
   close:    "delete-1",
   drag:     "arrow-move",
 
+  // the nav menu: what opens it, and the cheat sheet's own mark
+  chevron:  "interface-arrows-button-down-arrow-down-keyboard",
+  phrase:   "chat-bubble-text-square",
+
   // the small ones inside a row
   pin:      "location-pin-3",
   walk:     "arrow-roadmap",

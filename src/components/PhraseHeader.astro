@@ -1,0 +1,25 @@
+---
+import { icon } from "../lib/icons.js";
+---
+<!-- The same .head as the map page, with what this page has no use for taken out: no leg
+     tabs, no map/list switch, no rail, me or offline toggle. What is left is the way back
+     and the theme, and the title keeps its class because client/palette.js arms the
+     five-tap panel on `.title` and the palette is worth judging here too. -->
+<header class="head">
+  <div class="eyebrow">Say it like it's spelled</div>
+  <div class="titlerow">
+    <div class="title disp">Korean <span class="amp">·</span> cheat sheet</div>
+    <div class="toolbtns">
+      <button class="nighttoggle" id="nightToggle" title="Toggle night mode" aria-label="Toggle night mode"><span class="tb-i" set:html={icon("day")} /><span class="tb-l">Day</span></button>
+    </div>
+  </div>
+  <!-- The same trigger the map page has, and the reason there is no separate "back to
+       the map" button beside it: the menu already carries one, and a second way back is
+       44px this row does not have to spend. -->
+  <div class="navrow">
+    <button class="navtrig" id="navTrig" aria-haspopup="dialog" aria-expanded="false" aria-label="Go to a city or a tool">
+      <span><span class="nv-l">Korean</span><span class="nv-d"></span></span>
+      <Fragment set:html={icon("chevron")} />
+    </button>
+  </div>
+</header>

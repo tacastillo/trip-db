@@ -6,7 +6,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "node tools/check-data.mjs && node tools/test-plan.mjs && node tools/test-pipeline.mjs"
+    "check": "node tools/check-data.mjs && node tools/test-plan.mjs && node tools/test-pipeline.mjs && node tools/test-hours.mjs && node tools/test-phrases.mjs"
   },
   "devDependencies": {
     "@iconify-json/streamline": "^1.2.5",

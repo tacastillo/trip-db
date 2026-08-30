@@ -18,6 +18,10 @@ import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, TRIP } from "../src/data/place
 import { SUBWAY } from "../src/data/subway.js";
 import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
 import { RAIL } from "../src/data/rail.js";
+import { GROUPS as PH_GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS as PH_TIERS } from "../src/data/phrases.js";
+import { TOOLS } from "../src/data/tools.js";
+import { hasStress, saySpoken } from "../src/lib/phrases.js";
+import { wonReading } from "../src/lib/won.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
 import { PLAN_PARAMS, PLAN_MAX_STOPS, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
 import { TILE_KB, TILE_URL, leafletTemplate, offlinePack, tileUrl } from "../src/lib/tiles.js";
@@ -244,6 +248,57 @@ for (const leg of LEGS){
     + (orphans.length ? ` (${orphans.join(", ")} travelling)` : ""));
 }
 
+/* ---------- the cheat sheet ---------- */
+/* src/data/phrases.js is hand-edited like places.js, and the same class of mistake is
+   silent: a row naming a group that does not exist renders nowhere at all, and a `say`
+   string that lost its stress marks in an edit still renders — just flat, which is the
+   one thing the column was redesigned to stop being. */
+{
+  const seen = new Set();
+  for (const p of PHRASES){
+    const at = `phrase ${p.id || "(no id)"}`;
+    if (!p.id) err("a phrase has no id");
+    else if (seen.has(p.id)) err(`${at}: duplicate id — the later one shadows the earlier`);
+    seen.add(p.id);
+    for (const k of ["en", "rom", "say"]) if (!p[k]) err(`${at}: no ${k}`);
+    if (!PH_GROUPS.some(g => g.id === p.group))
+      err(`${at}: group "${p.group}" is not in GROUPS — the row would render nowhere`);
+    if (!hasStress(p.say))
+      err(`${at}: say "${p.say}" has no *stress* marks, so it would render flat`);
+    if ((p.say.match(/\*/g) || []).length % 2)
+      err(`${at}: say "${p.say}" has an odd number of asterisks`);
+    /* This sheet is romanization only, on purpose — see the header of phrases.js. `ko`
+       is here so hangul can be added later without re-entering every row, which only
+       works if nothing has quietly started smuggling it into the other columns. */
+    if (p.ko) err(`${at}: ko is "${p.ko}" — this sheet ships romanization only, see src/data/phrases.js`);
+    for (const k of ["en", "rom", "say"])
+      if (HANGUL.test(p[k] || "")) err(`${at}: ${k} contains hangul, which belongs in ko`);
+    if (saySpoken(p.say) === p.rom)
+      err(`${at}: say and rom are the same string — say is how it sounds, rom is how it is spelled`);
+  }
+  for (const g of PH_GROUPS)
+    if (!PH_TIERS.some(t => t.id === g.tier)) err(`group ${g.id}: tier "${g.tier}" is not in TIERS`);
+  for (const g of PH_GROUPS)
+    if (!PHRASES.some(p => p.group === g.id)) err(`group ${g.id} has no phrases in it`);
+  /* The numbers table is what lib/won.js assembles a price out of, so a syllable fixed
+     in one and not the other would leave the reader saying the old thing. */
+  for (const x of NUMBERS){
+    const said = wonReading(x.n);
+    if (!said) err(`the numbers table has ${x.n}, which the price reader will not read`);
+    else if (x.n !== 1 && !said.rom.startsWith(x.sino))
+      err(`NUMBERS says ${x.n} is "${x.sino}" but the price reader says "${said.rom}"`);
+  }
+  for (const n of PRICE_PRESETS)
+    if (!wonReading(n)) err(`the price reader's preset ${n} does not read`);
+  const daily = PH_GROUPS.filter(g => g.tier === PH_TIERS[0].id).map(g => g.id);
+  const nDaily = PHRASES.filter(p => daily.includes(p.group) && !p.hear).length;
+  /* The whole point of the tiers is that the first one is learnable. Past a dozen it is
+     just the sheet again, with a heading on it. */
+  if (nDaily > 12) err(`the "${PH_TIERS[0].label}" tier has ${nDaily} phrases in it — it is meant to be learnable`);
+  console.log(`\n  ${PHRASES.length} phrases in ${PH_GROUPS.length} groups`
+    + ` (${nDaily} every day, ${PHRASES.filter(p => p.hear).length} you only have to recognise)`);
+}
+
 /* ---------- what ships offline ---------- */
 /* public/sw.js is copied to the site verbatim and precaches a list of files by hand,
    because it is not bundled and nothing rewrites those paths. Rename a vendored font
@@ -253,9 +308,27 @@ for (const leg of LEGS){
   const listed = [...sw.matchAll(/^\s*"\.\/([^"]*)",\s*$/gm)].map(m => m[1]).filter(Boolean);
   if (listed.length < 10) err("public/sw.js lists almost nothing to precache — has SHELL_FILES moved?");
   for (const f of listed){
-    if (f === "index.html") continue;                  // built, not committed
+    if (f.endsWith(".html")) continue;                 // built, not committed
     try { readFileSync(join(ROOT, "public", f)); }
     catch (e){ err(`public/sw.js precaches "${f}", which is not in public/`); }
+  }
+  /* And the other direction, which is the one nothing else would notice: a page that
+     builds, deploys and works online while quietly having no offline copy at all.
+     build.format is "file", so src/pages/x.astro is x.html at the root of the site. */
+  for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
+    const page = f.replace(/\.astro$/, ".html");
+    if (!listed.includes(page))
+      err(`src/pages/${f} builds ${page}, which public/sw.js does not precache — it would not work offline`);
+  }
+  /* And what the nav menu points at. A tool naming a page that is not there is a dead
+     row in the one menu on the site, and a tool whose page is not precached is a row
+     that works right up until you are in Jeju with no signal. */
+  const pages = readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))
+    .map(f => f.replace(/\.astro$/, ".html"));
+  for (const t of TOOLS){
+    if (!pages.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which is not a page in src/pages/`);
+    if (!listed.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which public/sw.js does not precache`);
+    if (!ICONS[t.icon]) err(`TOOLS "${t.id}" names icon "${t.icon}", which tools/fetch-icons.mjs never wrote`);
   }
   const mf = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
   if (mf.start_url !== "./index.html") err(`the manifest starts at ${mf.start_url}; build.format is "file", so it has to be ./index.html`);
@@ -414,17 +487,35 @@ for (const f of readdirSync(join(ROOT, "src/lib"))){
     const night = themeVars(PALETTES[0], true), day = themeVars(PALETTES[0], false);
     const nightPaper = toHex(rgb(night, "--paper")), dayPaper = toHex(rgb(day, "--paper"));
     const nightAccent = toHex(rgb(night, "--accent")), nightLine = toHex(rgb(night, "--line"));
-    const layout = readFileSync(join(ROOT, "src/layouts/FieldMap.astro"), "utf8");
+    const layout = readFileSync(join(ROOT, "src/layouts/Shell.astro"), "utf8");
     const meta = (scheme) => (layout.match(
       new RegExp(`<meta name="theme-color" content="(#[0-9A-Fa-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`)) || [])[1];
     if ((meta("dark") || "").toUpperCase() !== nightPaper)
-      err(`FieldMap.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
+      err(`Shell.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
     if ((meta("light") || "").toUpperCase() !== dayPaper)
-      err(`FieldMap.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
+      err(`Shell.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
     /* and the palette it ships with has to be one that exists */
     const shipped = (layout.match(/<html[^>]*data-palette="([\w-]+)"/) || [])[1];
     if (!PALETTES.includes(shipped))
-      err(`FieldMap.astro ships data-palette="${shipped}", which is not a palette in ${tokensPath}`);
+      err(`Shell.astro ships data-palette="${shipped}", which is not a palette in ${tokensPath}`);
+    /* Those two metas, the shipped palette and the first-paint theme now live in one
+       layout that every page is supposed to go through. Nothing else notices a page that
+       does not: it would build, deploy and work, wearing the browser's colours instead of
+       the trip's. So the chain is checked rather than assumed. */
+    for (const f of readdirSync(join(ROOT, "src/layouts")).filter(f => f !== "Shell.astro")){
+      const raw = readFileSync(join(ROOT, "src/layouts", f), "utf8");
+      /* comments out first, or the one explaining that Shell owns <html> trips this */
+      const text = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "");
+      if (!/from\s+"\.\/Shell\.astro"/.test(text))
+        err(`src/layouts/${f} does not go through Shell.astro — it would ship no theme-color and no palette`);
+      if (/<html[\s>]/.test(text))
+        err(`src/layouts/${f} writes its own <html> — Shell.astro is the only one`);
+    }
+    for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
+      const text = readFileSync(join(ROOT, "src/pages", f), "utf8");
+      if (!/from\s+"\.\.\/layouts\//.test(text))
+        err(`src/pages/${f} uses no layout — every page goes through one, see src/layouts/Shell.astro`);
+    }
     const mf2 = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
     for (const k of ["background_color", "theme_color"])
       if ((mf2[k] || "").toUpperCase() !== nightPaper)

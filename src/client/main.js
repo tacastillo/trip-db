@@ -9,6 +9,7 @@ import { routeDraw, showRoute } from "./route.js";
 import { deselect, focus, select, selectedId } from "./selection.js";
 import { currentTab, map, night, railOn, setNight, setRailOn } from "./state.js";
 import { setTab } from "./tabs.js";
+import { bootNav, closeNav, openNav, setNavHandler } from "./nav.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
@@ -24,6 +25,11 @@ import { RAIL } from "../data/rail.js";
 bootPalette();       // before anything paints, so nothing paints in the wrong palette
 bootBasemap();       // and the tile layer is built from this, so it has to be first too
 bootPlan();          // reads the link, so currentTab is right before anything renders
+/* nav.js cannot import tabs.js without a cycle, so it is handed the switch instead —
+   the same shape as setPaletteHandler below. Booted after bootPlan so the trigger
+   opens saying the leg the link or the store actually landed on. */
+setNavHandler(setTab);
+bootNav();
 renderLegend();
 renderList();
 
@@ -126,6 +132,7 @@ registerSW();
    as the page runs. */
 window.trip = {
   focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
+  openNav, closeNav,
   planAdd, planRemove, planToggle, planClear, planReorder, planHref,
   startLocating, stopLocating, savePack, packSize, setHideVisited,
   PLACES, CATS, RAIL,

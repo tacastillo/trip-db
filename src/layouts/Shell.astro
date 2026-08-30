@@ -1,0 +1,86 @@
+---
+/* Everything both pages are made of: the tokens, the fonts, the two colours the browser
+   chrome needs, and the first-paint theme. It holds no map and boots no script — a page
+   that wants Leaflet wraps this in FieldMap.astro, and a page that does not (phrases)
+   uses it directly.
+
+   The stylesheets are imported here, in the order the single <style> block had them, so
+   the cascade is the one the page was written against. Import CSS here rather than in a
+   page or a wrapping layout: Astro emits bundled CSS at the end of <head>, so a sheet
+   imported anywhere else would land after all nine of these. */
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/header.css";
+import "../styles/sidebar.css";
+import "../styles/map.css";
+import "../styles/plan.css";
+import "../styles/ride.css";
+import "../styles/palette.css";
+import "../styles/nav.css";
+import "../styles/phrases.css";
+import "../styles/mobile.css";
+
+interface Props { title: string }
+const { title } = Astro.props;
+
+/* Not inherited from the wrapping layout: each .astro file reads this for itself. */
+const base = import.meta.env.BASE_URL;
+
+/* Fonts live in public/vendor/ so the page needs nothing from Google to render.
+   Both are variable (weight axis), so one file per subset covers every weight used.
+   The -ext subsets exist for ₩ and friends; browsers skip them unless a glyph needs them.
+   This one sheet stays inline: its url()s point into the published vendor/ directory
+   rather than at anything the bundler should fingerprint. */
+const FONTS = `
+@font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url(${base}vendor/fonts/inter-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Inter'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url(${base}vendor/fonts/inter-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+@font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+  src:url(${base}vendor/fonts/bricolage-grotesque-latin-wght-normal.woff2) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Bricolage Grotesque'; font-style:normal; font-weight:200 800; font-display:swap;
+  src:url(${base}vendor/fonts/bricolage-grotesque-latin-ext-wght-normal.woff2) format('woff2');
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;}
+`;
+---
+<!DOCTYPE html>
+<!-- data-palette ships set for the same reason body ships class="night": the first
+     paint should be the right one. client/palette.js corrects it if a link or this
+     browser asked for another. -->
+<!-- data-base is here because a bundled module cannot see astro.config's base, and
+     client/nav.js builds links to the site's other page out of it. -->
+<html lang="en" data-palette="glacier" data-base={base}>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark light" />
+<!-- The browser chrome cannot read a stylesheet, so these two are the only colours on
+     the page written outside styles/tokens.css — along with the manifest and the
+     launcher icon. check-data.mjs pins all four to --paper there, so they cannot drift. -->
+<meta name="theme-color" content="#1A1C15" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#F2F4F5" media="(prefers-color-scheme: light)" />
+<title>{title}</title>
+
+<!-- Installable and offline-capable: the worker is registered from client/offline.js,
+     and public/ is copied verbatim so both of these are real files at the site root. -->
+<link rel="manifest" href={`${base}manifest.webmanifest`} />
+<link rel="icon" href={`${base}icon.svg`} type="image/svg+xml" />
+<link rel="apple-touch-icon" href={`${base}icon.svg`} />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Korea map" />
+
+<style is:inline set:html={FONTS}></style>
+<!-- Last in <head>, and it has to stay last: Astro injects the bundled stylesheets at
+     this point, so anything slotted after them would win ties against the page's own
+     rules. leaflet.css comes through here for exactly that reason — the project sheets
+     land after it and override it, which is what they were written to do. -->
+<slot name="head" />
+</head>
+
+<body class="night">
+<slot />
+</body>
+</html>
