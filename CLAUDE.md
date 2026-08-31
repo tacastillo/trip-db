@@ -127,7 +127,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
 | `TIERS`, `GROUPS`, `PHRASES`, `NUMBERS` | `data/phrases.js` | you | yes — this is the cheat sheet |
 | `TOOLS` | `data/tools.js` | you | yes — the pages under Tools in the nav menu |
-| `RATES`, `HOME`, `WON_PRESETS` | `data/rates.js` | you | yes — and they ship stale on purpose |
+| `WON_PER_USD`, `WON_PRESETS` | `data/rates.js` | you | yes — and it ships stale on purpose |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -509,8 +509,8 @@ One key, `trip-db/v1`, and `src/client/store.js` is the only module that touches
 `localStorage` — everything else calls `save({...})` and reads `saved`. It holds the day
 you were last building, the category chips, night mode, the rail toggle, which side tab
 was open, which spots you have ticked off as been-to, when each leg's tiles were
-downloaded, which tier of the phrase sheet you were reading, and which currency you count
-in with any rate you have corrected. Nothing else, and nothing anywhere near a server.
+downloaded, which tier of the phrase sheet you were reading, and the won-to-dollar rate if
+you have corrected it. Nothing else, and nothing anywhere near a server.
 
 Two rules make that safe. A locked-down Safari **throws** rather than returning null, so
 every touch is wrapped and `storeOk` goes false; the plan pane then says out loud that
@@ -638,19 +638,28 @@ Its own tool, because that is what it is. It holds three things and they are in 
 you need them: what the number on the tag is in money you already think in, how to say
 that number out loud, and the two counting systems behind both.
 
-**No rate is ever fetched.** This page has to work with a dead SIM in Jeju, so a rate is
-data — `src/data/rates.js`, one number per currency, with the month it is from printed
-beside every conversion. It ships stale by design and says so, and the field under the
-converter is the answer to that: the number you actually got at the ATM beats anything
-committed to a repository months earlier, and `store.js` remembers it per currency. The
-arithmetic is `src/lib/money.js`, pure, where `test-phrases.mjs` reaches it.
+**Two currencies, and one of them is won.** There is no picker and there should not be
+one: this is a trip from the US with a US card in it, so the only question the page has to
+answer is what the tag says in dollars. Seven other currencies were seven rows of
+furniture in front of the one conversion anybody here is doing. If that ever changes it is
+a field in `data/rates.js`, not a control.
 
-**The rule of thumb is only printed when it is honest.** Nobody opens a converter at a
-stall; what you carry is "drop three zeros and multiply by one number". `roughRule()`
-rounds the per-thousand figure to something you can hold in your head and returns null
-when that rounding drifts more than a few percent — at nine won to the yen the same
-sentence would be a lie, so there is nothing there. Same rule as everywhere else on this
-page: mechanical and understood, or absent. Never confidently wrong.
+**No rate is ever fetched.** This page has to work with a dead SIM in Jeju, so the rate is
+data — `WON_PER_USD`, one number, with the month it is from printed beside the conversion.
+It ships stale by design and says so, and the field under the converter is the answer to
+that: the number you actually got at the ATM beats anything committed to a repository
+months earlier, and `store.js` remembers it. The arithmetic is `src/lib/money.js`, pure,
+where `test-phrases.mjs` reaches it.
+
+**The rule of thumb counts in 만, because Korea does.** Nobody opens a converter at a
+stall; what you carry is "knock off the zeros and multiply by one number". `roughRule()`
+states it per ten thousand rather than per thousand — at 1,350 won to the dollar the
+per-thousand version is "×0.74", which is not a number anyone multiplies in a queue,
+while "₩10,000 ≈ $7.50" is the same arithmetic in the unit the prices are already read in.
+It rounds to something you can hold in your head and returns null when that rounding
+drifts more than `RULE_DRIFT_MAX`, because a memorable number wrong by a tenth is worse
+than doing the division. Same rule as everywhere else on this page: mechanical and
+understood, or absent. Never confidently wrong.
 
 **Nothing that is not a whole positive amount converts.** `parseAmount()` strips commas,
 spaces and currency symbols off what an input hands it and returns null for the rest,

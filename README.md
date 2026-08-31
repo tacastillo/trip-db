@@ -92,9 +92,9 @@ Three things the map does that only matter when you are standing in a street:
   never in a shared link.
 - **Two tools beside the map.** *Phrases* is the Korean cheat sheet — one tier of it on
   screen at a time, a grid of the words you need mid-sentence (hot, cold, iced, without),
-  and a search that crosses the lot. *Money* converts won into money you already think in,
-  says the amount out loud in Korean, and carries both counting systems. Rates ship with
-  the page and are editable, because there is no network at a market stall.
+  and a search that crosses the lot. *Money* converts won to dollars and back,
+  says the amount out loud in Korean, and carries both counting systems. The rate ships
+  with the page and is editable, because there is no network at a market stall.
 - **No signal.** The site installs as an app and keeps itself: after one visit the page,
   Leaflet, the fonts and the data are all served from the device. The ⤓ button downloads
   the current leg's street tiles too — roughly 7 MB for Seoul, 11 for Jeju, 4 for Busan —

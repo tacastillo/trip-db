@@ -74,22 +74,31 @@
    readable and three thousand pixels long. */
 .phrow{padding:9px 0; border-bottom:1px solid var(--line-2);}
 .phrow:last-child{border-bottom:none;}
-/* The meaning and the romanization share a line. Neither is read aloud — one is a label
-   and the other is for typing into Papago — so between them they are worth one line, and
-   the line you actually say keeps its own. That is twenty pixels a row, which is a
-   screenful every fifteen rows on a phone. */
-.ph-h{display:flex; align-items:baseline; gap:8px;}
-.ph-en{font-size:12.5px; color:var(--muted); line-height:1.3; flex:1 1 auto; min-width:0;}
+/* Two lines, and which two matters. The compact draft put the meaning and the
+   romanization together on the top line — both small, both muted, both Inter — which
+   read as one sentence in one font and left you working out which half was the English.
+   Two fields of the same size and colour on the same line are one field.
+
+   So the romanization sits with the line it belongs to: it is the same words as the
+   phonetic spelling, spelled the standard way, and beside 19px of bold display type at
+   11.5px muted italic it cannot be read as the meaning. The meaning keeps the label line
+   above it, alone. Still two lines, which is the twenty pixels a row this was for. */
+.ph-en{font-size:12.5px; color:var(--muted); line-height:1.3;}
+.ph-b{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  flex-wrap:wrap; margin-top:1px;}
 .ph-say{font-family:'Bricolage Grotesque',sans-serif; font-size:19px; font-weight:600;
-  color:var(--ink); line-height:1.25; margin-top:1px; word-break:break-word;}
+  color:var(--ink); line-height:1.25; word-break:break-word;}
 /* The whole reason the stress is data and not capitals: colour marks the syllable
    without changing its letterforms, so the word is read once instead of twice.
    --accent is the page's entire chroma budget and already carries an enforced contrast
    floor in both themes, so this needs no colour of its own. */
 .ph-st{color:var(--accent); font-weight:800;}
-.ph-rom{font-size:11.5px; color:var(--muted); line-height:1.3;}
-.ph-h .ph-rom{flex:0 1 auto; min-width:0; text-align:right; overflow:hidden;
-  text-overflow:ellipsis; white-space:nowrap; opacity:.85;}
+/* Italic everywhere it appears: it is a transliteration, not a translation, and the
+   slant is what says so at a glance in a column where everything else is the same
+   family. */
+.ph-rom{font-size:11.5px; color:var(--muted); line-height:1.3; font-style:italic;}
+.ph-b .ph-rom{flex:0 1 auto; min-width:0; text-align:right; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;}
 
 /* ---- the word grid ---- */
 /* Not rows. These are the words you reach for in the middle of a sentence you already
@@ -143,10 +152,7 @@
    design. See client/money-boot.js and src/data/rates.js. */
 .mnwrap{padding:14px 14px 0; max-width:760px;}
 .mnbox{border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:12px;}
-.mncur{display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px;}
-.mncur::-webkit-scrollbar{display:none;}
-.mncur .phchip{padding:0 10px; font-size:13px;}
-.mnf{display:flex; align-items:flex-end; gap:8px; margin-top:10px;}
+.mnf{display:flex; align-items:flex-end; gap:8px;}
 .mnside{flex:1 1 0; min-width:0;}
 .mnside-l{display:block; font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
   font-weight:600; color:var(--muted); margin-bottom:4px; overflow:hidden; text-overflow:ellipsis;

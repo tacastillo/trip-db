@@ -1,6 +1,7 @@
 import { PHRASES } from "../data/phrases.js";
-import { countMatching, sayParts, sections, tiersFor } from "../lib/phrases.js";
+import { countMatching, sections, tiersFor } from "../lib/phrases.js";
 import { closeNav, openNav, openTools } from "./nav.js";
+import { hearHtml, rowHtml, sayHtml, wireHear } from "./phrase-row.js";
 import { save, saved } from "./store.js";
 import { bootTool, bootToolLate } from "./tool-boot.js";
 
@@ -41,20 +42,6 @@ const searching = () => !!query.trim();
 
 /* ---------------- rendering ---------------- */
 
-/* The stress marks become spans here and nowhere else. lib/phrases.js does the parsing
-   so a test can see it; this only paints, and the colour is the stylesheet's. */
-const sayHtml = (say) => sayParts(say)
-  .map(p => p.stress ? `<span class="ph-st">${p.text}</span>` : p.text).join("");
-
-/* Two lines, not three. The meaning and the romanization share the top one — one is a
-   label and the other is for typing into Papago, and neither is read aloud — so the
-   line you actually say is the only one with a line to itself. That is twenty pixels a
-   row, which is a screenful every fifteen rows. */
-const rowHtml = (p) => `<div class="phrow" data-id="${p.id}">
-  <div class="ph-h"><span class="ph-en">${p.en}</span><span class="ph-rom">${p.rom}</span></div>
-  <div class="ph-say">${sayHtml(p.say)}</div>
-</div>`;
-
 /* A word is not a sentence and does not get a sentence's row. Two columns of bare words
    is the densest honest shape for them, and density is the point: these are the ones you
    reach for mid-sentence — hot, cold, iced, without — and a column of them you can take
@@ -64,14 +51,6 @@ const wordsHtml = (rows) => `<div class="phwords">${rows.map(p => `<div class="p
   <span class="ph-say">${sayHtml(p.say)}</span>
   <span class="ph-rom">${p.rom}</span>
 </div>`).join("")}</div>`;
-
-/* What a counter says back, behind one control. Rendered only where a group has any —
-   an empty "0 replies" toggle is a control asking to be explained, the same argument
-   that keeps the been-there chip off the map page's first morning. */
-const hearHtml = (rows, gid) => !rows.length ? "" : `<div class="phhear" data-hear="${gid}">
-  <button class="phhear-t" type="button" aria-expanded="false">What they'll say back<span class="ct">${rows.length}</span></button>
-  <div class="phhear-b">${rows.map(rowHtml).join("")}</div>
-</div>`;
 
 const groupHtml = (g) => `<div class="phgroup" id="ph-${g.group.id}">
   <div class="phgroup-h">${g.group.label}</div>
@@ -134,15 +113,7 @@ export function setTier(id){
 
 /* ---------------- what the rendered rows do ---------------- */
 
-function wireList(){
-  listEl.querySelectorAll(".phhear-t").forEach(b => {
-    b.onclick = () => {
-      const box = b.closest(".phhear");
-      const on = box.classList.toggle("on");
-      b.setAttribute("aria-expanded", String(on));
-    };
-  });
-}
+const wireList = () => wireHear(listEl);
 
 /* ---------------- the jump bar ---------------- */
 

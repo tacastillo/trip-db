@@ -11,9 +11,9 @@
 
 import { countMatching, hasStress, isWord, matchesPhrase, saySpoken, sayParts, sections, tiersFor } from "../src/lib/phrases.js";
 import { WON_MAX, wonReading } from "../src/lib/won.js";
-import { fmtHome, fmtWon, homeToWon, parseAmount, rateFor, roughRule, wonToHome } from "../src/lib/money.js";
+import { RULE_DRIFT_MAX, fmtUsd, fmtWon, parseAmount, roughRule, usdToWon, wonToUsd } from "../src/lib/money.js";
 import { GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS } from "../src/data/phrases.js";
-import { HOME, RATES } from "../src/data/rates.js";
+import { CURRENCY, WON_PER_USD } from "../src/data/rates.js";
 import { TOOLS } from "../src/data/tools.js";
 
 let failures = 0;
@@ -96,32 +96,39 @@ for (const w of ["hot", "cold", "iced", "ice", "water"])
   ok(`"${w}" finds something`, countMatching(w, "phrases") > 0);
 
 /* ---------- the money ---------- */
-group("won, in money you think in");
+group("won, in dollars");
 
-const aud = rateFor("AUD").won;
-ok("the home currency is one of the rates", RATES.some(r => r.code === HOME));
-ok("every rate is a positive number", RATES.every(r => r.won > 0 && Number.isFinite(r.won)));
-ok("every rate has a symbol and a code", RATES.every(r => r.symbol && /^[A-Z]{3}$/.test(r.code)));
-ok("won to home is the division", Math.abs(wonToHome(8900, aud) - 8900 / aud) < 1e-9);
-ok("home to won is the multiplication, in whole won", homeToWon(20, aud) === Math.round(20 * aud));
-ok("a typed string is cleaned up first", wonToHome("₩15,000", aud) === wonToHome(15000, aud));
-ok("so is one with the currency stuck on it", homeToWon("A$ 12.50", aud) === homeToWon(12.5, aud));
-/* The same rule lib/won.js follows: nothing is better than a confident wrong number,
-   because this one gets paid. */
-for (const bad of ["", " ", "abc", "-5", "0", null, undefined])
+const R = WON_PER_USD;
+ok("the shipped rate is a positive number", R > 0 && Number.isFinite(R));
+ok("there is one currency and it is the dollar", CURRENCY.code === "USD" && CURRENCY.symbol === "$");
+ok("won to dollars is the division", Math.abs(wonToUsd(8900, R) - 8900 / R) < 1e-9);
+ok("dollars to won is the multiplication, in whole won", usdToWon(20, R) === Math.round(20 * R));
+ok("a typed string is cleaned up first", wonToUsd("₩15,000", R) === wonToUsd(15000, R));
+ok("so is one with the dollar sign stuck on it", usdToWon("$ 12.50", R) === usdToWon(12.5, R));
+/* The same rule lib/won.js follows: nothing beats a confident wrong number, because this
+   one gets paid. */
+for (const bad of ["", " ", "abc", "12abc", "-5", "0", null, undefined])
   ok(`${JSON.stringify(bad)} converts to nothing rather than a guess`,
-    wonToHome(bad, aud) === null && homeToWon(bad, aud) === null);
-ok("a rate of nothing converts to nothing", wonToHome(1000, 0) === null);
-ok("a small amount keeps its cents", fmtHome(16.853, "AUD") === "A$16.85");
-ok("a large one drops them", fmtHome(1124.4, "AUD") === "A$1,124");
+    wonToUsd(bad, R) === null && usdToWon(bad, R) === null);
+ok("a rate of nothing converts to nothing", wonToUsd(1000, 0) === null);
+ok("a small amount keeps its cents", fmtUsd(16.853) === "$16.85");
+ok("a large one drops them", fmtUsd(1124.4) === "$1,124");
 ok("won is formatted the way a price tag is", fmtWon(68000) === "₩68,000");
 ok("and rounds rather than showing a fraction of a won", fmtWon(17800.4) === "₩17,800");
-/* The rule of thumb is only offered when it is honest to within a few percent. */
-const rule = roughRule(aud, "AUD");
-ok("a nice rate gets a rule of thumb", !!rule && Math.abs(rule.round - 1000 / aud) / (1000 / aud) < 0.06);
-ok("and the yen, where the same sentence would be a lie, gets none",
-  roughRule(rateFor("JPY").won, "JPY") === null);
-ok("a nonsense rate gets none either", roughRule(0, "AUD") === null);
+/* The rule of thumb counts in 만, because Korea does — a per-thousand rule at 1,350 won
+   to the dollar would be "x0.74", which nobody multiplies in a queue. */
+const rule = roughRule(R);
+ok("the shipped rate gets a rule of thumb", !!rule);
+ok("and it is honest to within a few percent",
+  Math.abs(rule.round - 10000 / R) / (10000 / R) <= RULE_DRIFT_MAX);
+ok("it is stated per ten thousand", rule.text.startsWith("₩10,000"));
+ok("the multiplier and the amount in front of it are the same number",
+  rule.text.includes(fmtUsd(rule.round)) && rule.text.endsWith("×" + Number(rule.round.toFixed(2))));
+/* Where rounding to something memorable would drift too far, there is no rule rather
+   than a catchy one that is wrong by a tenth. */
+ok("a rate no rounding can make memorable gets none", roughRule(10000 / 22) === null);
+ok("and neither does a rate off any scale a traveller sees", roughRule(5) === null);
+ok("a nonsense rate gets none either", roughRule(0) === null && roughRule(-2) === null);
 
 /* ---------- the price reader ---------- */
 group("saying a price");
