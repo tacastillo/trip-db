@@ -279,6 +279,41 @@ export function naverMode(a, b){
    is the one place the vocabulary lives and the only line to change if it moves. */
 export const NAVER_MODE_TOKEN = { walk:"walk", transit:"public", car:"car" };
 
+/* Directions start where you are standing, when the page knows where that is.
+
+   Every hand-off on this map used to start at the hotel, which is right exactly once a
+   day — on the way out of it. Standing in Ikseon-dong at two in the afternoon and
+   tapping Naver on a place four blocks away, what you got was a route from Dongdaemun:
+   a ride you are not taking, from a door you are not at. The hotel was never the answer
+   to "how do I get there", it was just the only origin the page had before geo-me.js
+   existed.
+
+   So the origin is a place-shaped thing built from a fix rather than a place, and it
+   keeps the destination's city because naverMode() reads that to decide whether a leg
+   drives (Jeju has no metro) — a fix has no city, and inheriting the destination's is
+   right in every case that matters: you cannot be in Seoul and walking to Jeju.
+
+   It is pure and takes the fix as an argument for the same reason everything else here
+   does: src/lib may not touch navigator, and a test has to be able to hand it one. */
+export const HERE_NAME = "Where I am";
+/* Past this, you are not "here" — you are at home on a sofa in another country with the
+   location on, building a day. A fix in Sydney is a true answer to "where am I" and a
+   useless origin for every hop of a day in Jongno, so beyond it the hotel goes back to
+   being the default it always was. Eighty kilometres covers the whole of Jeju and every
+   suburb of Seoul and Busan, and does not reach the next country. */
+export const HERE_MAX_M = 80000;
+export function hereOrigin(here, to){
+  if (!here || !Number.isFinite(here.lat) || !Number.isFinite(here.lng)) return null;
+  if (to && Number.isFinite(to.lat) && metres([here.lat, here.lng], [to.lat, to.lng]) > HERE_MAX_M) return null;
+  return { id:"__here", name:HERE_NAME, lat:here.lat, lng:here.lng, city:(to || {}).city };
+}
+
+/** The two hand-off links for a hop, from wherever the hop actually starts. */
+export function dirLinks(a, b){
+  if (!a || !b) return null;
+  return { naver: naverDirUrl(a, b), kakao: kakaoDirUrl(a, b), fromHere: a.id === "__here" };
+}
+
 export function naverDirUrl(a, b, mode){
   const block = p => `${p.lng},${p.lat},${encodeURIComponent(p.name)},,`;
   const m = mode || naverMode(a, b);

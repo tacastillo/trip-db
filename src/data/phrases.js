@@ -37,22 +37,31 @@
    a fill-in-the-column job, not a re-entry of every row — which is the whole reason the
    field is here at all. check-data.mjs allows it empty and rejects hangul anywhere else. */
 
+/* A tier is a screen, not a chapter. `page` is which tool it belongs to: the phrase
+   sheet is what you say, and money is its own tool with its own page — see
+   src/data/tools.js. They were one page and it was four thousand pixels of scrolling. */
 export const TIERS = [
-  { id:"daily", label:"Every day",     note:"Ten. Learn these and the rest is a lookup." },
-  { id:"trip",  label:"This trip",     note:"The counters you will actually stand at." },
-  { id:"rare",  label:"If it comes up", note:"Here so it is not somewhere else." },
+  { id:"daily", label:"Every day",     page:"phrases", note:"Ten and a word list. Learn these and the rest is a lookup." },
+  { id:"trip",  label:"This trip",     page:"phrases", note:"The counters you will actually stand at." },
+  { id:"rare",  label:"If it comes up", page:"phrases", note:"Here so it is not somewhere else." },
+  { id:"pay",   label:"Paying",        page:"money",   note:"What you say once the number is worked out." },
 ];
 
 /* Order here is the order on the page and the order of the jump bar. */
 export const GROUPS = [
   { id:"basics", tier:"daily", label:"Basics" },
+  /* Not sentences. `kind:"word"` is rendered as a two-column grid of bare words rather
+     than as rows, because that is what these are for: you already know the sentence,
+     you are missing the one word in the middle of it. It is also the densest thing on
+     the sheet, which is the other half of why it exists — see styles/phrases.css. */
+  { id:"words",  tier:"daily", label:"Words", kind:"word" },
   { id:"food",   tier:"trip",  label:"Food" },
   { id:"cafe",   tier:"trip",  label:"Cafe" },
   { id:"shops",  tier:"trip",  label:"Shops" },
   { id:"taxi",   tier:"trip",  label:"Taxi" },
-  { id:"money",  tier:"trip",  label:"Money" },
   { id:"help",   tier:"rare",  label:"Help" },
   { id:"more",   tier:"rare",  label:"More" },
+  { id:"money",  tier:"pay",   label:"Money" },
 ];
 
 export const PHRASES = [
@@ -76,6 +85,62 @@ export const PHRASES = [
   { id:"okay", group:"basics", en:"It's okay / no thanks", rom:"gwaenchanayo",
     say:"*gwen*-cha-na-yo", alt:["fine","all good","never mind","no thank you","i'm good"], ko:"" },
 
+  /* ---- words: the one in the middle of a sentence you already know ---- */
+  /* Rendered as a grid, not as rows — see GROUPS above. These are the words that kept
+     being missing: standing at a counter you do not want "please make it not spicy",
+     you want "spicy", "hot", "iced", and the room to point. */
+  /* Two different English "hot"s, and the sheet needs both: this one is temperature and
+     w-spicy is the other. The label is short because a word cell is 150px wide; the
+     disambiguation lives in alt, where the search reads it. */
+  { id:"w-hot", group:"words", en:"Hot", rom:"tteugeoun",
+    say:"*tuh*-guh-oon", alt:["warm","heated","not iced","temperature","hot drink"], ko:"" },
+  { id:"w-warm", group:"words", en:"Warm", rom:"ttatteutan",
+    say:"*tah*-tuh-tahn", alt:["hot","lukewarm"], ko:"" },
+  { id:"w-cold", group:"words", en:"Cold", rom:"chagaun",
+    say:"*cha*-gah-oon", alt:["chilled","cool","icy"], ko:"" },
+  { id:"w-iced", group:"words", en:"Iced", rom:"aiseu",
+    say:"*ah*-ee-suh", alt:["ice","cold drink","iced coffee","over ice"], ko:"" },
+  { id:"w-ice", group:"words", en:"Ice", rom:"eoreum",
+    say:"*aw*-rum", alt:["ice cubes","iced"], ko:"" },
+  { id:"w-water", group:"words", en:"Water", rom:"mul",
+    say:"*mool*", alt:["drink","tap water","still"], ko:"" },
+  { id:"w-spicy", group:"words", en:"Spicy", rom:"maeun",
+    say:"*meh*-oon", alt:["hot","chilli","chili","heat"], ko:"" },
+  { id:"w-sweet", group:"words", en:"Sweet", rom:"dan",
+    say:"*dahn*", alt:["sugar","sugary","dessert"], ko:"" },
+  { id:"w-salty", group:"words", en:"Salty", rom:"jjan",
+    say:"*jjahn*", alt:["salt","savoury","savory"], ko:"" },
+  { id:"w-more", group:"words", en:"More", rom:"deo",
+    say:"*daw*", alt:["extra","another","again"], ko:"" },
+  { id:"w-less", group:"words", en:"Less", rom:"deol",
+    say:"*dull*", alt:["fewer","light","easy on"], ko:"" },
+  { id:"w-big", group:"words", en:"Big", rom:"keun",
+    say:"*koon*", alt:["large","big","size up"], ko:"" },
+  { id:"w-small", group:"words", en:"Small", rom:"jageun",
+    say:"*jah*-goon", alt:["little","size down","regular"], ko:"" },
+  { id:"w-this", group:"words", en:"This one", rom:"igeo",
+    say:"*ee*-guh", alt:["this","point"], ko:"" },
+  { id:"w-that", group:"words", en:"That one", rom:"jeogeo",
+    say:"*juh*-guh", alt:["that","over there"], ko:"" },
+  { id:"w-without", group:"words", en:"Without", rom:"ppaego",
+    say:"*peh*-go", alt:["no","none","hold the","allergy","take out"], ko:"" },
+  { id:"w-please", group:"words", en:"…please", rom:"juseyo",
+    say:"joo-*say*-yo", alt:["please","i'll have","give me","order"], ko:"" },
+  { id:"w-good", group:"words", en:"Delicious", rom:"masisseoyo",
+    say:"mah-*shee*-soh-yo", alt:["tasty","good","yum","nice"], ko:"" },
+  { id:"w-meat", group:"words", en:"Meat", rom:"gogi",
+    say:"*go*-gee", alt:["pork","beef","vegetarian","no meat"], ko:"" },
+  { id:"w-cash", group:"words", en:"Cash", rom:"hyeongeum",
+    say:"*hyun*-goom", alt:["money","notes","won"], ko:"" },
+  { id:"w-card", group:"words", en:"Card", rom:"kadeu",
+    say:"*kah*-duh", alt:["credit","visa","tap","contactless"], ko:"" },
+  { id:"w-togo", group:"words", en:"To go", rom:"pojang",
+    say:"poh-*jahng*", alt:["takeout","take away","wrap","box"], ko:"" },
+  { id:"w-here", group:"words", en:"Here", rom:"yeogi",
+    say:"*yaw*-gee", alt:["this place","stop here","over here"], ko:"" },
+  { id:"w-howmany", group:"words", en:"How much", rom:"eolma",
+    say:"*ol*-mah", alt:["price","quantity","count"], ko:"" },
+
   /* ---- food ---- */
   { id:"menu", group:"food", en:"Menu, please", rom:"menyupan juseyo",
     say:"*meh*-nyoo-pahn joo-*say*-yo", alt:["menu"], ko:"" },
@@ -95,6 +160,12 @@ export const PHRASES = [
     say:"*choo*-chun-heh joo-*say*-yo", alt:["recommend","suggestion","best","popular","signature"], ko:"" },
   { id:"whatisit", group:"food", en:"What is this?", rom:"igeo mwoyeyo",
     say:"*ee*-guh *mwuh*-yay-yo", alt:["what is it","unknown dish","identify"], ko:"" },
+  { id:"coldwater", group:"food", en:"Cold water, please", rom:"chagaun mul juseyo",
+    say:"*cha*-gah-oon mool joo-*say*-yo", alt:["water","cold","ice water","drink"], ko:"" },
+  { id:"hotwater", group:"food", en:"Hot water, please", rom:"tteugeoun mul juseyo",
+    say:"*tuh*-guh-oon mool joo-*say*-yo", alt:["water","hot","warm","tea"], ko:"" },
+  { id:"heatup", group:"food", en:"Could you heat this up?", rom:"deyeojusillaeyo",
+    say:"*deh*-yaw-joo-*shill*-eh-yo", alt:["warm","reheat","microwave","cold food"], ko:"" },
   { id:"bill", group:"food", en:"Check, please", rom:"gyesanhae juseyo",
     say:"geh-*sahn*-heh joo-*say*-yo", alt:["bill","check","pay","cheque","tab","settle up"], ko:"" },
   { id:"togo", group:"food", en:"To go, please", rom:"pojanghae juseyo",
@@ -115,6 +186,16 @@ export const PHRASES = [
     say:"*ah*-ee-suh ah-*meh*-ree-*kah*-no", alt:["coffee","americano","iced coffee","cold brew"], ko:"" },
   { id:"hotone", group:"cafe", en:"A hot one, please", rom:"ttatteutan geo juseyo",
     say:"*tah*-tuh-tahn guh joo-*say*-yo", alt:["hot","warm","not iced"], ko:"" },
+  { id:"icedplease", group:"cafe", en:"Iced, please", rom:"aiseuro juseyo",
+    say:"*ah*-ee-suh-ro joo-*say*-yo", alt:["cold","ice","iced","over ice","chilled"], ko:"" },
+  { id:"hotplease", group:"cafe", en:"Hot, please", rom:"ttatteutan geollo juseyo",
+    say:"*tah*-tuh-tahn *gull*-lo joo-*say*-yo", alt:["warm","not iced","hot"], ko:"" },
+  { id:"noice", group:"cafe", en:"No ice, please", rom:"eoreum ppaejuseyo",
+    say:"*aw*-rum *peh*-joo-say-yo", alt:["without ice","less ice","no ice"], ko:"" },
+  { id:"extraice", group:"cafe", en:"Extra ice, please", rom:"eoreum deo juseyo",
+    say:"*aw*-rum daw joo-*say*-yo", alt:["more ice","lots of ice"], ko:"" },
+  { id:"lesssweet", group:"cafe", en:"Less sweet, please", rom:"deol dalge haejuseyo",
+    say:"dull *dahl*-geh *heh*-joo-say-yo", alt:["not sweet","less sugar","half sweet"], ko:"" },
   { id:"forhere", group:"cafe", en:"For here", rom:"yeogiseo meogeulgeyo",
     say:"*yaw*-gee-suh *maw*-gul-geh-yo", alt:["eat in","dine in","stay","sit in"], ko:"" },
   { id:"cafetogo", group:"cafe", en:"To go", rom:"pojangiyo",
@@ -157,6 +238,16 @@ export const PHRASES = [
     say:"*kah*-duh *dwen*-ah-yo", alt:["card","credit","visa","payment","tap","contactless"], ko:"" },
   { id:"receipt", group:"money", en:"Receipt, please", rom:"yeongsujeung juseyo",
     say:"*yung*-soo-jung joo-*say*-yo", alt:["receipt","invoice","proof"], ko:"" },
+  { id:"separately", group:"money", en:"Can we pay separately?", rom:"ttaro gyesanhal su isseoyo",
+    say:"*tah*-ro geh-*sahn*-hahl soo ee-*soh*-yo", alt:["split","separate","each","halves"], ko:"" },
+  { id:"atm", group:"money", en:"Where's a cash machine?", rom:"hyeongeum inchulgi eodiyeyo",
+    say:"*hyun*-goom *in*-chool-gee oh-dee-*yay*-yo", alt:["atm","cash","withdraw","bank"], ko:"" },
+  { id:"pricey", group:"money", en:"That's a bit expensive", rom:"jom bissayo",
+    say:"johm *bee*-sah-yo", alt:["expensive","pricey","dear","too much"], ko:"" },
+  { id:"taxfree", group:"money", en:"Is there a tax refund?", rom:"taekseu ripeondeu doenayo",
+    say:"*tex*-uh *ree*-pun-duh *dwen*-ah-yo", alt:["tax free","refund","vat","duty"], ko:"" },
+  { id:"h-howpay", group:"money", hear:true, en:"How would you like to pay?", rom:"eotteoke gyesanhasigetseoyo",
+    say:"uh-*tuh*-keh geh-*sahn*-hah-shee-get-soh-yo", alt:["pay","cash or card","payment"], ko:"" },
 
   /* ---- help ---- */
   { id:"help", group:"help", en:"Help me!", rom:"dowajuseyo",
@@ -195,8 +286,9 @@ export const PHRASES = [
 
    Sino-Korean does money, dates, minutes and phone numbers, which is nearly everything
    you will hear said at you, so it is here in full up to 만. Native Korean does people
-   and things, and in practice you will use it for one sentence — "two, please" — so it
-   stops at four rather than filling a column you will never read.
+   and things — "four, please", "two coffees" — and it used to stop at four here, on the
+   grounds that ordering never goes higher. It does: a table for six, ten skewers. It
+   runs to ten now, which is where it stops being counted and starts being written down.
 
    These are the syllables lib/won.js assembles a price out of; check-data.mjs pins the
    two tables together so a fixed typo here cannot leave the price reader saying the old
@@ -206,12 +298,12 @@ export const NUMBERS = [
   { n:2,     sino:"i",     sinoSay:"ee",    nat:"dul",  natSay:"dool" },
   { n:3,     sino:"sam",   sinoSay:"sahm",  nat:"set",  natSay:"set" },
   { n:4,     sino:"sa",    sinoSay:"sah",   nat:"net",  natSay:"net" },
-  { n:5,     sino:"o",     sinoSay:"oh" },
-  { n:6,     sino:"yuk",   sinoSay:"yook" },
-  { n:7,     sino:"chil",  sinoSay:"cheel" },
-  { n:8,     sino:"pal",   sinoSay:"pahl" },
-  { n:9,     sino:"gu",    sinoSay:"goo" },
-  { n:10,    sino:"sip",   sinoSay:"sheep" },
+  { n:5,     sino:"o",     sinoSay:"oh",    nat:"daseot",  natSay:"dah-sut" },
+  { n:6,     sino:"yuk",   sinoSay:"yook",  nat:"yeoseot", natSay:"yaw-sut" },
+  { n:7,     sino:"chil",  sinoSay:"cheel", nat:"ilgop",   natSay:"eel-gop" },
+  { n:8,     sino:"pal",   sinoSay:"pahl",  nat:"yeodeol", natSay:"yaw-dull" },
+  { n:9,     sino:"gu",    sinoSay:"goo",   nat:"ahop",    natSay:"ah-hop" },
+  { n:10,    sino:"sip",   sinoSay:"sheep", nat:"yeol",    natSay:"yull" },
   { n:100,   sino:"baek",  sinoSay:"bek" },
   { n:1000,  sino:"cheon", sinoSay:"chun" },
   { n:10000, sino:"man",   sinoSay:"mahn" },

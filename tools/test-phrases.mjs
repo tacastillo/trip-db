@@ -9,9 +9,12 @@
    Korean does rather than the way English wants to. The second is the whole reason the
    reader exists, so it is the half with the most cases. */
 
-import { countMatching, hasStress, matchesPhrase, saySpoken, sayParts, sections } from "../src/lib/phrases.js";
+import { countMatching, hasStress, isWord, matchesPhrase, saySpoken, sayParts, sections, tiersFor } from "../src/lib/phrases.js";
 import { WON_MAX, wonReading } from "../src/lib/won.js";
+import { fmtHome, fmtWon, homeToWon, parseAmount, rateFor, roughRule, wonToHome } from "../src/lib/money.js";
 import { GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS } from "../src/data/phrases.js";
+import { HOME, RATES } from "../src/data/rates.js";
+import { TOOLS } from "../src/data/tools.js";
 
 let failures = 0;
 const ok = (name, pass, detail) => {
@@ -59,15 +62,66 @@ ok("tokens are ANDed, not ORed", !matchesPhrase(bill, "bill cheese", "Food"));
 ok("and matching is case- and order-insensitive", matchesPhrase(bill, "PAY Check", "Food"));
 ok("a word in no row finds nothing", countMatching("aardvark") === 0);
 ok("'toilet' finds the bathroom row", countMatching("toilet") === 1);
-ok("an empty query counts every row", countMatching("") === PHRASES.length);
+/* The counter counts what the page it is on can show, which is not every row any more:
+   the money tier is a different tool with a different page behind it. */
+ok("an empty query counts every row the two pages hold between them",
+  countMatching("", "phrases") + countMatching("", "money") === PHRASES.length);
+ok("and the cheat sheet does not count the money page's rows",
+  countMatching("", "phrases") < PHRASES.length);
 
 const s = sections("bill");
 ok("sections drops the tiers and groups a query empties",
   eq(s.map(x => [x.tier.id, x.groups.map(g => g.group.id)]), [["trip", ["food"]]]));
 ok("and keeps say and hear rows apart",
   s[0].groups[0].say.length === 1 && s[0].groups[0].hear.length === 0);
-ok("an unfiltered page has every group in it",
-  sections("").flatMap(x => x.groups).length === GROUPS.length);
+ok("an unfiltered page has every group its own tiers hold",
+  sections("").flatMap(x => x.groups).length
+    + sections("", "money").flatMap(x => x.groups).length === GROUPS.length);
+
+/* ---------- the two tools ---------- */
+group("which page a row is on");
+
+ok("every tier names a tool that exists", TIERS.every(t => TOOLS.some(x => x.id === (t.page || "phrases"))));
+ok("both tools have tiers behind them", TOOLS.every(t => tiersFor(t.id).length > 0));
+ok("money is not on the cheat sheet", !sections("").some(x => x.groups.some(g => g.group.id === "money")));
+ok("and the cheat sheet is not on the money page",
+  !sections("", "money").some(x => x.groups.some(g => g.group.id === "basics")));
+/* The words grid is the reason "hot", "cold" and "iced" are findable at all; it is a
+   third shape on the page and must not fall into the phrase buckets. */
+const daily = sections("")[0].groups.find(g => g.group.id === "words");
+ok("the word grid comes back as words, not as rows", !!daily && daily.words.length > 10
+  && !daily.say.length && !daily.hear.length);
+ok("and a word knows it is one", isWord(PHRASES.find(p => p.id === "w-iced")));
+for (const w of ["hot", "cold", "iced", "ice", "water"])
+  ok(`"${w}" finds something`, countMatching(w, "phrases") > 0);
+
+/* ---------- the money ---------- */
+group("won, in money you think in");
+
+const aud = rateFor("AUD").won;
+ok("the home currency is one of the rates", RATES.some(r => r.code === HOME));
+ok("every rate is a positive number", RATES.every(r => r.won > 0 && Number.isFinite(r.won)));
+ok("every rate has a symbol and a code", RATES.every(r => r.symbol && /^[A-Z]{3}$/.test(r.code)));
+ok("won to home is the division", Math.abs(wonToHome(8900, aud) - 8900 / aud) < 1e-9);
+ok("home to won is the multiplication, in whole won", homeToWon(20, aud) === Math.round(20 * aud));
+ok("a typed string is cleaned up first", wonToHome("₩15,000", aud) === wonToHome(15000, aud));
+ok("so is one with the currency stuck on it", homeToWon("A$ 12.50", aud) === homeToWon(12.5, aud));
+/* The same rule lib/won.js follows: nothing is better than a confident wrong number,
+   because this one gets paid. */
+for (const bad of ["", " ", "abc", "-5", "0", null, undefined])
+  ok(`${JSON.stringify(bad)} converts to nothing rather than a guess`,
+    wonToHome(bad, aud) === null && homeToWon(bad, aud) === null);
+ok("a rate of nothing converts to nothing", wonToHome(1000, 0) === null);
+ok("a small amount keeps its cents", fmtHome(16.853, "AUD") === "A$16.85");
+ok("a large one drops them", fmtHome(1124.4, "AUD") === "A$1,124");
+ok("won is formatted the way a price tag is", fmtWon(68000) === "₩68,000");
+ok("and rounds rather than showing a fraction of a won", fmtWon(17800.4) === "₩17,800");
+/* The rule of thumb is only offered when it is honest to within a few percent. */
+const rule = roughRule(aud, "AUD");
+ok("a nice rate gets a rule of thumb", !!rule && Math.abs(rule.round - 1000 / aud) / (1000 / aud) < 0.06);
+ok("and the yen, where the same sentence would be a lie, gets none",
+  roughRule(rateFor("JPY").won, "JPY") === null);
+ok("a nonsense rate gets none either", roughRule(0, "AUD") === null);
 
 /* ---------- the price reader ---------- */
 group("saying a price");

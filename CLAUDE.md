@@ -1,6 +1,7 @@
 # Working on trip-db
 
-A field map for one trip to Korea: Seoul, Jeju, Busan, and a Korean cheat sheet beside it.
+A field map for one trip to Korea: Seoul, Jeju, Busan, and two tools beside it — the Korean
+phrases and a money page.
 It is an [Astro][] site with no framework and no islands: `.astro` files carry the markup,
 plain CSS carries the look, and the behaviour is a handful of ES modules under
 `src/client/`. GitHub Actions builds it on every push to `main` and hands the output to
@@ -65,12 +66,13 @@ astro.config.mjs        base:'/trip-db/'; output goes to dist/, which is gitigno
 public/                 copied verbatim: vendor/ (Leaflet, fonts), sw.js, the manifest, .nojekyll
 src/
   pages/index.astro     the map; there is no router
-  pages/phrases.astro   the Korean cheat sheet — the only other page
-  layouts/Shell.astro   <head>, the @font-face block, the theme metas; both pages
+  pages/phrases.astro   the Korean phrases; one of two tool pages
+  pages/money.astro     won in real money, how to say it, and the numbers
+  layouts/Shell.astro   <head>, the @font-face block, the theme metas; all three pages
   layouts/FieldMap.astro  Shell plus leaflet's css and js, and client/main.js
-  components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData · PhraseHeader
+  components/           SiteHeader · Sidebar · MapPane · PlanUrlSpec · TripData · ToolHeader
   styles/               plain global CSS, imported in cascade order by the layout
-  data/                 the trip, the cheat sheet, the vendored OSM geometry
+  data/                 the trip, the phrases, the rates, the vendored OSM geometry
   lib/                  pure: no DOM, no Leaflet, no page state — node imports this
   client/               everything that touches the page
 tools/                  maintenance scripts; not part of the build
@@ -103,9 +105,11 @@ page* below).
 | `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
 | `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
 | `tabs.js` `rail-legend.js` | switching leg, and the subway key |
-| `nav.js` | the one menu — Cities and Tools — and the trigger that says where you are |
+| `nav.js` | the two triggers — where the map is pointed, which tool you are in — and their sheets |
 | `main.js` | the map page's boot sequence, the four toggle buttons, `window.trip` |
-| `phrases-boot.js` | the whole cheat sheet page — its own entry, never imported by `main.js` |
+| `phrases-boot.js` | the whole phrases page — its own entry, never imported by `main.js` |
+| `money-boot.js` | the whole money page — the converter, the reader, the numbers |
+| `tool-boot.js` | what both tool pages share: palette, night, nav, worker. No map, ever |
 
 Shared mutable state is an `export let` read elsewhere as a live binding, which is
 why almost every read is still a bare name. A value only gets a setter when a module
@@ -122,7 +126,8 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 | `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
 | `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
 | `TIERS`, `GROUPS`, `PHRASES`, `NUMBERS` | `data/phrases.js` | you | yes — this is the cheat sheet |
-| `TOOLS` | `data/tools.js` | you | yes — what sits under Tools in the nav menu |
+| `TOOLS` | `data/tools.js` | you | yes — the pages under Tools in the nav menu |
+| `RATES`, `HOME`, `WON_PRESETS` | `data/rates.js` | you | yes — and they ship stale on purpose |
 | `PLACE_OFF`, `ROUTES` | `data/routing.js` | you | yes — they are the routing overrides |
 | `STATION_COORDS` | `data/routing.js` | OSM, via `tools/fetch-stations.mjs` | names yes, coordinates no |
 | `SUBWAY`, `SUBWAY_BUSAN` | `data/subway*.js` | OSM, via `tools/fetch-rail.mjs` | no — regenerate instead |
@@ -384,6 +389,30 @@ hang off a dashed rail drawn down the centre of the number column and indent to 
 tokens, so numbers, rail and hop text line up in one column instead of each finding its
 own left edge — that alignment is the reason those are tokens and not literals.
 
+**Directions start where you are, not at the hotel.** Every hand-off on this page used to
+begin at the home base, which is the right origin exactly once a day — on the way out of
+the door. Standing in Ikseon-dong at two in the afternoon and tapping Naver on a spot four
+blocks away, what came back was a route from Dongdaemun: a ride you are not taking, from a
+door you are not at. The hotel was never the answer to "how do I get there"; it was the
+only origin the page had before `geo-me.js` existed. So `hereOrigin()` in `plan-core.js`
+builds a place-shaped origin out of a fix — it borrows the destination's city, because
+`naverMode()` reads that to decide whether a leg drives — and `dirOrigin()` in `geo-me.js`
+is what every caller asks. No fix, and it is the hotel again, unchanged.
+
+Two things keep that honest. A fix further than `HERE_MAX_M` (80km) from the destination
+is **not** "here": it is you on a sofa in another country with the location on, building a
+day, and the hotel is the better origin for every hop of it. And the card says out loud
+which of the two it is using — `fromHtml()` in `card.js` — because the same button is a
+route from a hotel or a route from the pavement you are standing on, and that is the whole
+difference between useful and not. With no fix, that line is the offer: one tap starts the
+same watch the 📍 button does, and `setGeoFixHandler` redraws the open card.
+
+**The hops between two stops are deliberately left alone.** A row that measures stop 2 to
+stop 3 and then links stop 4 to stop 3 is a row disagreeing with itself, and those rows are
+a plan being read rather than a person walking. The one hop in the pane that is rooted at
+the hotel — the way out of the door, `planStartHtml()` — does take the live origin, and the
+card is where "take me there from here" lives, with the room to say so.
+
 **The Naver button is the payload, not a footnote.** It is the one control on the page
 that actually navigates a person somewhere, and on the ground it is what gets followed —
 so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
@@ -479,8 +508,9 @@ when you will be standing at it.
 One key, `trip-db/v1`, and `src/client/store.js` is the only module that touches
 `localStorage` — everything else calls `save({...})` and reads `saved`. It holds the day
 you were last building, the category chips, night mode, the rail toggle, which side tab
-was open, which spots you have ticked off as been-to, and when each leg's tiles were
-downloaded. Nothing else, and nothing anywhere near a server.
+was open, which spots you have ticked off as been-to, when each leg's tiles were
+downloaded, which tier of the phrase sheet you were reading, and which currency you count
+in with any rate you have corrected. Nothing else, and nothing anywhere near a server.
 
 Two rules make that safe. A locked-down Safari **throws** rather than returning null, so
 every touch is wrapped and `storeOk` goes false; the plan pane then says out loud that
@@ -509,11 +539,41 @@ Distances go through the same `metres()` as everything else, so a row and a hop 
 Refusal, a timeout and a browser with no geolocation at all each say something specific in
 `#geobanner`, which is a separate banner from the tile one because they can both be true.
 
-## The other page: the Korean cheat sheet
+## The other pages: the phrases and the money
 
-There are two pages now, and the second one is `src/pages/phrases.astro`. `build.format`
-is `"file"`, so it is a real `phrases.html` at the root of the site — same rule that keeps
-`index.html` resolving for every plan link ever shared.
+There are three pages now: the map, `src/pages/phrases.astro` and `src/pages/money.astro`.
+`build.format` is `"file"`, so each is a real `.html` at the root of the site — the same
+rule that keeps `index.html` resolving for every plan link ever shared.
+
+**The cheat sheet was two tools in a trench coat, and it is two pages now.** The first cut
+put the phrase list, a price reader, a numbers table and the money phrases in one column:
+sixty-odd rows, three lines each, four thousand pixels of scrolling to reach "if it comes
+up". Working out what ₩68,000 is in real money has nothing in common with looking up how to
+ask for the bill, and stacking them meant scrolling past one to reach the other, on a
+phone, in a queue. So `TOOLS` in `data/tools.js` has two rows, each tier in
+`data/phrases.js` names the `page` it belongs to, and `sections(q, page)` is what a page
+asks for. `check-data.mjs` fails if a tier names a page that is not a tool.
+
+Three things took the scrolling out of what was left, and all three are worth keeping:
+one tier on screen at a time (the segmented control at the top — a search still crosses all
+of them, because you do not know which tier a row is in when you are looking for it); a row
+of two lines rather than three, with the meaning and the romanization sharing the top one
+because neither is read aloud; and the words in a grid rather than as rows. A phrase page
+tier is now under two screens instead of five.
+
+**There is no "Say it like it's spelled" any more.** It sat above the sheet as an eyebrow
+and under "Korean cheat sheet" in the menu, and it said nothing the page did not: the
+column is right there, in the biggest type on the screen, spelled the way you say it. A
+tagline that restates the thing under it is a line of the scarcest room on the page spent
+on nothing. The column it described is untouched — see below.
+
+**Words are the third shape, and they were missing.** The sheet could tell you how to ask
+whether something was spicy and had no way to say "hot", "cold" or "iced" — the words you
+actually need mid-sentence, when you already know the sentence. `kind:"word"` on a group
+renders it as a two-column grid of bare words instead of rows, which is dense enough to
+take in at a glance; a scroll of one-word rows would not be. They do not count against the
+first tier's dozen — a word you point at is a lookup, not a sentence you are learning — and
+they have a ceiling of their own, because past about thirty a grid is a list again.
 
 **The layout is split, and the split is the load-bearing part.** `Shell.astro` is what both
 pages are made of — the tokens, the fonts, the two `theme-color` metas, `<html data-palette>`
@@ -572,6 +632,31 @@ hangul later is a rendering change and a fill-in-the-column job rather than a re
 every row. `check-data.mjs` fails if `ko` is filled in or if hangul turns up in the other
 three columns.
 
+## The money page
+
+Its own tool, because that is what it is. It holds three things and they are in the order
+you need them: what the number on the tag is in money you already think in, how to say
+that number out loud, and the two counting systems behind both.
+
+**No rate is ever fetched.** This page has to work with a dead SIM in Jeju, so a rate is
+data — `src/data/rates.js`, one number per currency, with the month it is from printed
+beside every conversion. It ships stale by design and says so, and the field under the
+converter is the answer to that: the number you actually got at the ATM beats anything
+committed to a repository months earlier, and `store.js` remembers it per currency. The
+arithmetic is `src/lib/money.js`, pure, where `test-phrases.mjs` reaches it.
+
+**The rule of thumb is only printed when it is honest.** Nobody opens a converter at a
+stall; what you carry is "drop three zeros and multiply by one number". `roughRule()`
+rounds the per-thousand figure to something you can hold in your head and returns null
+when that rounding drifts more than a few percent — at nine won to the yen the same
+sentence would be a lie, so there is nothing there. Same rule as everywhere else on this
+page: mechanical and understood, or absent. Never confidently wrong.
+
+**Nothing that is not a whole positive amount converts.** `parseAmount()` strips commas,
+spaces and currency symbols off what an input hands it and returns null for the rest,
+which the page says out loud rather than leaving the last good answer sitting there
+looking like the answer to what you just typed — the same three states `wonReading()` has.
+
 **The price reader is the one thing computed rather than listed.** The hard part of Korean
 money is not vocabulary, it is that Korean counts in 만 — ten-thousands — so 15,000 is
 "man ocheon", and the regrouping happens behind your eyes while a queue forms. `wonReading()`
@@ -584,10 +669,10 @@ understood and never confidently wrong. Anything that is not a whole positive nu
 `null` and the field says so out loud, rather than leaving the last good reading sitting
 there looking like the answer.
 
-**The way in is the one menu — see *Getting around* below.** The first cut put a "Korean"
-pill at the end of the leg tabs, which was wrong twice: it read as a fourth city, and four
-things did not fit a row with space for two and a half. It is a *Tools* row in the nav menu
-now.
+**The way in is the Tools trigger — see *Getting around* below.** The first cut put a
+"Korean" pill at the end of the leg tabs, which was wrong twice: it read as a fourth city,
+and four things did not fit a row with space for two and a half. Then it was a *Tools* row
+in a menu it shared with the cities, which was wrong again — see below.
 
 **What they say back is collapsed.** Nine `hear:true` rows — how many people, for here or to
 go, cash or card. Recognising a sentence is a different job from producing one, and
@@ -599,26 +684,44 @@ The page is precached like everything else, and the worker's navigation branch n
 
 ## Getting around
 
-One trigger and one menu, in the row the three leg tabs used to have. `client/nav.js` owns
-both, `data/tools.js` is what sits under *Tools*, and `styles/nav.css` dresses it.
+Two triggers and two sheets, in the row the three leg tabs used to have. `client/nav.js`
+owns both, `data/tools.js` is what sits under the second one, and `styles/nav.css` dresses
+them.
+
+**One menu with two headings in it was the wrong answer.** The tabs became a single trigger
+whose sheet had *Cities* above *Tools*, and those two headings answer questions that have
+nothing to do with each other: "which city is the map on" is about the map, "which tool am
+I in" is about which page you are looking at. Reading either meant reading past the other,
+and the tick sat on a city while you were not even on the map. So there are two controls:
+the left one says where the map is pointed and truncates, the right one is an icon and one
+word and never gives its width up — a control that changes size as you move between pages
+reads as a different control. Opening either closes the other; two sheets over a map is two
+things covering the thing they are about.
+
+The pair still fits the row three leg tabs used to fill at 390px, which is the constraint
+that has decided this row three times now.
 
 **Four things did not fit that row.** Seoul · Jeju · Busan already filled it at 390px, and
 adding the cheat sheet meant taking about thirty pixels of type and gaps off the legs to
 stop Busan's dates being sliced in half. A fifth button in `.toolbtns` was never an option
 — that wraps the title, which is the defect the offline work shipped once already. So the
-row holds one control and the choices moved into a sheet, where there is room for the next
-tool as well. The row is a few pixels taller than the tabs were, because a bordered 44px
-target is taller than 43px of bare text; that is the trade and it is the right way round.
+choices moved into sheets, where there is room for the next tool as well. The row is a few
+pixels taller than the tabs were, because a bordered 44px target is taller than 43px of
+bare text; that is the trade and it is the right way round.
 
-**The trigger says where you are, not what it does.** `Seoul · Aug 30 – Sep 4` on the map,
-`Korean · cheat sheet` on the phrase page. That is the leg tabs' one real job — telling you
-which leg you are looking at and when it is — kept.
+**Each trigger says where you are, not what it does.** The left one is `Seoul · Aug 30 –
+Sep 4` on every page, because it is the map's own state and it is true whichever page you
+are reading; the right one is `Map`, `Phrases` or `Money`. That is the leg tabs' one real
+job — telling you which leg you are looking at and when it is — kept, and the tool question
+answered beside it rather than inside it.
 
-**The menu is two questions with one answer each**, and they are different kinds of thing,
-which is the whole reason the cheat sheet is not a fourth pill: *Cities* is where the map
-points, *Tools* is which page you are on. On the phrase page the map itself is a Tools row,
-because that is where the cities live and a second "back" button beside the trigger would
-be 44px spent twice.
+The map is a row in the Tools sheet, which is also the way back from a tool page: a second
+"back" button beside two triggers would be 44px spent on a question already answered. On a
+tool page the city rows navigate to `index.html?city=<id>`, which is the same way back with
+a destination attached. `MAP_TOOL` lives in `nav.js` rather than in `data/tools.js`,
+because it has no page file of its own for `check-data.mjs` to check. Which tool a page is
+is matched with and without the `.html`, because the dev server serves `/phrases` and the
+deploy serves `/phrases.html`.
 
 **`nav.js` is imported by both pages, so it may import neither `map.js` nor `tabs.js`.** It
 is handed its city handler the way `palette.js` is handed its redraw: `main.js` calls
@@ -678,8 +781,8 @@ wrong in the one place you cannot check.
 
 **Navigations are keyed on the path, and both halves of that matter.** The branch used to
 write every successful navigation under a fixed `./index.html`, which was harmless with one
-page and is not with two: visit the cheat sheet online, go offline, and the map page would
-serve you the cheat sheet. But keying on the request instead is worse — `new URL("./index.html")`
+page and is not with three: visit a tool page online, go offline, and the map page would
+serve you that tool. But keying on the request instead is worse — `new URL("./index.html")`
 strips the query string, and that is exactly what makes a shared `index.html?stops=…` link work
 offline after a single visit to the bare page. So the key is `url.origin + url.pathname`: the
 pathname is the page, the query is what the page reads. (`cache.put` also throws on a
@@ -713,7 +816,7 @@ node tools/check-data.mjs      # data consistency, and the src/lib fence
 node tools/test-plan.mjs       # the day planner's pure core, no browser needed
 node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 node tools/test-hours.mjs      # the opening-hours grammar, no clock needed
-node tools/test-phrases.mjs    # the cheat sheet's stress marks and the price reader
+node tools/test-phrases.mjs    # the stress marks, the price reader and the converter
 ```
 
 CI runs all six on every push and pull request, and nothing deploys unless they pass.

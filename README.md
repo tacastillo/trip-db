@@ -50,7 +50,12 @@ how long a hop takes, and that is deliberate: the routing tables only know rides
 from the hotel, so a station-to-station time does not exist anywhere in this project and
 guessing one would be worse than the link.
 
-Every hop also carries a **Kakao Map** link beside the Naver one.
+Every hop also carries a **Kakao Map** link beside the Naver one. Both of them start from
+where you are, not from the hotel, the moment the page knows where that is — a route from
+a door you are not standing at is the wrong answer to "how do I get there". With no fix
+they fall back to the hotel, the card says which of the two it is using, and a fix more
+than 80km from the destination is not "here" at all: that is you building a day at home
+with the location on.
 
 What it *does* work out, from the data and without asking anyone: whether two stops are
 the wrong way round, whether the whole day would be shorter walked in another order,
@@ -85,6 +90,11 @@ Three things the map does that only matter when you are standing in a street:
 - **Been there.** Tick a spot off and it strikes through in the list and fades on the
   map; a chip in the legend hides them all. That is this browser's business — it is
   never in a shared link.
+- **Two tools beside the map.** *Phrases* is the Korean cheat sheet — one tier of it on
+  screen at a time, a grid of the words you need mid-sentence (hot, cold, iced, without),
+  and a search that crosses the lot. *Money* converts won into money you already think in,
+  says the amount out loud in Korean, and carries both counting systems. Rates ship with
+  the page and are editable, because there is no network at a market stall.
 - **No signal.** The site installs as an app and keeps itself: after one visit the page,
   Leaflet, the fonts and the data are all served from the device. The ⤓ button downloads
   the current leg's street tiles too — roughly 7 MB for Seoul, 11 for Jeju, 4 for Busan —

@@ -26,6 +26,7 @@ const SHELL_FILES = [
   "./",
   "./index.html",
   "./phrases.html",
+  "./money.html",
   "./manifest.webmanifest",
   "./icon.svg",
   "./vendor/leaflet/leaflet.js",

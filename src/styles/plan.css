@@ -200,6 +200,20 @@
    taking one of its own — a heading over a single line is a line spent on nothing */
 .pr-k.in{display:inline; margin:0;}
 .pr-walk .ic{width:var(--ic-s); height:var(--ic-s); margin-right:2px;}
+/* Where the two hand-off buttons under this strip start from. It is one line and it has
+   to be there: the same button is a route from the hotel or a route from the pavement
+   you are standing on. When the page does not know where you are, the same line is the
+   offer to find out — a full-width 44px target, because on a phone it is the thing you
+   tap before the button you came for. See fromHtml() in client/card.js. */
+.pr-from{display:flex; align-items:center; gap:6px; width:100%; margin-top:6px; padding:0;
+  font-family:inherit; font-size:10.5px; color:var(--muted); background:none; border:none;
+  text-align:left; line-height:1.3;}
+button.pr-from{cursor:pointer; min-height:var(--tap); text-decoration:underline;
+  text-underline-offset:2px;}
+button.pr-from:hover{color:var(--accent);}
+button.pr-from:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+.pr-from.on{color:var(--ok);}
+.pr-from .ic{width:var(--ic-s); height:var(--ic-s); flex:none;}
 
 
 /* The day picker. Fifteen chips in a sideways scroller rather than a date field: the
