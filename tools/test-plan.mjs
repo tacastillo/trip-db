@@ -335,6 +335,30 @@ ok("its app scheme carries both ends and a manner of travel",
 /* Kakao T's scheme is not something this repository can verify, and an unverified
    scheme that resolves to nothing while you stand in a street is worse than no button */
 ok("there is no taxi link to get wrong", core.kakaoTaxiUrl === undefined);
+
+/* ---------- directions start where you are ---------- */
+/* Every hand-off used to start at the hotel, which is the right origin exactly once a
+   day. These pin the rule that replaced it, including the case that makes it safe:
+   a fix on the other side of the world is not "here". */
+{
+  const to = pick("gwangjang");
+  const near = { lat: to.lat + 0.004, lng: to.lng, acc: 12 };
+  const o = core.hereOrigin(near, to);
+  ok("a fix near the destination becomes the origin", !!o && o.id === "__here");
+  ok("and borrows the destination's city, which is what decides the mode",
+    o.city === to.city);
+  ok("a fix in another country does not", core.hereOrigin({ lat:-33.87, lng:151.21 }, to) === null);
+  ok("and neither does no fix at all",
+    core.hereOrigin(null, to) === null && core.hereOrigin({}, to) === null);
+  const links = core.dirLinks(o, to);
+  ok("the links it builds start at the fix",
+    links.naver.includes(`${near.lng},${near.lat}`) && links.fromHere === true);
+  ok("kakao is still destination-only, so it starts you where you stand",
+    links.kakao === core.kakaoDirUrl(o, to));
+  const home = core.hotelFor("seoul", PLACES);
+  ok("and from the hotel it is not flagged as yours", core.dirLinks(home, to).fromHere === false);
+  ok("the ceiling is a distance, not a country", core.HERE_MAX_M > 20000 && core.HERE_MAX_M < 200000);
+}
 ok("a hop carries both maps and nothing else",
   core.planLegs(R(["novotel","gwangjang"]), null)[0].kakao.includes("map.kakao.com")
   && !("kakaoTaxi" in core.planLegs(R(["novotel","gwangjang"]), null)[0]));

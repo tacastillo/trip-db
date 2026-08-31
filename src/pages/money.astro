@@ -1,0 +1,34 @@
+---
+import Shell from "../layouts/Shell.astro";
+import ToolHeader from "../components/ToolHeader.astro";
+import { RATES_AS_OF } from "../data/rates.js";
+---
+<!-- The second tool, and the reason there are tools rather than one cheat sheet: working
+     out what ₩68,000 is in real money has nothing in common with looking up how to ask
+     for the bill, and stacking the two on one page meant scrolling past one to reach the
+     other. See src/data/tools.js.
+
+     Shell rather than FieldMap for the same reason the phrase page uses it: no map here,
+     and client/main.js dereferences the map page's markup as it evaluates. -->
+<Shell title="Money — Tim &amp; Marisa · Korea">
+  <div class="app">
+    <ToolHeader lead="Money" tail="won, in your head" tool="money" toolLabel="Money" toolIcon="shopping" />
+    <div class="phpage" id="phpage">
+      <!-- Filled by client/money-boot.js; what ships here is the shape, so the first
+           paint is not a blank column. -->
+      <div class="mnwrap">
+        <div class="mnbox" id="mnbox"></div>
+        <div class="mnrate" id="mnrate"></div>
+        <div class="mnasof">The rate ships with the page and is from {RATES_AS_OF} — there is
+          no network at a market stall. Type the one you actually got over it and this
+          browser remembers it.</div>
+      </div>
+      <div id="mnlist"></div>
+      <div class="phfoot">
+        <b>Counting:</b> sino-Korean does money, dates and minutes; native Korean counts
+        people and things, and stops being counted around ten.
+      </div>
+    </div>
+  </div>
+  <script>import "../client/money-boot.js";</script>
+</Shell>

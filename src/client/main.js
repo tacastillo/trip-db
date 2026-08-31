@@ -6,16 +6,16 @@ import { planHref } from "./plan-pane.js";
 import { plan, planAdd, planClear, planOver, planRemove, planReorder, planToggle, setSideTab } from "./plan-state.js";
 import { applyRailLegendState, railLegendOpen, renderRailLegend, setRailLegendOpen } from "./rail-legend.js";
 import { routeDraw, showRoute } from "./route.js";
-import { deselect, focus, select, selectedId } from "./selection.js";
+import { deselect, focus, resyncSelection, select, selectedId } from "./selection.js";
 import { currentTab, map, night, railOn, setNight, setRailOn } from "./state.js";
 import { setTab } from "./tabs.js";
-import { bootNav, closeNav, openNav, setNavHandler } from "./nav.js";
+import { bootNav, closeNav, openNav, openTools, setNavHandler } from "./nav.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
 import { applyPalette, armPaletteEgg, bootPalette, palette, setBasemapHandler, setPaletteHandler, syncPaletteEgg } from "./palette.js";
 import { applyBasemap, basemap, bootBasemap } from "./basemap.js";
-import { here, locating, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
+import { here, locating, setGeoFixHandler, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
 import { CATS, PLACES } from "../data/places.js";
@@ -29,6 +29,11 @@ bootPlan();          // reads the link, so currentTab is right before anything r
    the same shape as setPaletteHandler below. Booted after bootPlan so the trigger
    opens saying the leg the link or the store actually landed on. */
 setNavHandler(setTab);
+/* And geo-me is handed the card's redraw for the same reason: an open card says where
+   its two hand-off links start from, and a fix arriving changes that sentence from the
+   hotel to you. geo-me may not import selection.js — selection imports card.js, which
+   imports geo-me. */
+setGeoFixHandler(resyncSelection);
 bootNav();
 renderLegend();
 renderList();
@@ -132,7 +137,7 @@ registerSW();
    as the page runs. */
 window.trip = {
   focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
-  openNav, closeNav,
+  openNav, openTools, closeNav,
   planAdd, planRemove, planToggle, planClear, planReorder, planHref,
   startLocating, stopLocating, savePack, packSize, setHideVisited,
   PLACES, CATS, RAIL,

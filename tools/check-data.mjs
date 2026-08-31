@@ -20,7 +20,7 @@ import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
 import { RAIL } from "../src/data/rail.js";
 import { GROUPS as PH_GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS as PH_TIERS } from "../src/data/phrases.js";
 import { TOOLS } from "../src/data/tools.js";
-import { hasStress, saySpoken } from "../src/lib/phrases.js";
+import { hasStress, isWord, saySpoken, tierPage, tiersFor } from "../src/lib/phrases.js";
 import { wonReading } from "../src/lib/won.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
 import { PLAN_PARAMS, PLAN_MAX_STOPS, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
@@ -291,12 +291,26 @@ for (const leg of LEGS){
   for (const n of PRICE_PRESETS)
     if (!wonReading(n)) err(`the price reader's preset ${n} does not read`);
   const daily = PH_GROUPS.filter(g => g.tier === PH_TIERS[0].id).map(g => g.id);
-  const nDaily = PHRASES.filter(p => daily.includes(p.group) && !p.hear).length;
+  const nDaily = PHRASES.filter(p => daily.includes(p.group) && !p.hear && !isWord(p)).length;
   /* The whole point of the tiers is that the first one is learnable. Past a dozen it is
-     just the sheet again, with a heading on it. */
+     just the sheet again, with a heading on it. The word grid does not count against
+     that and must not be made to: a word you point at is a lookup, not a sentence you
+     are learning, and it is why "hot", "cold" and "iced" were missing from a sheet that
+     could tell you how to ask whether something was spicy. It has its own ceiling — past
+     about thirty, a grid stops being scannable at a glance and is just a list again. */
   if (nDaily > 12) err(`the "${PH_TIERS[0].label}" tier has ${nDaily} phrases in it — it is meant to be learnable`);
+  const nWords = PHRASES.filter(p => isWord(p)).length;
+  if (nWords > 30) err(`the word grid has ${nWords} words in it — past thirty it is a list, not a glance`);
+  /* Every tier belongs to a tool with a page behind it, or it renders nowhere at all:
+     the money tier moved off the cheat sheet the day money became its own page. */
+  for (const t of PH_TIERS)
+    if (!TOOLS.some(x => x.id === tierPage(t)))
+      err(`tier ${t.id} names page "${tierPage(t)}", which is not a tool in src/data/tools.js`);
+  for (const t of TOOLS)
+    if (!tiersFor(t.id).length && t.id !== "map")
+      warn(`tool ${t.id} has no tier of phrases behind it`);
   console.log(`\n  ${PHRASES.length} phrases in ${PH_GROUPS.length} groups`
-    + ` (${nDaily} every day, ${PHRASES.filter(p => p.hear).length} you only have to recognise)`);
+    + ` (${nDaily} every day, ${nWords} words, ${PHRASES.filter(p => p.hear).length} you only have to recognise)`);
 }
 
 /* ---------- what ships offline ---------- */

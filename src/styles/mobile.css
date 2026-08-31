@@ -156,6 +156,30 @@
   .nv-txt b{font-size:14px;}
   .nv-txt em{font-size:11.5px;}
 
+  /* ---- the two tool pages ---- */
+  /* The tier segments are the top control on the phrase page and the thing that stops it
+     being a four-thousand-pixel scroll, so they get the full width and a real target. */
+  .phtiers{margin:0 max(14px, env(safe-area-inset-left)) 8px max(14px, env(safe-area-inset-right));}
+  .phseg{font-size:12.5px; min-height:var(--tap);}
+  /* Two columns of words at 390px, which is what the grid already resolves to — this is
+     only about the gap between them being a gutter rather than a margin. */
+  .phwords{gap:0 14px;}
+  .phword .ph-say{font-size:15.5px;}
+  .phpage{padding-bottom:max(18px, env(safe-area-inset-bottom));}
+
+  /* The converter is the money page, so it keeps both fields side by side rather than
+     stacking: the whole point is seeing the two numbers at once. What gives is the type
+     around them, never the 44px of either field. */
+  .mnwrap{padding-left:max(14px, env(safe-area-inset-left));
+    padding-right:max(14px, env(safe-area-inset-right));}
+  .mnside-l{font-size:9.5px; letter-spacing:.09em;}
+  .mnin{font-size:17px;}
+  /* under 16px iOS zooms the whole page the moment the field takes focus */
+  .mnin.small{font-size:16px; flex-basis:84px; width:84px;}
+  .mneq{padding-bottom:12px; font-size:13px;}
+  .mnset{gap:6px;}
+  .mnreset{font-size:11px; padding:0 8px;}
+
   .pal-row{padding:10px 12px; min-height:52px;}
   .pal-txt b{font-size:14px;}
   .pal-txt em{font-size:11.5px;}

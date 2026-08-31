@@ -1,19 +1,36 @@
-/* ---- the one menu ---- */
+/* ---- the two triggers, and the sheet either of them opens ---- */
 /* Where the leg tabs were. See client/nav.js for why the cheat sheet is not a fourth
-   pill in that row. The trigger says where you are; the menu is where you can go. */
+   pill in that row — and why the tools stopped sharing the cities' menu. The left
+   trigger says where the map is pointed, the right one says which tool you are in.
 
-.navrow{display:flex; align-items:center; padding-bottom:12px;}
+   The left one takes the room and truncates; the right one is sized by its own label and
+   never gives it up, because a control that changes width as you move between pages
+   reads as a different control. */
+
+.navrow{display:flex; align-items:center; gap:8px; padding-bottom:12px;}
 .navtrig{display:inline-flex; align-items:center; gap:10px; min-height:var(--tap);
-  padding:5px 12px 5px 13px; cursor:pointer; font-family:inherit; text-align:left;
+  min-width:0; flex:0 1 auto; padding:5px 12px 5px 13px; cursor:pointer; font-family:inherit;
+  text-align:left;
   color:var(--ink); background:var(--surface); border:1.5px solid var(--line); border-radius:11px;}
+.navtrig > span{min-width:0;}
+.navtrig .nv-l,.navtrig .nv-d{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* The tool trigger is an icon and one word: on a phone the pair of them has to fit the
+   row three leg tabs used to fill, and the page title is already on the line above. */
+.navtrig.tool{flex:none; gap:7px; padding:5px 10px;}
+.navtrig.tool .nv-l{font-size:13.5px; font-weight:600;}
+.navtrig.tool .nv-ic{display:flex; color:var(--muted);}
+.navtrig.tool .nv-ic .ic{width:var(--ic-m); height:var(--ic-m);}
+.navtrig.tool[aria-expanded="true"] .nv-ic{color:var(--accent);}
 .navtrig:hover{border-color:var(--line-hover);}
 .navtrig[aria-expanded="true"]{border-color:var(--accent); background:var(--tint);}
 .navtrig:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
 .nv-l{display:block; font-family:'Bricolage Grotesque',sans-serif; font-size:15px; font-weight:700;
   line-height:1.15;}
 .nv-d{display:block; font-size:11.5px; color:var(--muted); margin-top:1px; font-variant-numeric:tabular-nums;}
-.navtrig .ic{width:var(--ic-s); height:var(--ic-s); color:var(--muted); flex:none;}
-.navtrig[aria-expanded="true"] .ic{color:var(--accent); transform:rotate(180deg);}
+/* > svg, so this is the chevron and only the chevron: the tool trigger carries a second
+   icon of its own inside a span, and a rotating map pin is not a disclosure arrow. */
+.navtrig > .ic{width:var(--ic-s); height:var(--ic-s); color:var(--muted); flex:none;}
+.navtrig[aria-expanded="true"] > .ic{color:var(--accent); transform:rotate(180deg);}
 
 /* The sheet. Same shape as the palette panel next door — a panel on a desktop, a sheet
    at the bottom on a phone, because that is the half of the screen a thumb reaches. */

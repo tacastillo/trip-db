@@ -1,6 +1,8 @@
-/* ---- the Korean cheat sheet ---- */
-/* The second page. It shares the header, the tokens and the palette with the map and
-   owns nothing of its own but this file — every colour here is a token, the same rule
+/* ---- the two tool pages: the Korean phrases and the money page ---- */
+/* The two pages that are not the map. They share the header, the tokens and the palette
+   with it, and they share this sheet with each other — a row, a group heading and a tier
+   heading look the same on both because they are the same thing. Between them they own
+   nothing but this file, and every colour in it is a token, the same rule
    check-data.mjs enforces on the rest of src/styles.
 
    Written for the phone first: this is read one-handed, standing up, a few seconds at a
@@ -21,6 +23,18 @@
    the two things that must not scroll away. */
 .phbar{position:sticky; top:0; z-index:2; background:var(--paper);
   border-bottom:1px solid var(--line); padding:9px 0 0;}
+/* One tier at a time. The segments are the top level of the page now, which is what
+   took four thousand pixels of scrolling out of it — see client/phrases-boot.js. They
+   sit above the group chips because they change what those chips even list. */
+.phtiers{display:flex; gap:5px; margin:0 14px 8px; padding:3px; border-radius:10px;
+  background:var(--line-2);}
+.phseg{flex:1; min-width:0; min-height:40px; border:none; background:none; cursor:pointer;
+  font-family:'Bricolage Grotesque',sans-serif; font-size:13px; font-weight:600; color:var(--muted);
+  border-radius:8px; padding:6px 4px; line-height:1.15; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis;}
+.phseg.on{background:var(--surface); color:var(--ink); box-shadow:var(--sh-1);}
+.phseg:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
 .phjump{display:flex; gap:7px; padding:0 14px 9px; overflow-x:auto; overflow-y:hidden;
   scrollbar-width:none; -webkit-overflow-scrolling:touch;}
 .phjump::-webkit-scrollbar{display:none;}
@@ -52,22 +66,63 @@
 .phgroup-h::after{content:''; flex:1; height:1px; background:var(--line-2);}
 
 /* ---- a row ---- */
-/* Three fields, three sizes, and the order on screen is not the order in the table.
-   "Say it like" is the only one you use with your mouth, so it is the big one; the
-   meaning is a label above it; the romanization is for typing into Papago and is sized
-   like the footnote it is. The starting draft had all three as equal columns, which at
-   390px is three cramped columns of which two are never read aloud. */
-.phrow{padding:11px 0; border-bottom:1px solid var(--line-2);}
+/* Three fields, three sizes, and the order on screen is not the order in the table. The
+   phonetic spelling is the only one you use with your mouth, so it is the big one and it
+   gets a line to itself; the meaning and the romanization share the line above it. The
+   starting draft had all three as equal columns, which at 390px is three cramped columns
+   of which two are never read aloud — and then as three stacked lines, which was
+   readable and three thousand pixels long. */
+.phrow{padding:9px 0; border-bottom:1px solid var(--line-2);}
 .phrow:last-child{border-bottom:none;}
+/* Two lines, and which two matters. The compact draft put the meaning and the
+   romanization together on the top line — both small, both muted, both Inter — which
+   read as one sentence in one font and left you working out which half was the English.
+   Two fields of the same size and colour on the same line are one field.
+
+   So the romanization sits with the line it belongs to: it is the same words as the
+   phonetic spelling, spelled the standard way, and beside 19px of bold display type at
+   11.5px muted italic it cannot be read as the meaning. The meaning keeps the label line
+   above it, alone. Still two lines, which is the twenty pixels a row this was for. */
 .ph-en{font-size:12.5px; color:var(--muted); line-height:1.3;}
+.ph-b{display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+  flex-wrap:wrap; margin-top:1px;}
 .ph-say{font-family:'Bricolage Grotesque',sans-serif; font-size:19px; font-weight:600;
-  color:var(--ink); line-height:1.25; margin-top:2px; word-break:break-word;}
+  color:var(--ink); line-height:1.25; word-break:break-word;}
 /* The whole reason the stress is data and not capitals: colour marks the syllable
    without changing its letterforms, so the word is read once instead of twice.
    --accent is the page's entire chroma budget and already carries an enforced contrast
    floor in both themes, so this needs no colour of its own. */
 .ph-st{color:var(--accent); font-weight:800;}
-.ph-rom{font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.3;}
+/* Italic everywhere it appears: it is a transliteration, not a translation, and the
+   slant is what says so at a glance in a column where everything else is the same
+   family. */
+.ph-rom{font-size:11.5px; color:var(--muted); line-height:1.3; font-style:italic;}
+.ph-b .ph-rom{flex:0 1 auto; min-width:0; text-align:right; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap;}
+
+/* ---- the word grid ---- */
+/* Not rows. These are the words you reach for in the middle of a sentence you already
+   know — hot, cold, iced, without — and the sheet went a whole draft without them while
+   carrying "please make it not spicy". A column you take in at a glance is what makes
+   that useful; a scroll of one-word rows is not. */
+.phwords{display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap:2px 12px;
+  margin:2px 0 4px;}
+.phword{padding:7px 0; border-bottom:1px solid var(--line-2); min-width:0;}
+/* Spans, so they have to be told to be lines — this is the defect the plan rows shipped
+   once, where three fields ran together into one paragraph. */
+.phword .ph-en,.phword .ph-say,.phword .ph-rom{display:block;}
+.phword .ph-en{font-size:11.5px;}
+.phword .ph-say{font-size:16px; margin-top:1px;}
+.phword .ph-rom{font-size:11px; opacity:.85;}
+
+/* ---- the rows that are on the other page ---- */
+/* Splitting money out of the sheet has one real cost: searching here for "receipt" finds
+   nothing. So it says where they went rather than saying there are none. */
+.phelse{display:block; margin:14px 14px 0; padding:10px 12px; border-radius:10px;
+  border:1px dashed var(--line); color:var(--muted); font-size:12.5px; text-decoration:none;
+  min-height:var(--tap); display:flex; align-items:center;}
+.phelse:hover{border-color:var(--accent); color:var(--ink);}
+.phelse b{color:var(--accent);}
 
 /* ---- what they say back ---- */
 /* Collapsed behind one control per group. Recognising a sentence is a different job from
@@ -89,36 +144,62 @@
    a badge on all sixty rows to distinguish nine of them is the wrong trade. */
 .phhear-b .ph-say{font-size:17px; font-weight:500;}
 
-/* ---- the price reader ---- */
-/* The one thing on this page that is computed rather than listed. Korean counts in 만,
-   so 15,000 is "man ocheon" and the regrouping happens behind your eyes while a queue
-   forms — see lib/won.js. A table of prices would be a table of the prices somebody
-   thought of, and never the one on the tag. */
-.phwon{border:1px solid var(--line); border-radius:12px; background:var(--surface);
-  padding:12px; margin-top:4px;}
-.phwon-l{font-size:11px; letter-spacing:.13em; text-transform:uppercase; font-weight:600;
-  color:var(--muted);}
-.phwon-f{display:flex; align-items:center; gap:8px; margin-top:7px;}
-.phwon-in{flex:1; min-width:0; font-family:'Bricolage Grotesque',sans-serif; font-weight:600;
-  font-size:16px; color:var(--ink); background:var(--field); border:1px solid var(--line);
-  border-radius:9px; padding:0 11px; min-height:var(--tap); line-height:1;
-  -webkit-appearance:none; font-variant-numeric:tabular-nums;}
-.phwon-in::placeholder{color:var(--muted); font-weight:500;}
-.phwon-in:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
-.phwon-u{font-size:13px; color:var(--muted); font-weight:600; flex:none;}
-.phwon-p{display:flex; gap:7px; margin-top:8px; flex-wrap:wrap;}
-.phwon-out{margin-top:10px; padding-top:10px; border-top:1px solid var(--line-2);}
+/* ---- the money page ---- */
+/* The converter is the whole reason this page exists, so it is the top of it and it is
+   the biggest thing on it. Two fields that are the same number in two currencies, the
+   reading underneath, and the rate it all rests on stated rather than hidden — a rate
+   you cannot see is a rate you cannot correct, and this one ships months stale by
+   design. See client/money-boot.js and src/data/rates.js. */
+.mnwrap{padding:14px 14px 0; max-width:760px;}
+.mnbox{border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:12px;}
+.mnf{display:flex; align-items:flex-end; gap:8px;}
+.mnside{flex:1 1 0; min-width:0;}
+.mnside-l{display:block; font-size:10.5px; letter-spacing:.11em; text-transform:uppercase;
+  font-weight:600; color:var(--muted); margin-bottom:4px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap;}
+.mnside-f{display:flex; align-items:center; gap:6px; background:var(--field);
+  border:1px solid var(--line); border-radius:10px; padding:0 10px; min-height:var(--tap);}
+.mnside-f:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--line-2);}
+.mnside-f i{font-style:normal; font-size:13px; font-weight:600; color:var(--muted); flex:none;}
+.mnin{flex:1; min-width:0; width:100%; border:none; background:none; outline:none;
+  font-family:'Bricolage Grotesque',sans-serif; font-weight:700; font-size:18px; color:var(--ink);
+  font-variant-numeric:tabular-nums; -webkit-appearance:none; padding:0;}
+.mnin::placeholder{color:var(--muted); font-weight:500;}
+.mneq{flex:none; padding-bottom:11px; color:var(--muted); font-weight:700; font-size:15px;}
+.mnpre{display:flex; gap:6px; margin-top:9px; flex-wrap:wrap;}
+.mnout{margin-top:11px; padding-top:10px; border-top:1px solid var(--line-2);}
+.mnsay-l{font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; font-weight:600;
+  color:var(--muted); margin-bottom:2px;}
 /* Nothing typed is not an error, so it says nothing rather than warning about it —
    but a number it cannot read has to say so, or you would read out the last one. */
-.phwon-out.empty .ph-say,.phwon-out.empty .ph-rom{display:none;}
-.phwon-bad{display:none; font-size:12px; color:var(--warn); font-weight:600;}
-.phwon-out.bad .phwon-bad{display:block;}
-.phwon-out.bad .ph-say,.phwon-out.bad .ph-rom{display:none;}
+.mnout.empty{display:none;}
+.mnbad{display:none; font-size:12px; color:var(--warn); font-weight:600;}
+.mnout.bad .mnbad{display:block;}
+.mnout.bad .mnsay-l,.mnout.bad .ph-say,.mnout.bad .ph-rom{display:none;}
+
+/* The rule of thumb, and the rate behind it. The rule is only printed when lib/money.js
+   judges it honest to within a few percent — at nine won to the yen the same sentence
+   would be a lie, so there is nothing there. */
+.mnrule{margin-top:11px; font-size:13px; color:var(--accent); font-weight:600;
+  font-family:'Bricolage Grotesque',sans-serif;}
+.mnrule:empty{display:none;}
+.mnset{display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;}
+.mnset-l,.mnset-u{font-size:12px; color:var(--muted); font-weight:600;}
+.mnin.small{flex:0 0 90px; width:90px; font-size:14px; background:var(--field);
+  border:1px solid var(--line); border-radius:8px; padding:0 9px; min-height:var(--tap);}
+.mnin.small:focus{border-color:var(--accent);}
+.mnreset{min-height:var(--tap); border:1px solid var(--line); background:none; cursor:pointer;
+  border-radius:8px; padding:0 10px; font-family:inherit; font-size:11.5px; color:var(--muted);}
+.mnreset:hover{border-color:var(--line-hover); color:var(--ink);}
+/* Hidden rather than absent: a control that appears the moment you touch a field moves
+   everything under it, and this one sits above the rows you are reading. */
+.mnreset.off{visibility:hidden;}
+.mnasof{margin-top:9px; font-size:11px; color:var(--muted); line-height:1.45;}
 
 /* ---- the numbers ---- */
 /* Sino in full because it does money and time; native to four because the only sentence
    you will ever use it in is "two, please". */
-.phnums{margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+.phnums{margin-top:4px; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
 .phnum{display:grid; grid-template-columns:2.6em 1fr 1fr; gap:10px; align-items:baseline;
   padding:8px 12px; border-bottom:1px solid var(--line-2); font-size:13px;}
 .phnum:last-child{border-bottom:none;}

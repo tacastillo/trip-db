@@ -1,3 +1,4 @@
+import { dirOrigin } from "./geo-me.js";
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
 import { esc, plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
@@ -6,7 +7,7 @@ import { active, currentTab, map } from "./state.js";
 import { storeOk } from "./store.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
+import { dirLinks, PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 import { icon } from "../lib/icons.js";
 import { catVar } from "../lib/design.js";
@@ -95,12 +96,25 @@ export function planEndHtml(home, text, cls){
 
 /** The hotel, then the hop out of it. Shown on an empty day too: it is where the day
     starts whether or not anything has been picked, and a day that grows downward from a
-    fixed point reads better than one that appears out of nowhere. */
+    fixed point reads better than one that appears out of nowhere.
+
+    Its two hand-off buttons start from where you are, when the page knows — this is the
+    one hop on the page rooted at the hotel rather than at another stop, and at four in
+    the afternoon "how do I get from the hotel to stop one" is a question about a morning
+    that already happened. The distance beside them is still the hop's own, because that
+    is the day's shape and not a route: see hereOrigin() in lib/plan-core.js.
+
+    The hops between stops are deliberately left alone. A row that measures stop 2 to
+    stop 3 and then links stop 4 to stop 3 is a row disagreeing with itself, and those
+    rows are the plan being read rather than a person walking. The card is where "take me
+    there from here" lives, and it says so in a line the hop row has no room for. */
 export function planStartHtml(stops){
   const home = hotelFor(plan.city, PLACES);
   if (!home) return "";
+  const leg = startLeg(stops, plan.city, planOffFor, PLACES);
+  const from = leg && dirOrigin(leg.a, leg.b);
   return planEndHtml(home, "Starts at", "start")
-    + planHopHtml(startLeg(stops, plan.city, planOffFor, PLACES), "start");
+    + planHopHtml(leg && from !== leg.a ? Object.assign({}, leg, dirLinks(from, leg.b)) : leg, "start");
 }
 
 /** And its mirror: the hop back, then the hotel. */

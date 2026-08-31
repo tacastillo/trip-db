@@ -63,21 +63,47 @@ export function matchesPhrase(p, q, groupLabel){
 export const groupById = (id) => GROUPS.find(g => g.id === id);
 export const tierById = (id) => TIERS.find(t => t.id === id);
 
+/* The default page a tier belongs to, so a tier written before there were two tools
+   still lands somewhere rather than nowhere. */
+export const PAGE_DEFAULT = "phrases";
+export const tierPage = (t) => (t && t.page) || PAGE_DEFAULT;
+/* A word is not a phrase. Its group says so, rather than every row repeating it. */
+export const isWordGroup = (g) => !!g && g.kind === "word";
+export const isWord = (p) => isWordGroup(groupById(p.group));
+
+/** Which tiers a page is made of, in order. */
+export const tiersFor = (page) => TIERS.filter(t => tierPage(t) === (page || PAGE_DEFAULT));
+
 /**
  * The page, as sections, filtered by a query. Groups and tiers with nothing left in them
  * are dropped, which is what empties the jump bar in step with the list.
+ *
+ * Three buckets rather than two, because a word grid, a phrase row and a thing you only
+ * have to recognise are three different shapes on screen — see styles/phrases.css.
  * @param {string} [q] the search box
+ * @param {string} [page] which tool is asking; the cheat sheet by default
  */
-export function sections(q){
-  return TIERS.map(tier => ({
+export function sections(q, page){
+  return tiersFor(page).map(tier => ({
     tier,
     groups: GROUPS.filter(g => g.tier === tier.id).map(group => {
       const mine = PHRASES.filter(p => p.group === group.id && matchesPhrase(p, q, group.label));
-      return { group, say: mine.filter(p => !p.hear), hear: mine.filter(p => p.hear) };
-    }).filter(s => s.say.length || s.hear.length),
+      return isWordGroup(group)
+        ? { group, words: mine, say: [], hear: [] }
+        : { group, words: [], say: mine.filter(p => !p.hear), hear: mine.filter(p => p.hear) };
+    }).filter(s => s.say.length || s.hear.length || s.words.length),
   })).filter(s => s.groups.length);
 }
 
+/** Every row a page holds, query or no query — what the "3 of 59" counter counts. */
+export function pageRows(page, q){
+  const ids = new Set(tiersFor(page).map(t => t.id));
+  return PHRASES.filter(p => {
+    const g = groupById(p.group);
+    if (!g || !ids.has(g.tier)) return false;
+    return matchesPhrase(p, q, g.label);
+  });
+}
+
 /** How many rows a query leaves, for the "3 of 59" the search box reports. */
-export const countMatching = (q) =>
-  PHRASES.filter(p => matchesPhrase(p, q, (groupById(p.group) || {}).label)).length;
+export const countMatching = (q, page) => pageRows(page, q).length;
