@@ -251,102 +251,50 @@ export function hopWalk(a, b){
   return { m, minutes: Math.max(1, Math.round(m / 1000 / WALK_KMH * 60)) };
 }
 
-export function naverMode(a, b){
+/* Walk, ride or drive: the manner of a hop, and the only thing the pane says about one
+   beyond its distance. It used to pick the routing mode for a Naver directions URL,
+   which is where its old name came from; nothing routes any more (see placeLinks
+   below) and the wording is all it is for. */
+export function hopMode(a, b){
   if (hopMetres(a, b) <= HOP_WALKABLE_M) return "walk";
   return a.city === "jeju" ? "car" : "transit";     // Jeju has no metro to ride
 }
 
-/* Naver's web directions URL is positional, not named: two place blocks separated by
-   "/", then "/-/" (the waypoint slot, empty), then the mode. A block is
+/* The hand-off is a place, not a route.
 
-       lng,lat,name,,
+   Every button on this page used to be a set of directions: an origin, a destination
+   and a mode — from the hotel at first, and later from wherever the phone said you
+   were. A fortnight of carrying it settled that argument. A route computed from a fix
+   you did not ask about, in an app you had not opened yet, is a worse answer than the
+   thing you actually wanted: the place, on the map, in an app that knows the country.
+   You start the navigation there, deliberately, having seen where it is first.
 
-   and the two trailing empty fields are Naver's own place-id and place-type slots,
-   which we do not have. Note the coordinates are LONGITUDE FIRST — the opposite of
-   every other coordinate pair in this file — so that swap happens here and nowhere
-   else. encodeURIComponent on the name is load-bearing: it turns a comma inside a
-   name into %2C, which the field separator no longer matches.
+   So both links name one place and no origin — which is what Kakao's link has always
+   done, and the shape that turned out to be right. Neither is reachable from the
+   environment they were written in; they are the only two functions to change if a
+   link stops resolving.
 
-   This is the one function to change if a link ever stops resolving. Nothing in the
-   environment this was written in could reach Naver to check it. Naver's documented
-   app scheme, for reference, is
-       nmap://route/public|car|walk|bicycle?slat=&slng=&sname=&dlat=&dlng=&dname=&appname= */
-/* The last path segment is the routing mode, and this is the vocabulary Naver wants for
-   it. Transit is "public", not "transit" — the same word the app scheme uses, and checked
-   on a phone in the only way it can be: an unrecognised token does not error, it quietly
-   falls back to driving, which looks like a working link right up until you are standing
-   on a platform. Nothing in this repository can reach Naver to test that, so this table
-   is the one place the vocabulary lives and the only line to change if it moves. */
-export const NAVER_MODE_TOKEN = { walk:"walk", transit:"public", car:"car" };
+   Naver: /p/search/<query> is the web map's own search route, and `c=` is what points
+   the camera — LONGITUDE FIRST, then latitude, then the zoom, then the tilt/bearing
+   slots. The query is the Korean name wherever the trip has one, because Naver's index
+   is Korean; the centre is what makes a miss harmless, since a search that finds
+   nothing still leaves you looking at the right corner of the map.
 
-/* Directions start where you are standing, when the page knows where that is.
-
-   Every hand-off on this map used to start at the hotel, which is right exactly once a
-   day — on the way out of it. Standing in Ikseon-dong at two in the afternoon and
-   tapping Naver on a place four blocks away, what you got was a route from Dongdaemun:
-   a ride you are not taking, from a door you are not at. The hotel was never the answer
-   to "how do I get there", it was just the only origin the page had before geo-me.js
-   existed.
-
-   So the origin is a place-shaped thing built from a fix rather than a place, and it
-   keeps the destination's city because naverMode() reads that to decide whether a leg
-   drives (Jeju has no metro) — a fix has no city, and inheriting the destination's is
-   right in every case that matters: you cannot be in Seoul and walking to Jeju.
-
-   It is pure and takes the fix as an argument for the same reason everything else here
-   does: src/lib may not touch navigator, and a test has to be able to hand it one. */
-export const HERE_NAME = "Where I am";
-/* Past this, you are not "here" — you are at home on a sofa in another country with the
-   location on, building a day. A fix in Sydney is a true answer to "where am I" and a
-   useless origin for every hop of a day in Jongno, so beyond it the hotel goes back to
-   being the default it always was. Eighty kilometres covers the whole of Jeju and every
-   suburb of Seoul and Busan, and does not reach the next country. */
-export const HERE_MAX_M = 80000;
-export function hereOrigin(here, to){
-  if (!here || !Number.isFinite(here.lat) || !Number.isFinite(here.lng)) return null;
-  if (to && Number.isFinite(to.lat) && metres([here.lat, here.lng], [to.lat, to.lng]) > HERE_MAX_M) return null;
-  return { id:"__here", name:HERE_NAME, lat:here.lat, lng:here.lng, city:(to || {}).city };
+   Kakao: /link/map/<name>,<lat>,<lng> drops a labelled pin on the coordinates whether
+   or not the name matches anything it knows. */
+export const PLACE_ZOOM = 17;   // close enough to read the block, wide enough to place it
+export function naverPlaceUrl(p){
+  return `https://map.naver.com/p/search/${encodeURIComponent(p.ko || p.name)}`
+    + `?c=${p.lng},${p.lat},${PLACE_ZOOM},0,0,0,dh`;
+}
+export function kakaoPlaceUrl(p){
+  return `https://map.kakao.com/link/map/${encodeURIComponent(p.ko || p.name)},${p.lat},${p.lng}`;
 }
 
-/** The two hand-off links for a hop, from wherever the hop actually starts. */
-export function dirLinks(a, b){
-  if (!a || !b) return null;
-  return { naver: naverDirUrl(a, b), kakao: kakaoDirUrl(a, b), fromHere: a.id === "__here" };
-}
-
-export function naverDirUrl(a, b, mode){
-  const block = p => `${p.lng},${p.lat},${encodeURIComponent(p.name)},,`;
-  const m = mode || naverMode(a, b);
-  return `https://map.naver.com/p/directions/${block(a)}/${block(b)}/-/${NAVER_MODE_TOKEN[m] || m}`;
-}
-export function naverAppUrl(a, b, mode){
-  const m = mode || naverMode(a, b);
-  const q = new URLSearchParams({
-    slat:a.lat, slng:a.lng, sname:a.name,
-    dlat:b.lat, dlng:b.lng, dname:b.name, appname:"trip-db",
-  });
-  return `nmap://route/${m === "transit" ? "public" : m}?${q}`;
-}
-
-/* Kakao is the other half of how anyone actually moves here: its map routes by car
-   better than Naver's, and it is what half the country navigates with. The web link is
-   deliberately destination-only — map.kakao.com/link/to takes one place, not a pair —
-   which on the ground is the right shape anyway: Kakao starts you from where you are
-   standing. Like naverDirUrl(), neither of these could be reached from the environment
-   they were written in; they are the only things to change if a link stops resolving.
-
-   There is no taxi link. Kakao T is the app everyone actually hails with, but its URL
-   scheme is not something this repository can verify, and an unverified scheme is worse
-   than no button: it resolves to nothing at all, silently, while you are standing in a
-   street at midnight deciding whether to keep waiting. Kakao Map's car route is the
-   honest version of that — it is the screen you show the driver anyway. */
-export const KAKAO_BY = { walk:"FOOT", transit:"PUBLICTRANSIT", car:"CAR" };
-export function kakaoDirUrl(a, b){
-  return `https://map.kakao.com/link/to/${encodeURIComponent(b.name)},${b.lat},${b.lng}`;
-}
-export function kakaoAppUrl(a, b, mode){
-  const by = KAKAO_BY[mode || naverMode(a, b)] || "CAR";
-  return `kakaomap://route?sp=${a.lat},${a.lng}&ep=${b.lat},${b.lng}&by=${by}`;
+/** Both hand-offs for one place. Which of the two a button opens is the reader's own
+    choice, remembered rather than asked twice — see client/mapapp.js. */
+export function placeLinks(p){
+  return { naver: naverPlaceUrl(p), kakao: kakaoPlaceUrl(p) };
 }
 
 /** One entry per gap between consecutive stops; null where an end is unresolved.
@@ -357,12 +305,11 @@ export function planLegs(stops, offFor){
   for (let i = 0; i < stops.length - 1; i++){
     const a = stops[i].place, b = stops[i + 1].place;
     if (!a || !b){ legs.push(null); continue; }
-    const mode = naverMode(a, b), w = hopWalk(a, b);
+    const mode = hopMode(a, b), w = hopWalk(a, b);
     const line = (mode !== "walk" && offFor) ? hopLine(offFor(a), offFor(b), a.city) : null;
     legs.push({ i, a, b, metres: hopMetres(a, b), mode, walkable: mode === "walk",
                 walkM: w.m, walkMin: w.minutes, line,
-                naver: naverDirUrl(a, b, mode), naverApp: naverAppUrl(a, b, mode),
-                kakao: kakaoDirUrl(a, b), kakaoApp: kakaoAppUrl(a, b, mode) });
+                ...placeLinks(b) });
   }
   return legs;
 }
@@ -547,7 +494,7 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   if (out){
     lines.push(`Starts at **${out.home.name}** — ${fmtM(out.metres)}${out.walkable
       ? `, about ${out.walkMin} min on foot` : out.line
-        ? `, ${out.line.label} from ${out.line.from} to ${out.line.to}` : `, ${out.mode}`} · ${out.naver}`);
+        ? `, ${out.line.label} from ${out.line.from} to ${out.line.to}` : `, ${out.mode}`}`);
     lines.push("");
   }
   stops.forEach((s, i) => {
@@ -555,7 +502,7 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
     if (!p){ lines.push(`${i + 1}. _unknown id \`${s.id}\`_`); lines.push(""); return; }
     const c = CATS[p.cat] || { label:p.cat, emoji:"" };
     lines.push(`${i + 1}. **${p.name}** — ${c.emoji} ${c.label} · ${p.cluster}`);
-    lines.push(`   ${p.lat}, ${p.lng}`);
+    lines.push(`   ${p.lat}, ${p.lng} · ${naverPlaceUrl(p)}`);
     if (p.ko) lines.push(`   ${p.ko}`);
     if (p.note) lines.push(`   ${p.note}`);
     if (p.hours) lines.push(`   Hours: ${p.hours}`);
@@ -564,7 +511,7 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
     if (ride) lines.push(`   From the hotel: ${ride}`);
     const leg = st.legs[i];
     if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot`
-      : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`} · ${leg.naver}`);
+      : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`}`);
     lines.push("");
   });
   const back = homeLeg(stops, plan.city, offFor);
@@ -597,16 +544,17 @@ export function planShareText(plan, stops, href){
   const head = [plan.title || "Day plan", fmtDay(plan.day), cityLabel].filter(Boolean);
   lines.push(head.join(" · "));
   const out = startLeg(stops, plan.city, null);
-  if (out) lines.push(`Starts at ${out.home.name} — ${fmtM(out.metres)} to the first stop · ${out.naver}`);
+  if (out) lines.push(`Starts at ${out.home.name} — ${fmtM(out.metres)} to the first stop`);
   const legs = planLegs(stops, null);
   stops.forEach((s, i) => {
     const p = s.place;
     if (!p){ lines.push(`${i + 1}. unknown spot "${s.id}"`); return; }
     lines.push(`${i + 1}. ${p.name}${p.ko ? ` (${p.ko})` : ""} — ${p.note || (CATS[p.cat] || {}).label || ""}`);
+    lines.push(`   ${naverPlaceUrl(p)}`);
     if (p.hours) lines.push(`   ${p.hours}`);
     if (p.meta) lines.push(`   ${p.meta}`);
     const leg = legs[i];
-    if (leg) lines.push(`   ${fmtM(leg.metres)} to the next stop · ${leg.naver}`);
+    if (leg) lines.push(`   ${fmtM(leg.metres)} to the next stop`);
   });
   const back = homeLeg(stops, plan.city, null);
   if (back) lines.push(`Ends back at ${back.home.name} — ${fmtM(back.metres)} · ${back.naver}`);

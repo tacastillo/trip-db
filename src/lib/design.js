@@ -11,3 +11,8 @@
    thing on the page that resolves one. */
 export const catToken = (cat) => `--cat-${cat}`;
 export const catVar = (cat) => `var(${catToken(cat)})`;
+
+/* HTML-escaping, here rather than in a renderer because three of them need it and the
+   fence around src/lib is what keeps it testable: it is string arithmetic, not DOM. */
+export const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));

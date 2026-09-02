@@ -84,22 +84,25 @@
   .pday{min-height:46px; padding:8px 11px;}
   .pday-d{font-size:12.5px;}
 
-  /* the Naver button is the thing you tap while standing in a street, so it gets the
+  /* the button out is the thing you tap while standing in a street, so it gets the
      whole row and a thumb-sized target rather than sharing a line with the distance */
   .phop-go{width:100%; margin-left:0; margin-top:2px;}
-  .phop-a{flex:1 1 100%; width:auto; justify-content:center; min-height:var(--tap); font-size:13.5px; margin-top:0;}
-  /* Kakao sits under it rather than beside the distance, which has the line to itself */
-  .phop-a.alt{flex:1 1 0; min-width:0; min-height:40px; font-size:12.5px;}
-  /* The card's four controls on one line. Three stacked full-width rows were 150px of a
+  .phop-a{flex:1; width:auto; justify-content:center; min-height:var(--tap); font-size:13.5px; margin-top:0;}
+  .phop-pick{min-height:var(--tap); min-width:38px;}
+  .go-opt{min-height:var(--tap); font-size:13.5px;}
+  /* The card's three controls on one line. Three stacked full-width rows were 150px of a
      390px card — most of what was on screen was buttons, over the map they cover. Each
-     of the four is still a full 44px target, Naver is still the filled one, and the
-     labels lose only the words a phone can infer: "Add", not "Add to the day". */
-  .card-acts.four{grid-template-columns:1.1fr .9fr 1.1fr .9fr; gap:6px;}
+     is still a full 44px target, and the labels lose only the words a phone can infer:
+     "Add", not "Add to the day". */
+  .card-acts.three{grid-template-columns:1.05fr .85fr 1.1fr; gap:6px;}
   /* min-width:0 or the widest label sets every column: "Been" and its tickbox are the
-     widest piece of min-content here, and without this it takes the room Kakao needs */
-  .card-acts.four > *{min-width:0; padding-left:6px; padding-right:6px; white-space:nowrap;}
-  .card-acts.four .phop-a{grid-column:auto; min-height:var(--tap); font-size:12.5px;}
-  .card-acts.four .tickbox{margin-right:4px;}
+     widest piece of min-content here, and without this it takes the room the link needs */
+  .card-acts.three > *{min-width:0; padding-left:6px; padding-right:6px; white-space:nowrap;}
+  .card-acts.three .pact{padding-left:6px; padding-right:6px;}
+  .card-acts.three .phop-go{grid-column:auto; padding:0;}
+  .card-acts.three .phop-a{min-height:var(--tap); font-size:12.5px; padding-left:8px; padding-right:6px;}
+  .card-acts.three .phop-pick{min-height:var(--tap); min-width:30px; padding:0 6px;}
+  .card-acts.three .tickbox{margin-right:4px;}
   .ca-l{display:none;}
   .pend{padding:10px 12px; font-size:12.5px;}
   .psug{padding:11px 16px;}

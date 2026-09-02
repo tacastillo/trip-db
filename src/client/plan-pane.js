@@ -1,16 +1,16 @@
-import { dirOrigin } from "./geo-me.js";
+import { goBtnHtml } from "./mapapp.js";
 import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
-import { esc, plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
+import { plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
 import { active, currentTab, map } from "./state.js";
 import { storeOk } from "./store.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
-import { dirLinks, PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
 import { ride } from "../lib/rail.js";
 import { icon } from "../lib/icons.js";
-import { catVar } from "../lib/design.js";
+import { catVar, esc } from "../lib/design.js";
 
 /* ---------------- the plan pane ---------------- */
 
@@ -36,36 +36,8 @@ export function planStopHtml(s, i){
   </div>`;
 }
 
-/** The one thing on this page that actually navigates you somewhere, so it is a
-    control rather than a footnote: filled, labelled, and a 44px target on a phone.
-    Every hop, the walk home and the card all use this same button. */
-export function naverBtnHtml(href, to, label){
-  return `<a class="phop-a" href="${href}" target="_blank" rel="noopener noreferrer"
-    aria-label="Directions to ${esc(to)} in Naver Maps">${label || "Naver"} ${icon("out", "phop-a-x")}</a>`;
-}
-
-/* Kakao is what half of Korea actually navigates with, but Naver is the one this map's
-   links are built and pinned against, so Naver stays the filled button and Kakao is the
-   quiet second one beside it. Same shape everywhere: hop rows, the walk home, both
-   cards. There is no taxi button — see kakaoDirUrl() for why. */
-export function kakaoBtnHtml(href, to, label){
-  return `<a class="phop-a alt" href="${href}" target="_blank" rel="noopener noreferrer"
-    aria-label="Directions to ${esc(to)} in Kakao Map">${label || "Kakao"}</a>`;
-}
-
-/** Every way this page can hand you off to something that actually navigates, as one
-    group. It is a wrapper rather than three loose buttons because they have to move
-    together: on a 340px hop row they sit on the distance's line or drop below it whole,
-    and on a phone Naver takes a row of its own with the other two sharing the next. A
-    button that wraps onto a line by itself reads as floating. */
-export function dirBtnsHtml(links, to, label){
-  return `<span class="phop-go">${naverBtnHtml(links.naver, to, label)}`
-    + (links.kakao ? kakaoBtnHtml(links.kakao, to) : "")
-    + `</span>`;
-}
-
-/* Short enough that the distance, the manner and the Naver button fit on one line in a
-   340px sidebar — a button that wraps onto a line of its own reads as floating. */
+/* Short enough that the distance, the manner and the button fit on one line in a 340px
+   sidebar — a button that wraps onto a line of its own reads as floating. */
 export function hopHow(leg){
   return leg.walkable ? `${leg.walkMin} min walk`
                       : (leg.mode === "car" ? "worth driving" : "worth riding");
@@ -80,7 +52,7 @@ export function planHopHtml(leg, cls){
     : "";
   return `<div class="phop${cls ? " " + cls : ""}">
     <span class="phop-d"><b>${fmtM(leg.metres)}</b> · ${hopHow(leg)}</span>
-    ${line}${dirBtnsHtml(leg, leg.b.name)}</div>`;
+    ${line}${goBtnHtml(leg.b)}</div>`;
 }
 
 /* The two ends of the day, drawn the same way because they are the same thing: every
@@ -98,23 +70,15 @@ export function planEndHtml(home, text, cls){
     starts whether or not anything has been picked, and a day that grows downward from a
     fixed point reads better than one that appears out of nowhere.
 
-    Its two hand-off buttons start from where you are, when the page knows — this is the
-    one hop on the page rooted at the hotel rather than at another stop, and at four in
-    the afternoon "how do I get from the hotel to stop one" is a question about a morning
-    that already happened. The distance beside them is still the hop's own, because that
-    is the day's shape and not a route: see hereOrigin() in lib/plan-core.js.
-
-    The hops between stops are deliberately left alone. A row that measures stop 2 to
-    stop 3 and then links stop 4 to stop 3 is a row disagreeing with itself, and those
-    rows are the plan being read rather than a person walking. The card is where "take me
-    there from here" lives, and it says so in a line the hop row has no room for. */
+    Its distance is the hop's own — hotel to stop one, the day's shape rather than a
+    route from wherever you happen to be standing at four in the afternoon. Its button
+    is the same button as everywhere else: it opens stop one, and how you get there is
+    a question for the app that opens. */
 export function planStartHtml(stops){
   const home = hotelFor(plan.city, PLACES);
   if (!home) return "";
-  const leg = startLeg(stops, plan.city, planOffFor, PLACES);
-  const from = leg && dirOrigin(leg.a, leg.b);
   return planEndHtml(home, "Starts at", "start")
-    + planHopHtml(leg && from !== leg.a ? Object.assign({}, leg, dirLinks(from, leg.b)) : leg, "start");
+    + planHopHtml(startLeg(stops, plan.city, planOffFor, PLACES), "start");
 }
 
 /** And its mirror: the hop back, then the hotel. */

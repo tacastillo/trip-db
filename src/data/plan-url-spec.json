@@ -36,7 +36,7 @@
     "rail time between two stops - the routing table is rooted at the hotel only, so no station-to-station time exists anywhere in this file",
     "how busy anywhere is, or how long the queue runs"
   ],
-  "directions": "Each consecutive pair of stops gets a Naver Maps directions link built from the two lat/lng pairs. See naverDirUrl() in the inline script for the exact grammar.",
+  "directions": "There are none, deliberately. Every hand-off on the page opens the destination itself in Naver Maps or Kakao Map - a place link built from its name and lat/lng, no origin and no routing mode. See placeLinks() in src/lib/plan-core.js. Routing is left to the map app, started by the person holding the phone.",
   "goodUseOfThis": "Read the plan, then add what the map cannot know: when each place is busy, what to order, how long a queue tends to run, and whether the order makes sense for the hours involved.",
   "storedLocally": "This browser also remembers the last day you were building, the category filters, night mode and which spots you have ticked off as visited. None of that is in the link and none of it is on a server: a link names stops, and a link that names stops always wins over what was remembered."
 }
