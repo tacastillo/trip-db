@@ -41,10 +41,10 @@ What that means in practice:
 - **Drive the phone viewport first.** `devices["Pixel 7"]` and a 390px context, before
   the 1280px one. Two defects shipped in the first cut of the offline/geolocation work
   because they were only ever looked at on a desktop: four labelled toggles pushed the
-  title onto a second line, and the card's `max-height` sliced the Kakao and taxi buttons
+  title onto a second line, and the card's `max-height` sliced the two hand-off buttons
   in half. Both were invisible at 1280px and obvious at 390px.
 - **Every target is 44px.** The grab strip, the add button, the been-there tick, a day
-  chip, a Naver button. If a new control cannot be 44px, it is the wrong control — that
+  chip, the button that opens a place. If a new control cannot be 44px, it is the wrong control — that
   is what removed the up/down arrows from the plan rows.
 - **Header room is the scarcest thing on the page.** Anything that lands in `.toolbtns`
   is an icon on a phone and a label on a desktop, through `client/toolbtn.js`. Four
@@ -105,6 +105,7 @@ page* below).
 | `selection.js` | `select`, `deselect`, `focus`, `selectedId` |
 | `plan-state.js` `plan-pane.js` `plan-drag.js` `plan-map.js` `plan-boot.js` | the day plan |
 | `tabs.js` `rail-legend.js` | switching leg, and the subway key |
+| `mapapp.js` | which map app the hand-off opens, and the split button that opens it |
 | `nav.js` | the two triggers — where the map is pointed, which tool you are in — and their sheets |
 | `main.js` | the map page's boot sequence, the four toggle buttons, `window.trip` |
 | `phrases-boot.js` | the whole phrases page — its own entry, never imported by `main.js` |
@@ -351,8 +352,8 @@ the middle of a day is still an ordinary stop; only the first id is ever absorbe
 **In planning mode a click does not draw the ride from the hotel.** `body.planning` is the
 page's one answer to "are we planning right now" (`planningMode()`), and while it is on,
 `select()` skips `showRoute()` and the card carries `hopStripHtml()` instead: the hop from
-the stop before this one — its distance, its line where the geometry proves one, its Naver
-link — or, for a spot not in the day yet, the same measured from the last stop there is,
+the stop before this one — its distance, its line where the geometry proves one, and the
+button that opens it — or, for a spot not in the day yet, the same measured from the last stop there is,
 which is what you are weighing before you tap add. The hotel ride is the wrong answer
 mid-plan, and its red streak buries the numbered pins the plan is being read off.
 
@@ -378,7 +379,7 @@ no overlay layer, and none should be added: a line from one stop to the next is 
 straight streak across a city that says nothing you can act on. It is not a route, not a
 walk and not a ride, because `ROUTES` is rooted at the hotel and there is no
 station-to-station geometry to trace. What you can act on lives in the hop row instead —
-the distance, the line where the geometry proves one, and the Naver link.
+the distance, the line where the geometry proves one, and the button that opens the stop.
 
 **Reordering is dragging, and only dragging.** A stop row is one four-column grid —
 grab strip, number, stop, remove — sized off `--grab`/`--num`/`--ctrl`/`--gap` on
@@ -389,63 +390,50 @@ hang off a dashed rail drawn down the centre of the number column and indent to 
 tokens, so numbers, rail and hop text line up in one column instead of each finding its
 own left edge — that alignment is the reason those are tokens and not literals.
 
-**Directions start where you are, not at the hotel.** Every hand-off on this page used to
-begin at the home base, which is the right origin exactly once a day — on the way out of
-the door. Standing in Ikseon-dong at two in the afternoon and tapping Naver on a spot four
-blocks away, what came back was a route from Dongdaemun: a ride you are not taking, from a
-door you are not at. The hotel was never the answer to "how do I get there"; it was the
-only origin the page had before `geo-me.js` existed. So `hereOrigin()` in `plan-core.js`
-builds a place-shaped origin out of a fix — it borrows the destination's city, because
-`naverMode()` reads that to decide whether a leg drives — and `dirOrigin()` in `geo-me.js`
-is what every caller asks. No fix, and it is the hotel again, unchanged.
+**The page does not do directions any more. It opens the place.** Every hand-off used to
+be a route: an origin, a destination and a routing mode — the hotel at first, and then,
+once `geo-me.js` existed, wherever the phone said you were. A fortnight of carrying it
+settled the argument the other way. A route computed from a fix you did not ask about,
+in an app you had not opened yet, is an answer to a question nobody asked; what you
+actually want is the place, on the map, in an app that knows the country — and then you
+start the navigation yourself, having seen where it is. So `placeLinks()` in
+`plan-core.js` builds two links that name one place and carry no origin, no mode and no
+second coordinate, which is the shape Kakao's link had all along. `naverPlaceUrl()` and
+`kakaoPlaceUrl()` are the only two functions to touch if a link stops resolving, and
+neither is reachable from the environment they were written in.
 
-Two things keep that honest. A fix further than `HERE_MAX_M` (80km) from the destination
-is **not** "here": it is you on a sofa in another country with the location on, building a
-day, and the hotel is the better origin for every hop of it. And the card says out loud
-which of the two it is using — `fromHtml()` in `card.js` — because the same button is a
-route from a hotel or a route from the pavement you are standing on, and that is the whole
-difference between useful and not. With no fix, that line is the offer: one tap starts the
-same watch the 📍 button does, and `setGeoFixHandler` redraws the open card.
+A Naver place link is `/p/search/<name>` with `c=<lng>,<lat>,<zoom>,0,0,0,dh` — the
+search Naver's own map uses, plus the camera. The name is the Korean one wherever the
+trip has one, because Naver's index is Korean, and the centre is what makes a miss
+harmless: a search that finds nothing still leaves you looking at the right corner of
+the map. Kakao's `/link/map/<name>,<lat>,<lng>` drops a labelled pin on the coordinates
+whether or not it recognises the name.
 
-**The hops between two stops are deliberately left alone.** A row that measures stop 2 to
-stop 3 and then links stop 4 to stop 3 is a row disagreeing with itself, and those rows are
-a plan being read rather than a person walking. The one hop in the pane that is rooted at
-the hotel — the way out of the door, `planStartHtml()` — does take the live origin, and the
-card is where "take me there from here" lives, with the room to say so.
+That took a whole layer out with it. There is no `hereOrigin()`, no `dirOrigin()`, no
+`NAVER_MODE_TOKEN` and no "directions start from where you are" line on the card,
+because nothing has an origin to be wrong about. `hopMode()` is what is left of
+`naverMode()`, renamed: it no longer picks a URL's routing mode, only whether a hop
+reads as a walk, a ride or a drive, which is all the pane ever said about one. `geo-me.js` still does everything else: the dot, the live
+distances, "nearest first", and the "N m away" on an open card.
 
-**The Naver button is the payload, not a footnote.** It is the one control on the page
-that actually navigates a person somewhere, and on the ground it is what gets followed —
-so `naverBtnHtml()` renders it filled and accent-coloured, right-aligned in a hop row on
-desktop, full width at 44px on a phone, and one of four controls on the card's own action
-bar. On a card it is not a footnote under the route strip any more: the strip is text, and
-`Add · Been · Naver · Kakao` share one 44px row, because three stacked full-width rows were
-150px of a 390px card — most of what was on screen was buttons, over the map they cover.
-Four columns is why the labels shorten to `Add` and `Naver` on a phone; the desktop card
-keeps the words and the stacked shape out of the same grid. In a hop row Naver still takes
-the line to itself. Every hop, the walk home, the planning card and the hotel-ride card go
-through that one function, so it looks and behaves the same everywhere. `naverDirUrl()` is still the only thing to touch if a
-link stops resolving.
+**One button, and a dropdown behind it — `client/mapapp.js`.** Naver and Kakao shipped
+side by side for a fortnight and Kakao was never once tapped, while costing 44px of a
+390px card on every hop and both cards. Deleting it was still the wrong fix: Kakao is
+what half of Korea navigates with, and the day you want it is the day Naver has nothing
+for the place you are standing outside. So it is one split pill — the label is the app
+that is on, the caret beside it changes which, and the choice is remembered in the store
+like night mode, defaulting to Naver because that is the link this repository builds and
+pins. Switching apps re-points every button on the page **in place**: both URLs are
+already on the element in `data-naver`/`data-kakao`, so `syncGoBtns()` rewrites hrefs
+rather than re-rendering an open card and a pane under your thumb.
 
-**Kakao rides beside it, never in front of it.** Kakao Map is what half of Korea navigates
-with, so every hop, both ends of the day and both cards carry it next to the Naver button —
-one `dirBtnsHtml()` group, so the two move together and no button ever wraps onto a line by
-itself. Naver stays the filled one because it is the link this repository builds, pins and
-tests. Kakao's web link is destination-only on purpose: `map.kakao.com/link/to` takes one
-place, not a pair, which on the ground is right anyway — it starts you where you are
-standing. Like `naverDirUrl()`, neither could be reached from the environment they were
-written in.
-
-**The mode a Naver link opens in is one table, `NAVER_MODE_TOKEN`.** The last path segment
-of a directions URL is the routing mode, and `naverMode()` decides which one a hop deserves
-— walking under `HOP_WALKABLE_M`, driving in Jeju because there is no metro, transit
-otherwise. What that mode is *called* in the URL is the one thing nothing here can
-check: Naver is unreachable from this environment, publishes no grammar for these links,
-and a token it does not recognise falls back to driving rather than erroring — a link that
-looks like it works right up until you are standing on a platform. Transit is **`public`**,
-not `transit`, which is the same word the app scheme uses and was found the only way it
-could be, on a phone. The tokens live in one table with no other caller, and
-`test-plan.mjs` pins that every mode goes through it; if one ever moves, that table is the
-whole fix.
+`goBtnHtml()` is the whole control and every caller goes through it — every hop, both
+ends of the day, the planning card and the hotel-ride card — which is what keeps it the
+same thing wherever it lands: filled and accent-coloured, right-aligned in a hop row on
+a desktop, full width at 44px on a phone, and one of three on the card's action bar.
+`Add · Been · Open` share one 44px row there, because three stacked full-width rows were
+150px of a 390px card. The menu opens **upward**: on a phone that row is the last thing
+in a scrolling card, and downward would be off the bottom of it.
 
 **There is no taxi button, and there should not be one until somebody can check it.** Kakao
 T is what actually hails a taxi here, and a `kakaot://` scheme was briefly rendered on
@@ -472,9 +460,8 @@ pins that case.
 destination and rooted at `HOTEL_STATION`, so the page can work out a ride from the
 hotel and genuinely cannot work out one between two spots. Rather than invent a number,
 every hop carries a generated Naver Maps link, and walking distances — which really are
-computable — come from `metres()` through the existing `WALK_BEND`/`WALK_KMH`. The one
-function that builds those links is `naverDirUrl()`; it is the only thing to touch if a
-link stops resolving.
+computable — come from `metres()` through the existing `WALK_BEND`/`WALK_KMH`. What a
+hop hands you is the far end of it, opened in a map app — see `placeLinks()` above.
 
 Ordering advice is deterministic and computed here, never asked of anyone:
 `backtracks()` flags an adjacent pair that is shorter the other way round,
@@ -508,9 +495,9 @@ when you will be standing at it.
 One key, `trip-db/v1`, and `src/client/store.js` is the only module that touches
 `localStorage` — everything else calls `save({...})` and reads `saved`. It holds the day
 you were last building, the category chips, night mode, the rail toggle, which side tab
-was open, which spots you have ticked off as been-to, when each leg's tiles were
-downloaded, which tier of the phrase sheet you were reading, and the won-to-dollar rate if
-you have corrected it. Nothing else, and nothing anywhere near a server.
+was open, which spots you have ticked off as been-to, which map app the hand-off buttons
+open, when each leg's tiles were downloaded, which tier of the phrase sheet you were
+reading, and the won-to-dollar rate if you have corrected it. Nothing else, and nothing anywhere near a server.
 
 Two rules make that safe. A locked-down Safari **throws** rather than returning null, so
 every touch is wrapped and `storeOk` goes false; the plan pane then says out loud that
@@ -847,14 +834,15 @@ Bundled modules export nothing to the console, so `src/client/main.js` publishes
 handle deliberately:
 
 ```js
-window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
+window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap, setMapApp,
                 openNav, closeNav,
                 planAdd, planRemove, planToggle, planClear, planReorder, planHref,
                 startLocating, stopLocating, savePack, packSize, setHideVisited,
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
                 get selectedId(), get currentTab(), get plan(), get planOver(),
-                get here(), get locating(), get visited(), get hideVisited(), get palette(), get basemap() }
+                get here(), get locating(), get visited(), get hideVisited(), get palette(), get basemap(),
+                get mapApp() }
 ```
 
 With Playwright: load the page, call `trip.focus('<place id>')`, wait for the draw,

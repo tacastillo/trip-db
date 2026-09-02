@@ -71,28 +71,27 @@ ok("more than the cap is truncated and counted",
 ok("an unresolved id resolves to a row with no place", R(["NOPE"])[0].place === null);
 ok("nothing at all decodes without throwing", core.decodePlanQuery("").ids.length === 0);
 
-/* ---------- naver ---------- */
+/* ---------- the two place links ---------- */
 
-group("the naver links");
+group("the place links");
 const a = pick("gwangjang"), b = pick("novotel");
-const url = core.naverDirUrl(a, b, "transit");
-ok("longitude comes first, as naver wants",
-  url.indexOf(`/${a.lng},${a.lat},`) > 0 && url.indexOf(`/${b.lng},${b.lat},`) > 0);
-ok("each block keeps its five fields",
-  url.split("/p/directions/")[1].split("/-/")[0].split("/").every(x => x.split(",").length === 5));
-// the mode Naver is asked for is "transit"; the word it wants in the URL is "public"
-ok("the mode lands at the end, in naver's own word for it", url.endsWith("/-/public"));
-const comma = core.naverDirUrl({lat:1,lng:2,name:"A, B & C"}, b, "walk");
-ok("a comma in a name cannot split the block",
-  comma.indexOf("A%2C%20B%20%26%20C") > 0
-  && comma.split("/p/directions/")[1].split("/-/")[0].split("/")[0].split(",").length === 5);
-ok("a short hop is a walk", core.naverMode(a, {lat:a.lat+0.002, lng:a.lng, city:"seoul"}) === "walk");
-ok("a long seoul hop is transit", core.naverMode(a, pick("coex")||seoul[seoul.length-1]) === "transit");
+const nv = core.naverPlaceUrl(a);
+ok("naver is a search, not a route", nv.startsWith("https://map.naver.com/p/search/") && !nv.includes("/directions/"));
+ok("and the camera is pointed at it, longitude first",
+  nv.includes(`?c=${a.lng},${a.lat},${core.PLACE_ZOOM},`));
+ok("the korean name is what naver is asked for, where there is one",
+  nv.includes(encodeURIComponent(a.ko || a.name)));
+const odd = core.naverPlaceUrl({ name:"A, B & C", lat:1, lng:2 });
+ok("a comma or an ampersand in a name cannot break the query",
+  odd.includes("A%2C%20B%20%26%20C") && odd.split("?").length === 2);
+ok("kakao drops a labelled pin on the same coordinates, lat first",
+  core.kakaoPlaceUrl(b) === `https://map.kakao.com/link/map/${encodeURIComponent(b.ko || b.name)},${b.lat},${b.lng}`);
+ok("neither link carries an origin, a mode or a second place",
+  [core.naverPlaceUrl(a), core.kakaoPlaceUrl(a)].every(u => !u.includes(String(b.lat)) && !u.includes("route")));
+ok("a short hop is a walk", core.hopMode(a, {lat:a.lat+0.002, lng:a.lng, city:"seoul"}) === "walk");
+ok("a long seoul hop is transit", core.hopMode(a, pick("coex")||seoul[seoul.length-1]) === "transit");
 const j = PLACES.filter(p => p.city === "jeju");
-ok("a long jeju hop drives", core.naverMode(j[0], j[j.length-1]) === "car");
-ok("the app scheme maps transit -> public",
-  core.naverAppUrl(a, b, "transit").startsWith("nmap://route/public?")
-  && core.naverAppUrl(a, b, "transit").indexOf("appname=") > 0);
+ok("a long jeju hop drives", core.hopMode(j[0], j[j.length-1]) === "car");
 
 /* ---------- hours prose ---------- */
 
@@ -166,7 +165,7 @@ const md = core.planBriefMarkdown(plan, R(plan.ids), "https://example.test/index
 ok("it names every stop, in order",
   md.indexOf(near[0].name) > 0 && md.indexOf(near[0].name) < md.indexOf(near[1].name));
 ok("it carries the source link", md.indexOf("https://example.test/index.html?x=1") > 0);
-ok("it carries a naver link for the hop", md.indexOf("https://map.naver.com/p/directions/") > 0);
+ok("it carries a naver link for every stop", md.indexOf("https://map.naver.com/p/search/") > 0);
 ok("it says what it does not know", md.indexOf("not computed anywhere") > 0);
 ok("no undefined or [object Object]", !/undefined|\[object Object\]/.test(md));
 const md2 = core.planBriefMarkdown({city:"seoul", ids:["NOPE"], day:"", title:"", extra:[]}, R(["NOPE"]), "", null);
@@ -308,60 +307,29 @@ ok("and it says where the day ends", msg.includes("Ends back at Novotel"));
 ok("an unknown id is said out loud rather than dropped",
   core.planShareText({ city:"seoul", ids:["nope"] }, R(["nope"]), "").includes('unknown spot "nope"'));
 
-/* Transit is spelled "public" in these URLs, which was checked on a phone: Naver is
-   unreachable from here, and an unrecognised token falls back to driving rather than
-   failing, so nothing else would have caught it. Pinned here because a link that opens in
-   the wrong mode is the one kind of wrong you only find out about on a platform. */
-group("the mode a Naver link opens in");
-ok("a walkable hop asks for walking",
-  core.naverDirUrl(pick("novotel"), pick("euljidarak")).endsWith("/-/walk"));
-ok("a longer Seoul hop asks for transit, not driving",
-  core.naverDirUrl(pick("novotel"), pick("onion")).endsWith("/-/public"));
-const jejuHome = core.hotelFor("jeju", PLACES);
-ok("Jeju asks for driving, because there is no metro to ride",
-  core.naverDirUrl(jejuHome, PLACES.find(p => p.city === "jeju" && p.id !== jejuHome.id
-    && core.hopMetres(jejuHome, p) > core.HOP_WALKABLE_M)).endsWith("/-/car"));
-ok("every mode goes through the one token table",
-  Object.keys(core.NAVER_MODE_TOKEN).sort().join() === "car,transit,walk");
-ok("changing the table changes the link", ["walk","transit","car"].every(m =>
-  core.naverDirUrl(pick("novotel"), pick("onion"), m).endsWith("/-/" + core.NAVER_MODE_TOKEN[m])));
-
-group("the other map everyone here uses");
-const kFrom = pick("novotel"), kTo = pick("gwangjang");
-ok("Kakao's web link names the destination, not a pair",
-  core.kakaoDirUrl(kFrom, kTo) === `https://map.kakao.com/link/to/${encodeURIComponent(kTo.name)},${kTo.lat},${kTo.lng}`);
-ok("its app scheme carries both ends and a manner of travel",
-  core.kakaoAppUrl(kFrom, kTo, "walk") === `kakaomap://route?sp=${kFrom.lat},${kFrom.lng}&ep=${kTo.lat},${kTo.lng}&by=FOOT`);
-/* Kakao T's scheme is not something this repository can verify, and an unverified
-   scheme that resolves to nothing while you stand in a street is worse than no button */
-ok("there is no taxi link to get wrong", core.kakaoTaxiUrl === undefined);
-
-/* ---------- directions start where you are ---------- */
-/* Every hand-off used to start at the hotel, which is the right origin exactly once a
-   day. These pin the rule that replaced it, including the case that makes it safe:
-   a fix on the other side of the world is not "here". */
+/* Nothing on this page routes any more: a route computed from a fix you did not ask
+   about, in an app you had not opened, was two weeks of being answered a question
+   nobody asked. Every hand-off names the destination and stops. These pin that, because
+   an origin creeping back in is exactly the sort of thing that looks fine in a diff. */
+group("a hop hands over a place, not a route");
 {
-  const to = pick("gwangjang");
-  const near = { lat: to.lat + 0.004, lng: to.lng, acc: 12 };
-  const o = core.hereOrigin(near, to);
-  ok("a fix near the destination becomes the origin", !!o && o.id === "__here");
-  ok("and borrows the destination's city, which is what decides the mode",
-    o.city === to.city);
-  ok("a fix in another country does not", core.hereOrigin({ lat:-33.87, lng:151.21 }, to) === null);
-  ok("and neither does no fix at all",
-    core.hereOrigin(null, to) === null && core.hereOrigin({}, to) === null);
-  const links = core.dirLinks(o, to);
-  ok("the links it builds start at the fix",
-    links.naver.includes(`${near.lng},${near.lat}`) && links.fromHere === true);
-  ok("kakao is still destination-only, so it starts you where you stand",
-    links.kakao === core.kakaoDirUrl(o, to));
-  const home = core.hotelFor("seoul", PLACES);
-  ok("and from the hotel it is not flagged as yours", core.dirLinks(home, to).fromHere === false);
-  ok("the ceiling is a distance, not a country", core.HERE_MAX_M > 20000 && core.HERE_MAX_M < 200000);
+  const leg = core.planLegs(R(["novotel","gwangjang"]), null)[0];
+  const to = pick("gwangjang"), from = pick("novotel");
+  ok("both links name the far end of the hop",
+    leg.naver === core.naverPlaceUrl(to) && leg.kakao === core.kakaoPlaceUrl(to));
+  ok("and neither mentions where the hop started",
+    !leg.naver.includes(String(from.lat)) && !leg.kakao.includes(String(from.lat)));
+  ok("the hop still knows its manner, which is all the pane says about it",
+    leg.mode === core.hopMode(from, to) && typeof leg.metres === "number");
+  ok("nothing builds directions any more", [
+    "naverDirUrl", "naverAppUrl", "kakaoDirUrl", "kakaoAppUrl", "dirLinks", "hereOrigin", "NAVER_MODE_TOKEN",
+  ].every(k => core[k] === undefined));
+  /* Kakao T's scheme is not something this repository can verify, and an unverified
+     scheme that resolves to nothing while you stand in a street is worse than no button */
+  ok("and there is still no taxi link to get wrong", core.kakaoTaxiUrl === undefined);
+  ok("both maps are offered, and only those two",
+    Object.keys(core.placeLinks(to)).sort().join() === "kakao,naver");
 }
-ok("a hop carries both maps and nothing else",
-  core.planLegs(R(["novotel","gwangjang"]), null)[0].kakao.includes("map.kakao.com")
-  && !("kakaoTaxi" in core.planLegs(R(["novotel","gwangjang"]), null)[0]));
 
 group("the offline tile pack");
 LEGS.forEach(l => {

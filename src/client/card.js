@@ -1,4 +1,4 @@
-import { dirOrigin, distanceFrom, here, locating, startLocating } from "./geo-me.js";
+import { distanceFrom, here } from "./geo-me.js";
 import { renderLegend } from "./legend.js";
 import { renderList } from "./list.js";
 import { syncMarkers } from "./map.js";
@@ -7,8 +7,9 @@ import { deselect } from "./selection.js";
 import { isVisited, toggleVisited } from "./visited.js";
 import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { hopHow, kakaoBtnHtml, naverBtnHtml } from "./plan-pane.js";
-import { dirLinks, fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
+import { goBtnHtml } from "./mapapp.js";
+import { hopHow } from "./plan-pane.js";
+import { fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
 import { DOW_SHORT } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
 import { icon } from "../lib/icons.js";
@@ -29,26 +30,13 @@ export function hoursChipHtml(p){
   return `<span class="pop-hours">Closed · opens ${fmtMin(st.opensAt)}${when}</span>`;
 }
 
-/* Where the two hand-off buttons start from, said out loud on the card that carries
-   them. It is not a detail: the same button is a route from the hotel or a route from
-   the pavement you are standing on, and which one it is changes whether the answer is
-   any use. When the page does not know where you are it is an offer rather than a
-   sentence — one tap, the same watch the 📍 button starts, and every link on the page
-   re-points at you. See dirOrigin() in geo-me.js. */
-export function fromHtml(from){
-  return from && from.id === "__here"
-    ? `<div class="pr-from on">${icon("me")} Directions start from where you are</div>`
-    : `<button class="pr-from" id="cardHere" type="button">${icon("me")} ${
-        locating ? "Finding you — directions still start at the hotel" : "Start directions from where I am"}</button>`;
-}
-
 /* ---------------- map ---------------- */
 /* One row of controls, not three. What you do here is add the stop, tick it off, and
-   hand yourself to something that navigates — on a phone those are four taps that fit
-   on one 44px line, and three stacked full-width rows were most of the card. The two
-   hand-offs live in the same container as the two actions so a single grid can lay them
-   out four-up on a phone and keep the desktop's stacked shape; the route strip above is
-   now text only. Naver stays the filled one wherever it lands. */
+   open it in the map app that navigates — on a phone those are three taps that fit on
+   one 44px line, and three stacked full-width rows were most of the card. The hand-off
+   lives in the same container as the two actions so a single grid can lay them out
+   three-up on a phone and keep the desktop's stacked shape; the route strip above is
+   text only. */
 export function cardHtml(p){
   const c = CATS[p.cat];
   const strip = planningMode() ? hopStripHtml(p) : routeStripHtml(p);
@@ -64,11 +52,11 @@ export function cardHtml(p){
       [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
        p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
     ${strip.html}
-    <div class="card-acts${strip.links ? " four" : ""}">
+    <div class="card-acts${strip.go ? " three" : ""}">
       <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")}<span>${
         planHas(p.id) ? `In<span class="ca-l"> the day</span>` : `Add<span class="ca-l"> to the day</span>`}</span></button>
       <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen"><span class="tickbox${isVisited(p.id) ? " on" : ""}"></span> Been</button>
-      ${strip.links ? naverBtnHtml(strip.links.naver, p.name, "Naver") + kakaoBtnHtml(strip.links.kakao, p.name) : ""}
+      ${strip.go ? goBtnHtml(p) : ""}
     </div>`;
 }
 export const cardEl = document.getElementById("card");
@@ -80,8 +68,6 @@ export function showCard(p){
   document.getElementById("cardX").onclick = deselect;
   const cp = document.getElementById("cardPlan");
   if (cp){ cp.classList.toggle("done", planHas(p.id)); cp.onclick = () => planToggle(p.id); }
-  const ch = document.getElementById("cardHere");
-  if (ch) ch.onclick = () => startLocating();   // the fix redraws this card; see setGeoFixHandler
   const cb = document.getElementById("cardBeen");
   if (cb) cb.onclick = () => {
     toggleVisited(p.id);
@@ -99,7 +85,7 @@ export function hideCard(){
 
 
 /* No route to say anything about — the card still has its two actions, just no hand-off. */
-export const NO_STRIP = { html: "", links: null };
+export const NO_STRIP = { html: "", go: false };
 
 /* Mid-plan the useful question is not "how do I get here from the hotel" — it is "what
    is between the stop before this one and this one". That is the same hop the plan pane
@@ -128,31 +114,26 @@ export function hopStripHtml(p){
     : i > 0 ? `From stop ${i}, ${from.name}`
             : `From your last stop, ${from.name}`;
   /* The strip is the plan's reasoning — this hop, from the stop before it, however far
-     away from it you happen to be. The buttons are not: they are you, now, going there.
-     So the numbers stay measured stop-to-stop and the links start where you are, and
-     the line underneath says which is which rather than leaving you to guess. */
-  const origin = dirOrigin(from, p);
-  return { links: dirLinks(origin, p),
+     away from it you happen to be. The button under it is not: it opens this place, and
+     where you are standing is between you and the app you opened it in. */
+  return { go: true,
     html: `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
-      <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div>${fromHtml(origin)}</div>` };
+      <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div></div>` };
 }
 
 export function routeStripHtml(p){
   const j = journeyFor(p);
   if (!j) return NO_STRIP;
-  const home = hotelFor(p.city);
   /* The traced ride is from the hotel, because that is the only origin ROUTES is rooted
-     at and the only one this page can draw a line for. The links are not: they go
-     through Naver and Kakao, which will happily route from a pavement, so they start
-     where you are the moment the page knows. */
-  const from = dirOrigin(home, p);
-  const links = from ? dirLinks(from, p) : null;
+     at and the only one this page can draw a line for. It is what the ride would be, not
+     what the button does: the button opens the place, and the app you open it in is
+     where the actual routing happens — from wherever you are standing. */
   // Close enough that the subway is the long way round — see buildJourney(). One line,
   // kicker and all: there is nothing to say about a walk except where from, how far and
   // how long, and a heading of its own over a single line is a line spent on nothing.
   if (!j.rail.length)
-    return { links, html: `<div class="pop-route"><div class="pr-walk">${icon("walk")}
-      <span class="pr-k in">From the hotel</span> ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div>${fromHtml(from)}</div>` };
+    return { go: true, html: `<div class="pop-route"><div class="pr-walk">${icon("walk")}
+      <span class="pr-k in">From the hotel</span> ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div></div>` };
   const rows = j.rail.map((leg, i) => {
     const last = i === j.rail.length - 1;
     return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
@@ -161,8 +142,8 @@ export function routeStripHtml(p){
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
-  // the traced ride names the platforms; Naver is what you actually follow on the day
-  return { links, html: `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div>${fromHtml(from)}</div>` };
+  // the traced ride names the platforms; the map app is what you actually follow on the day
+  return { go: true, html: `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
+    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>` };
 }
 

@@ -86,9 +86,11 @@ body.carded .geobanner{bottom:56px;}
 /* .pop-here folded into .pop-sub — see cardHtml() */
 /* add-to-day and been-there, side by side: the first is wider because it is the one
    that changes what the page is doing */
-/* Add · Been · Naver · Kakao, all four in one container so a single grid can shape them.
-   On a desktop card the two links keep the full width they had when they lived in the
-   route strip; the phone block in mobile.css is where they go four-up on one line. */
+/* Add · Been · the hand-off, all three in one container so a single grid can shape them.
+   On a desktop card the hand-off keeps the full width it had when it lived in the route
+   strip; the phone block in mobile.css is where the three go on one line. */
 .card-acts{display:grid; grid-template-columns:1.6fr 1fr; gap:7px; margin-top:10px;}
 .card-acts .pact{margin-top:0;}
-.card-acts .phop-a{grid-column:1/-1; margin:0; justify-content:center; min-height:36px; font-size:12px;}
+.card-acts .phop-go{grid-column:1/-1; margin:0;}
+.card-acts .phop-a{flex:1; margin:0; justify-content:center; min-height:36px; font-size:12px;}
+.card-acts .phop-pick{min-height:36px;}

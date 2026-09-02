@@ -29,10 +29,6 @@ export let placeQuery = "";
 export let planDragging = false, planRenderQueued = false, planDragFrom = -1;
 export let urlWritable = true, urlTimer = null, planFull = false;
 
-/* place notes are ours, but a title arrives off the query string, so it is not */
-export const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
-  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-
 /* body.planning is set in syncMarkers, from the plan and the leg you are looking at.
    It is the page's one answer to "are we planning right now", so everything that
    behaves differently mid-plan asks it rather than keeping its own flag. */

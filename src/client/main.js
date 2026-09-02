@@ -10,6 +10,7 @@ import { deselect, focus, resyncSelection, select, selectedId } from "./selectio
 import { currentTab, map, night, railOn, setNight, setRailOn } from "./state.js";
 import { setTab } from "./tabs.js";
 import { bootNav, closeNav, openNav, openTools, setNavHandler } from "./nav.js";
+import { initGoBtns, mapApp, setMapApp } from "./mapapp.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
@@ -29,12 +30,12 @@ bootPlan();          // reads the link, so currentTab is right before anything r
    the same shape as setPaletteHandler below. Booted after bootPlan so the trigger
    opens saying the leg the link or the store actually landed on. */
 setNavHandler(setTab);
-/* And geo-me is handed the card's redraw for the same reason: an open card says where
-   its two hand-off links start from, and a fix arriving changes that sentence from the
-   hotel to you. geo-me may not import selection.js — selection imports card.js, which
-   imports geo-me. */
+/* And geo-me is handed the card's redraw for the same reason: an open card carries how
+   far away the place is, and until a fix arrives that line is not there at all. geo-me
+   may not import selection.js — selection imports card.js, which imports geo-me. */
 setGeoFixHandler(resyncSelection);
 bootNav();
+initGoBtns();       // one delegated listener for every "open in Naver / Kakao" button
 renderLegend();
 renderList();
 
@@ -136,7 +137,7 @@ registerSW();
    Getters rather than values, because most of what is worth looking at is reassigned
    as the page runs. */
 window.trip = {
-  focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap,
+  focus, select, deselect, setTab, setSideTab, setView, setPalette, setBasemap, setMapApp,
   openNav, openTools, closeNav,
   planAdd, planRemove, planToggle, planClear, planReorder, planHref,
   startLocating, stopLocating, savePack, packSize, setHideVisited,
@@ -155,5 +156,6 @@ window.trip = {
   get hideVisited(){ return hideVisited; },
   get palette(){ return palette; },
   get basemap(){ return basemap; },
+  get mapApp(){ return mapApp; },
 };
 

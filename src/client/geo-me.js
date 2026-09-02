@@ -5,7 +5,7 @@ import { map } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
 import { PLACES } from "../data/places.js";
 import { metres } from "../lib/geo.js";
-import { fmtM, hereOrigin } from "../lib/plan-core.js";
+import { fmtM } from "../lib/plan-core.js";
 import { cssVar } from "./theme.js";
 
 /* Where you are standing. On the ground this is the question the map was missing: not
@@ -27,18 +27,10 @@ export let nearFirst = !!saved.nearFirst;   // the list, sorted by how far away 
 export const MOVE_REDRAW_M = 25;
 export let lastSort = null;
 
-/* What every hand-off link on this page starts from. A fix if there is one, and the
-   place that used to be the only answer — the hotel — if there is not. See hereOrigin()
-   in lib/plan-core.js for why the hotel was the wrong default for all but one hop a day.
-   `to` is the destination, and it is what lends the origin a city. */
-export function dirOrigin(fallback, to){
-  return hereOrigin(here, to || fallback) || fallback || null;
-}
-
 /* Redrawn when a fix first arrives or is given up, handed in the way palette.js is
-   handed its redraw: an open card says where its links start from, and that sentence
-   stops being true the moment the dot appears. Set by main.js; a page with no card
-   (the two tool pages) sets none. */
+   handed its redraw: an open card carries "N m away" in its subtitle, and that line is
+   not there at all until the dot is. Set by main.js; a page with no card (the two tool
+   pages) sets none. */
 let onFix = null;
 export const setGeoFixHandler = (fn) => { onFix = fn; };
 
