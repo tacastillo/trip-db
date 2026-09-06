@@ -36,7 +36,8 @@ export function hoursChipHtml(p){
    one 44px line, and three stacked full-width rows were most of the card. The hand-off
    lives in the same container as the two actions so a single grid can lay them out
    three-up on a phone and keep the desktop's stacked shape; the route strip above is
-   text only. */
+   text only. All three are on every card: the hand-off names a place and carries no
+   origin, so whether the page can trace a ride to it says nothing about it. */
 export function cardHtml(p){
   const c = CATS[p.cat];
   const strip = planningMode() ? hopStripHtml(p) : routeStripHtml(p);
@@ -51,12 +52,12 @@ export function cardHtml(p){
     ${p.signature || p.meta ? `<div class="pop-extra">${
       [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
        p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
-    ${strip.html}
-    <div class="card-acts${strip.go ? " three" : ""}">
+    ${strip}
+    <div class="card-acts three">
       <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")}<span>${
         planHas(p.id) ? `In<span class="ca-l"> the day</span>` : `Add<span class="ca-l"> to the day</span>`}</span></button>
       <button class="pact card-been${isVisited(p.id) ? " done" : ""}" id="cardBeen"><span class="tickbox${isVisited(p.id) ? " on" : ""}"></span> Been</button>
-      ${strip.go ? goBtnHtml(p) : ""}
+      ${goBtnHtml(p)}
     </div>`;
 }
 export const cardEl = document.getElementById("card");
@@ -84,8 +85,11 @@ export function hideCard(){
 }
 
 
-/* No route to say anything about — the card still has its two actions, just no hand-off. */
-export const NO_STRIP = { html: "", go: false };
+/* No route to say anything about, so the card says nothing about one. The hand-off is
+   not part of that: it opens the place and has no origin to be missing, so it is on
+   every card whether or not there is a ride to describe — Jeju and Busan draw no rides
+   at all and their cards had lost the only button that does anything with a place. */
+export const NO_STRIP = "";
 
 /* Mid-plan the useful question is not "how do I get here from the hotel" — it is "what
    is between the stop before this one and this one". That is the same hop the plan pane
@@ -116,9 +120,8 @@ export function hopStripHtml(p){
   /* The strip is the plan's reasoning — this hop, from the stop before it, however far
      away from it you happen to be. The button under it is not: it opens this place, and
      where you are standing is between you and the app you opened it in. */
-  return { go: true,
-    html: `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
-      <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div></div>` };
+  return `<div class="pop-route"><span class="pr-k">${kicker}</span>${line}
+    <div class="pr-walk">${fmtM(leg.metres)} · ${hopHow(leg)}</div></div>`;
 }
 
 export function routeStripHtml(p){
@@ -132,8 +135,8 @@ export function routeStripHtml(p){
   // kicker and all: there is nothing to say about a walk except where from, how far and
   // how long, and a heading of its own over a single line is a line spent on nothing.
   if (!j.rail.length)
-    return { go: true, html: `<div class="pop-route"><div class="pr-walk">${icon("walk")}
-      <span class="pr-k in">From the hotel</span> ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div></div>` };
+    return `<div class="pop-route"><div class="pr-walk">${icon("walk")}
+      <span class="pr-k in">From the hotel</span> ${fmtM(j.walk)} · ≈ ${j.minutes} min on foot — no ride beats it</div></div>`;
   const rows = j.rail.map((leg, i) => {
     const last = i === j.rail.length - 1;
     return `<div class="pr-step"><span class="pr-line" style="background:${leg.color}">${leg.label}</span>
@@ -143,7 +146,7 @@ export function routeStripHtml(p){
   });
   const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
   // the traced ride names the platforms; the map app is what you actually follow on the day
-  return { go: true, html: `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
-    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>` };
+  return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
+    <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;
 }
 
