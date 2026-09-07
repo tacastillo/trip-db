@@ -1,10 +1,10 @@
 import { renderLegend } from "./legend.js";
 import { renderList, scrollListTop } from "./list.js";
 import { save, saved } from "./store.js";
-import { map } from "./state.js";
+import { currentTab, map } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
-import { PLACES } from "../data/places.js";
-import { metres } from "../lib/geo.js";
+import { LEGS, PLACES } from "../data/places.js";
+import { legForPoint, metres } from "../lib/geo.js";
 import { fmtM } from "../lib/plan-core.js";
 import { cssVar } from "./theme.js";
 
@@ -33,6 +33,41 @@ export let lastSort = null;
    pages) sets none. */
 let onFix = null;
 export const setGeoFixHandler = (fn) => { onFix = fn; };
+
+/* Switching leg, handed in the same way and for the same reason: this module may not
+   import tabs.js — tabs renders the list, and the list reads the distances from here.
+   main.js hands it setTab; the two tool pages have no map and hand it nothing. */
+let onLeg = null;
+export const setGeoLegHandler = (fn) => { onLeg = fn; };
+
+/** The leg you are standing in, or null if that is nowhere this trip goes. */
+export function legHere(){
+  return here ? legForPoint([here.lat, here.lng], PLACES) : null;
+}
+
+/* Follow the fix rather than the calendar. Tapping 📍 in Jeju on a day filed under
+   Busan used to draw the dot on a map of Busan — the pins, the list and "nearest
+   first" all describing a city three hundred kilometres away, with nothing near you
+   to tap. Where you are standing is the more recent instruction, exactly as a stated
+   city beats a restored day's framing (see statedCity in state.js), so it wins.
+
+   It says so out loud: a map that changes city under your thumb without a word reads
+   as a bug. The line clears itself on the next fix, like everything else in the banner. */
+export function followLeg(){
+  const leg = legHere();
+  if (!leg || !onLeg || leg === currentTab) return false;
+  onLeg(leg);
+  const label = (LEGS.find(l => l.id === leg) || {}).label || leg;
+  geoBanner(`You’re in ${label} — the map has followed you.`);
+  return true;
+}
+
+/* setTab frames the city and then refits once the box has settled (see tabs.js), which
+   would otherwise drag the map straight back off you. Pan again after that. */
+function panAfterLeg(){
+  drawMe(true);
+  setTimeout(() => drawMe(true), 90);
+}
 
 export function distanceFrom(p){
   return here ? metres([here.lat, here.lng], [p.lat, p.lng]) : null;
@@ -103,7 +138,10 @@ export function onPosition(pos){
   const first = !here;
   here = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
   geoBanner("");
+  // on the first fix the map goes where you are, city and all, before the dot lands on it
+  const switched = first && followLeg();
   drawMe(first);
+  if (switched) setTimeout(() => drawMe(true), 90);
   refreshDistances();
   if (first) renderLegend();          // the "nearest first" chip only exists with a fix
   // a sorted list is the one thing a small drift really does reorder
@@ -151,11 +189,13 @@ export function stopLocating(){
 }
 
 /** One button, three things it can sensibly mean. Off, it starts. On and looking
-    somewhere else, it brings the map back to you — which is what you want nine times
+    somewhere else — another leg included — it brings the map back to you — which is what you want nine times
     out of ten and is otherwise a second control taking up thumb room. On and already
     centred on you, it stops, because by then that is the only thing left to ask for. */
 export function toggleLocating(){
   if (!locating) return startLocating();
+  // the map having wandered to another leg is the loudest version of "looking somewhere else"
+  if (here && followLeg()) return panAfterLeg();
   if (here && map && metres([here.lat, here.lng], [map.getCenter().lat, map.getCenter().lng]) > 40)
     return drawMe(true);
   stopLocating();

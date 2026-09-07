@@ -95,7 +95,7 @@ page* below).
 | `palette.js` | which of the four palettes is on; `?palette=` and the stored choice |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
-| `geo-me.js` | the blue dot, live distances, "nearest first" |
+| `geo-me.js` | the blue dot, live distances, "nearest first", following the leg you are in |
 | `offline.js` | registering the worker, downloading a leg's tile pack |
 | `view.js` | the mobile map/list switch, `isMobile` |
 | `basemap.js` | which CARTO base the tiles come from, and `?map=` |
@@ -522,6 +522,28 @@ matching every other map app beats matching ourselves), fills every "N m away" i
 neighbourhood headings for one list in walking order. The button then recentres, and stops
 only once the map is already on you.
 
+**The fix moves the leg, not just the map.** The leg tabs are the trip's calendar, and a
+calendar is a plan: a day slips, a ferry is late, an afternoon in Jeju runs into the
+evening filed under Busan — and the map is then a city you are three hundred kilometres
+from, with the pins, the list and "nearest first" all describing somewhere else and
+nothing near you to tap. So the first fix asks `legForPoint()` in `lib/geo.js` which leg
+it landed in, and switches to it if that is not the one on screen; tapping 📍 again does
+the same, before it recentres. Where you are standing is the more recent instruction —
+the same argument `statedCity` settles the same way.
+
+That question is answered off the places themselves rather than a box drawn round each
+city: the pins are what the map has, so the nearest one is the honest reading of "this
+area" and there is no second table to drift. Beyond `LEG_NEAR_MAX` from every one of them
+— at home, months out, on the plane — it returns null and nothing moves, because putting
+somebody's map in the wrong city is worse than leaving it where they put it.
+`test-plan.mjs` pins that the three legs are further apart than that reach, so no fix in
+one can ever read as another.
+
+The switch says so out loud in `#geobanner`: a map that changes city under your thumb
+without a word reads as a bug. And `geo-me.js` is handed `setTab` by `main.js` rather than
+importing `tabs.js` — tabs renders the list and the list reads the distances from here, so
+reaching for it directly is a cycle. Same shape as the card's redraw beside it.
+
 Distances go through the same `metres()` as everything else, so a row and a hop agree.
 Refusal, a timeout and a browser with no geolocation at all each say something specific in
 `#geobanner`, which is a separate banner from the tile one because they can both be true.
@@ -841,7 +863,7 @@ window.trip = { focus, select, deselect, setTab, setSideTab, setView, setPalette
                 PLACES, CATS, RAIL,
                 get map(), get railLayer(), get routeLayer(), get routeDraw(),
                 get selectedId(), get currentTab(), get plan(), get planOver(),
-                get here(), get locating(), get visited(), get hideVisited(), get palette(), get basemap(),
+                get here(), get legHere(), get locating(), get visited(), get hideVisited(), get palette(), get basemap(),
                 get mapApp() }
 ```
 

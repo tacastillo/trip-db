@@ -16,7 +16,7 @@ import { save } from "./store.js";
 import { setToolBtn } from "./toolbtn.js";
 import { applyPalette, armPaletteEgg, bootPalette, palette, setBasemapHandler, setPaletteHandler, syncPaletteEgg } from "./palette.js";
 import { applyBasemap, basemap, bootBasemap } from "./basemap.js";
-import { here, locating, setGeoFixHandler, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
+import { here, legHere, locating, setGeoFixHandler, setGeoLegHandler, startLocating, stopLocating, syncMeButton, toggleLocating } from "./geo-me.js";
 import { packSize, registerSW, savePack, syncOfflineButton } from "./offline.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
 import { CATS, PLACES } from "../data/places.js";
@@ -34,6 +34,11 @@ setNavHandler(setTab);
    far away the place is, and until a fix arrives that line is not there at all. geo-me
    may not import selection.js — selection imports card.js, which imports geo-me. */
 setGeoFixHandler(resyncSelection);
+/* And the leg switch, for the same reason again: a fix that lands in another city moves
+   the map to it, because the phone knows where you are and the calendar only knows where
+   you meant to be. geo-me may not import tabs.js — tabs renders the list, the list reads
+   geo-me — so setTab is handed over rather than reached for. */
+setGeoLegHandler(setTab);
 bootNav();
 initGoBtns();       // one delegated listener for every "open in Naver / Kakao" button
 renderLegend();
@@ -151,6 +156,7 @@ window.trip = {
   get plan(){ return plan; },
   get planOver(){ return planOver; },
   get here(){ return here; },
+  get legHere(){ return legHere(); },
   get locating(){ return locating; },
   get visited(){ return [...visited]; },
   get hideVisited(){ return hideVisited; },
