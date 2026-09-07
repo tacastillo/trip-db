@@ -4,7 +4,7 @@
    tools/check-data.mjs fails if something in this directory reaches for it. */
 
 import { DOW, closedFromHours } from "./hours.js";
-import { CATS, LEGS, PLACES, TRIP } from "../data/places.js";
+import { ALL_LEG, CATS, LEGS, PLACES, TRIP } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 import { STATION_COORDS, WALK_BEND, WALK_KMH } from "../data/routing.js";
 import { metres, projectOnSeg } from "./geo.js";
@@ -226,6 +226,60 @@ export function encodePlanQuery(plan){
   return s ? "?" + s : "";
 }
 
+/* What a link says beats what this browser remembers, always: a link is someone
+   handing you their day, and a day picked up off one is never seeded, reordered or
+   quietly replaced by yours. A URL with no stops in it is not that — it is just the
+   page — so the day you were building last time comes back instead of being thrown
+   away. Anything else the link carries (a city, a date, a stranger's query params)
+   still wins over the store, because it was stated.
+
+   `stored` is what the browser remembers, handed in rather than read: this is the most
+   consequential decision on the page and it belongs where test-plan.mjs can reach it.
+   `now` is injectable for the same reason — "today" is one of the inputs. */
+export function restored(search, stored, now){
+  const q = new URLSearchParams(String(search || "").replace(/^\?/, ""));
+  const got = decodePlanQuery(search, LEGS);
+  const linked = !!(q.get(PLAN_PARAMS.stops) || "").trim();
+  const mine = stored && Array.isArray(stored.ids) ? stored : null;
+  const plan = linked || !mine
+    ? { city: got.city, ids: got.ids, day: got.day, title: got.title, extra: got.extra }
+    : { city: mine.city || got.city,
+        ids: mine.ids.slice(0, PLAN_MAX_STOPS),
+        day: got.day || mine.day || "",
+        title: got.title || mine.title || "",
+        extra: got.extra };
+  /* Which leg the map opens on, which is not the same question as which leg a day
+     belongs to — setTab has always kept those apart (a day survives you flicking through
+     the cities), and boot has to as well now that the nav menu makes ?city= a routine tap
+     rather than something only a shared link carried. Stating a city moves the map; it
+     moves a day you were already building only when that day is empty. Without this,
+     tapping "Jeju" on the cheat sheet re-homed a Seoul day to Jeju: Seoul stops under a
+     Jeju hotel, and the wrong closed-day cautions. */
+  /* ?city=all points the map at every leg at once. decodePlanQuery deliberately does not
+     know about it — a *day* is always in a real leg, with a hotel at both ends — so it is
+     read here, where the question is which map you are looking at rather than which leg
+     the day is in. That also means a day never gets re-homed to something with no hotel. */
+  const asked = q.get(PLAN_PARAMS.city);
+  const stated = asked === ALL_LEG.id ? ALL_LEG.id : (asked ? got.city : "");
+  if (stated && stated !== ALL_LEG.id && !plan.ids.length) plan.city = stated;
+  /* The day you are on is the day you are planning, nine mornings out of fifteen. Only
+     ever filled in when nothing else stated one — a restored day keeps its own date,
+     and a date outside the trip is nobody's business of ours. */
+  if (!plan.day && !linked){
+    const today = isoDay(now);
+    if (inTrip(today, TRIP)){
+      plan.day = today;
+      const leg = legForDate(today);
+      /* but not over a city the link stated: that is somebody saying where to go. */
+      if (leg && !plan.ids.length && !stated) plan.city = leg;
+    }
+  }
+  /* Last, so today's leg above has had its say: the map opens on the stated city if
+     there is one, and otherwise on wherever the day ended up. */
+  return { plan, stated, tab: stated || plan.city, over: got.over, linked,
+           restored: !linked && !!mine && mine.ids.length > 0 };
+}
+
 /** Ids to rows. An id we no longer know stays in the list as a row with no place —
     dropping it would quietly amputate a stop from someone else's shared link. */
 export function resolvePlan(ids, places){
@@ -300,6 +354,34 @@ export function placeLinks(p){
 /** One entry per gap between consecutive stops; null where an end is unresolved.
     offFor maps a place to the station you get off at — passed in rather than reached
     for, so this stays runnable outside the page. */
+/* Every day of this trip starts at the hotel and ends there, and neither end is a stop.
+   A link written before that was true still names the hotel first, and links are never
+   quietly edited — so an id at the front that is the leg's home base is absorbed into
+   the start row rather than numbered. These three are the whole translation between the
+   ids in the URL and the rows on screen; plan-state.js wraps them over its own `plan`
+   and nothing else does the arithmetic. They live here because the off-by-one is the
+   kind of thing a test should hold, and a test cannot reach into plan-state. */
+
+/** How many leading ids the start row accounts for: 1 when the day opens on its own hotel. */
+export function leadFor(ids, city, places){
+  const h = hotelFor(city, places);
+  return h && ids[0] === h.id ? 1 : 0;
+}
+/** A move expressed in rendered rows, as the ids themselves are numbered. */
+export function moveBodyOrder(ids, lead, from, to){
+  const a = from + lead, b = to + lead;
+  if (a === b || a < 0 || b < 0 || a >= ids.length || b >= ids.length) return null;
+  const out = ids.slice();
+  out.splice(b, 0, out.splice(a, 1)[0]);
+  return out;
+}
+/** The same for a whole-day reorder: the absorbed head keeps its place in front. */
+export function reorderBodyOrder(ids, lead, order){
+  const head = [];
+  for (let i = 0; i < lead; i++) head.push(i);
+  return head.concat(order.map(i => i + lead)).map(i => ids[i]);
+}
+
 export function planLegs(stops, offFor){
   const legs = [];
   for (let i = 0; i < stops.length - 1; i++){

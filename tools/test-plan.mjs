@@ -416,6 +416,107 @@ ok("no date resolves to it", core.tripDays(TRIP, LEGS).every(d => core.legForDat
 ok("and it has no hotel, which is why a day can never be filed there",
   !core.hotelFor(ALL_LEG.id, PLACES));
 
+/* ---------- what boot decides ---------- */
+
+/* The precedence rules that decide whose day you are looking at on load. They used to
+   live in plan-boot.js, where nothing could reach them; this is the most consequential
+   decision on the page and every one of these cases has been a bug at some point. */
+group("a link, a store and a morning");
+const STORED = { city:"seoul", ids:["gyeongbok","bukchon"], day:"2026-09-02", title:"Jongno" };
+/* mid-trip, in the Jeju span, so "today" is a real day of the trip */
+const MORNING = new Date(Date.UTC(2026, 8, 5, 3, 0, 0));
+const rest = (search, stored, now) => core.restored(search, stored, now === undefined ? MORNING : now);
+
+ok("a link with stops beats the stored day",
+  eq(rest("?city=seoul&stops=ikseon,gwangjang", STORED).plan.ids, ["ikseon","gwangjang"]));
+ok("...and is never seeded or reordered — it arrives whole",
+  rest("?city=seoul&stops=gwangjang,ikseon", STORED).linked === true);
+ok("a link with no stops is just the page, so the stored day comes back",
+  eq(rest("?city=seoul", STORED).plan.ids, STORED.ids));
+ok("...and gets written back to the address bar",
+  rest("?city=seoul", STORED).restored === true);
+ok("a stored day keeps its own date rather than being moved to today",
+  rest("", STORED).plan.day === "2026-09-02");
+ok("nothing stored and no link: the day opens empty on today",
+  eq(rest("", null).plan.ids, []) && rest("", null).plan.day === "2026-09-05");
+ok("...in the leg that date lands in", rest("", null).plan.city === "jeju");
+ok("a day outside the trip is nobody's business of ours",
+  rest("", null, new Date(Date.UTC(2026, 0, 5, 3, 0, 0))).plan.day === "");
+
+/* The re-homing bug: tapping a city in the nav menu must move the map, not refile a day
+   that already has stops under a hotel in another city. */
+ok("a stated city moves the map", rest("?city=jeju", STORED).tab === "jeju");
+ok("...but does not re-home a day that has stops", rest("?city=jeju", STORED).plan.city === "seoul");
+ok("...and does move an empty one", rest("?city=jeju", null).plan.city === "jeju");
+ok("...and beats today's leg for an empty day",
+  rest("?city=busan", null).plan.city === "busan");
+ok("?city=all points the map everywhere", rest("?city=all", STORED).tab === ALL_LEG.id);
+ok("...without ever filing a day there, which has no hotel",
+  rest("?city=all", STORED).plan.city !== ALL_LEG.id && rest("?city=all", null).plan.city !== ALL_LEG.id);
+ok("a stranger's query params ride along", 
+  eq(rest("?city=seoul&utm=x", null).plan.extra, [["utm","x"]]));
+ok("stops past the cap are counted, not silently dropped",
+  rest("?stops=" + PLACES.slice(0, 15).map(p => p.id).join(","), null).over === 3);
+
+/* The absorbed hotel. A link written before the day was bracketed still names the hotel
+   first, and links are never quietly edited — so the id stays and the row is not numbered. */
+group("the hotel a link still names first");
+const LEAD = ["novotel","gyeongbok","bukchon"];
+ok("a leading home base is absorbed", core.leadFor(LEAD, "seoul", PLACES) === 1);
+ok("...only at the front", core.leadFor(["gyeongbok","novotel"], "seoul", PLACES) === 0);
+ok("...and only its own leg's", core.leadFor(LEAD, "jeju", PLACES) === 0);
+ok("a day with no hotel in it leads with nothing",
+  core.leadFor(["gyeongbok","bukchon"], "seoul", PLACES) === 0);
+ok("a move counts in rows, not in ids",
+  eq(core.moveBodyOrder(LEAD, 1, 1, 0), ["novotel","bukchon","gyeongbok"]));
+ok("...and the absorbed id never moves",
+  core.moveBodyOrder(LEAD, 1, 1, 0)[0] === "novotel");
+ok("a move that goes nowhere is refused", core.moveBodyOrder(LEAD, 1, 0, 0) === null);
+ok("a move off the end is refused", core.moveBodyOrder(LEAD, 1, 0, 5) === null);
+ok("a whole-day reorder keeps the head in front",
+  eq(core.reorderBodyOrder(LEAD, 1, [1, 0]), ["novotel","bukchon","gyeongbok"]));
+ok("...and is the identity when the order is",
+  eq(core.reorderBodyOrder(LEAD, 1, [0, 1]), LEAD));
+ok("with no absorbed head the rows are the ids",
+  eq(core.reorderBodyOrder(["a","b"], 0, [1, 0]), ["b","a"]));
+
+/* Rendered straight into the pane, and until now not covered by anything. */
+group("what the pane says about a day");
+const DAY = R(["gyeongbok","bukchon","gwangjang"]);
+const st = core.planStats(DAY);
+ok("a day's legs are the gaps between its stops, not the stops", st.legs.length === DAY.length - 1);
+ok("...and every stop resolved", st.resolved === 3);
+ok("the distance is the sum of those legs",
+  Math.abs(st.total - st.legs.reduce((n, l) => n + (l ? l.metres : 0), 0)) < 1);
+ok("every leg is either walked or ridden, never both",
+  st.legs.every(l => !l || (l.walkable ? l.walkM > 0 : true)) && st.walkM >= 0);
+ok("an empty day has nothing to total", core.planStats([]).total === 0);
+ok("a one-stop day has no leg either", core.planStats(R(["gyeongbok"])).legs.length === 0);
+ok("an id the map no longer has is kept, and counted as unresolved",
+  core.planStats(R(["gyeongbok","gonemissing"])).resolved === 1);
+
+/* Born & Bred is shut on Tuesdays. 2026-09-01 is a Tuesday; 2026-09-02 is not. */
+ok("cautions are a list", Array.isArray(core.orderCautions(DAY, "seoul", "2026-09-02")));
+ok("a place shut that day is cautioned",
+  core.orderCautions(R(["bornbred"]), "seoul", "2026-09-01").length >= 1);
+ok("...and is not, on a day it is open",
+  core.orderCautions(R(["bornbred"]), "seoul", "2026-09-02").length === 0);
+ok("a place shut two days is cautioned on both",
+  core.orderCautions(R(["sona"]), "seoul", "2026-08-31").length >= 1
+  && core.orderCautions(R(["sona"]), "seoul", "2026-09-01").length >= 1);
+ok("a day with no date cautions nothing about closing",
+  core.orderCautions(R(["bornbred"]), "seoul", "").length === 0);
+ok("an unresolved stop does not crash the cautions",
+  Array.isArray(core.orderCautions(R(["gyeongbok","gonemissing"]), "seoul", "2026-09-02")));
+
+/* Nine fixed hours rather than a timezone library, so it is checkable. */
+group("the Korean clock");
+ok("nine hours ahead of UTC", core.isoDay(new Date(Date.UTC(2026, 8, 5, 3, 0, 0))) === "2026-09-05");
+ok("...which rolls the day over before UTC does",
+  core.isoDay(new Date(Date.UTC(2026, 8, 5, 15, 30, 0))) === "2026-09-06");
+ok("...and after midnight UTC is still the day before in Korea terms",
+  core.isoDay(new Date(Date.UTC(2026, 8, 5, 14, 59, 0))) === "2026-09-05");
+
 /* ---------- the two metres() ---------- */
 
 group("the geometry the page ships");
