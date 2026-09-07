@@ -99,11 +99,6 @@ function retractOffer(){
 export function distanceFrom(p){
   return here ? metres([here.lat, here.lng], [p.lat, p.lng]) : null;
 }
-/** Metres to a place, as the rest of the page words distance. */
-export function distanceLabel(p){
-  const d = distanceFrom(p);
-  return d == null ? "" : fmtM(d);
-}
 
 /* The banner, with an optional way out of what it is telling you. A line that names a
    problem and hands you the fix is one tap; the same line on its own is a line you have

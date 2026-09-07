@@ -23,7 +23,7 @@ import { TOOLS } from "../src/data/tools.js";
 import { hasStress, isWord, saySpoken, tierPage, tiersFor } from "../src/lib/phrases.js";
 import { wonReading } from "../src/lib/won.js";
 import { ROUTES, PLACE_OFF, STATION_COORDS, HOTEL_STATION, AUTO_WALK_MAX } from "../src/data/routing.js";
-import { PLAN_PARAMS, PLAN_MAX_STOPS, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
+import { PLAN_PARAMS, PLAN_MAX_STOPS, STATION_ON_LINE_M, planDow, legForDate, tripDays } from "../src/lib/plan-core.js";
 import { TILE_KB, TILE_URL, leafletTemplate, offlinePack, tileUrl } from "../src/lib/tiles.js";
 import { ICONS } from "../src/data/icons.js";
 import SPEC from "../src/data/plan-url-spec.json" with { type: "json" };
@@ -32,7 +32,6 @@ const CITY_BOX = {                      // generous, just to catch a transposed 
   busan: [34.9, 128.7, 35.5, 129.4],
   jeju:  [33.1, 126.1, 33.7, 127.0],
 };
-const STATION_ON_LINE_M = 400;          // a station should sit on the line that serves it
 /* How far the colour the page draws on the map has to stay from every line colour, and
    how far the nine category pins stay from each other. Redmean distance; for scale, the
    day accent that shipped before --track existed was 74 from Line 7's olive. */

@@ -3,12 +3,11 @@ import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
 import { plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
-import { active, allTab, currentTab, map } from "./state.js";
+import { active, allTab, currentTab } from "./state.js";
 import { storeOk } from "./store.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
 import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
-import { ride } from "../lib/rail.js";
 import { icon } from "../lib/icons.js";
 import { catVar, esc } from "../lib/design.js";
 

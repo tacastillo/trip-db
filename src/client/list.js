@@ -7,8 +7,7 @@ import { syncMarkers } from "./map.js";
 import { renderLegend } from "./legend.js";
 import { CATS, CLUSTERS, LEGS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { fmtM, matchesQuery } from "../lib/plan-core.js";
-import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
+import { CLOSED_RE, closedDaysFor, fmtM, koreaClock, matchesQuery } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
 import { catVar } from "../lib/design.js";
 
@@ -34,9 +33,13 @@ function shutToday(p){
    next to "Closed Mon". The flag wins there: it is the one that answers today. Only when the
    meta is *nothing but* that clause, though — "Closed Tue · Catchtable" still has to say
    Catchtable, which is the half you would act on. */
-const META_ONLY_CLOSED = /^closed\s+(?:mon|tue|wed|thu|fri|sat|sun)(?:\s*[–—\-\/,&]\s*(?:mon|tue|wed|thu|fri|sat|sun))*$/i;
+/* Asked of CLOSED_RE rather than of a second copy of it: the shape of a closing clause
+   is one fact, and two regexes for it drift. "Nothing but the clause" is that match
+   having eaten the whole line. */
 function metaSaysClosed(p){
-  return META_ONLY_CLOSED.test(String(p.meta || "").trim());
+  const meta = String(p.meta || "").trim();
+  const m = CLOSED_RE.exec(meta);
+  return !!m && m[0].length === meta.length;
 }
 
 export function itemRow(p){

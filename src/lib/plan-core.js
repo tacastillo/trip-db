@@ -8,7 +8,6 @@ import { ALL_LEG, CATS, LEGS, PLACES, TRIP } from "../data/places.js";
 import { RAIL } from "../data/rail.js";
 import { STATION_COORDS, WALK_BEND, WALK_KMH } from "../data/routing.js";
 import { metres, projectOnSeg } from "./geo.js";
-import { ride } from "./rail.js";
 
 /* Everything between these sentinels is pure. It reads the data tables and its own
    arguments and nothing else — no document, no map, no history, no mutable page
