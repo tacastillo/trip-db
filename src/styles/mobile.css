@@ -1,9 +1,7 @@
 /* mobile map/list switcher — hidden on desktop */
 .viewswitch{display:none;}
-.vs-btn{flex:1; border:none; background:none; cursor:pointer; font-family:'Bricolage Grotesque',sans-serif;
-  font-weight:600; font-size:13.5px; color:var(--muted); padding:9px 6px; border-radius:7px; min-height:40px;
-  display:flex; align-items:center; justify-content:center; gap:6px; line-height:1;}
-.vs-btn.on{background:var(--surface); color:var(--ink); box-shadow:var(--sh-1);}
+.vs-btn{font-size:13.5px; padding:9px 6px; border-radius:7px; min-height:40px;
+  display:flex; align-items:center; justify-content:center; gap:6px;}
 .vs-ct{font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
 .vs-btn.on .vs-ct{color:var(--accent);}
 

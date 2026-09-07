@@ -9,3 +9,37 @@ body{margin:0; font-family:'Inter',system-ui,sans-serif; color:var(--ink); backg
 
 .app{height:100vh; display:flex; flex-direction:column; overflow:hidden;}
 
+
+/* ---- shapes that more than one page uses ---- */
+/* Grouped rather than renamed: unlike the sheet next door, these stay different controls
+   that happen to rhyme — each keeps its own sizes below, and only the shape is shared. */
+
+/* A heading with a rule running off the end of it: the neighbourhood headings in the
+   sidebar, the group headings on the phrase sheet, and the plan pane's own sections.
+   Written out three times, identically, before this. */
+.cluster-h,.phgroup-h,.psec-h{font-size:10.5px; letter-spacing:.13em; text-transform:uppercase;
+  font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px;}
+.cluster-h::after,.phgroup-h::after,.psec-h::after{content:''; flex:1; height:1px; background:var(--line-2);}
+
+/* The chip: the map's legend, and the phrase sheet's jump row. The sizes genuinely differ
+   — one sits in a sidebar you are already reading, the other is a 44px target in a
+   scrolling row — and so do the .on treatments. The pill does not. */
+.chip,.phchip{display:inline-flex; align-items:center; gap:6px; cursor:pointer; user-select:none;
+  border:1px solid var(--line); background:var(--surface); border-radius:20px; color:var(--ink);
+  line-height:1; transition:.12s;}
+.chip:hover,.phchip:hover{border-color:var(--line-hover);}
+.chip .ct,.phchip .ct{color:var(--muted); font-variant-numeric:tabular-nums;}
+
+/* The way out of what a line just told you: the geo banner's "Show Jeju" and the plan
+   pane's caution fix. The same bargain both times — state the mismatch, hand over the
+   switch, change nothing on your own — so it is one control at two sizes. */
+.gb-fix,.pcaution-fix{border:1px solid var(--ok); background:none; color:var(--ok); cursor:pointer;
+  font-family:inherit; font-weight:600; border-radius:20px;}
+.gb-fix:hover,.pcaution-fix:hover{background:var(--ok); color:var(--on-ok);}
+
+/* The segmented control: one tier of the phrase sheet at a time, and the map/list switch
+   on a phone. The wrappers are not shared — the switch does not exist on a desktop — but
+   the segments are one control, and the .on state especially. */
+.phseg,.vs-btn{flex:1; border:none; background:none; cursor:pointer;
+  font-family:'Bricolage Grotesque',sans-serif; font-weight:600; color:var(--muted); line-height:1;}
+.phseg.on,.vs-btn.on{background:var(--surface); color:var(--ink); box-shadow:var(--sh-1);}
