@@ -13,7 +13,15 @@
 import { DOW, closedFromHours, parseHours } from "../src/lib/hours.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, metres, distToPath, colourDistance, contrast, cssVars, resolveColor, toHex } from "./lib.mjs";
+import { ROOT, distToPath, colourDistance, contrast, cssVars, resolveColor, toHex } from "./lib.mjs";
+/* The page's own metres(), not lib.mjs's haversine: a checker that measures a threshold
+   with a different ruler than the code it is checking can pass a distance the page fails.
+   test-plan.mjs pins that the two agree within a metre, which is why this is safe to
+   swap and was worth swapping anyway. */
+import { metres } from "../src/lib/geo.js";
+/* ...and the real offStationFor rather than the copy of it this file used to keep. A
+   hand-written mirror with a comment saying it is a mirror is a mirror nothing checks. */
+import { offStationFor } from "../src/lib/journey.js";
 import { CATS, CAT_ORDER, CLUSTERS, PLACES, LEGS, TRIP } from "../src/data/places.js";
 import { SUBWAY } from "../src/data/subway.js";
 import { SUBWAY_BUSAN } from "../src/data/subway-busan.js";
@@ -38,357 +46,367 @@ const CITY_BOX = {                      // generous, just to catch a transposed 
 const TRACK_CLEARANCE = 130;
 const CAT_CLEARANCE = 45;
 
+/* Read by more than one of the sections below, so declared here rather than inside the
+   one that happens to fill it in. `ids` is built by checkPlaces(), which is why that runs
+   first. */
+const ids = new Set();
+const legIds = new Set(LEGS.map(l => l.id));
+const HANGUL = /[가-힣]/;
+
 const errors = [], warnings = [];
 const err  = (m) => errors.push(m);
 const warn = (m) => warnings.push(m);
 
 /* ---------- the place list ---------- */
-const ids = new Set();
-const legIds = new Set(LEGS.map(l => l.id));
-for (const p of PLACES){
-  const at = `${p.id || "(no id)"}`;
-  if (!p.id) err(`a place has no id: ${p.name}`);
-  else if (ids.has(p.id)) err(`duplicate id: ${p.id}`);
-  ids.add(p.id);
-  if (!p.name) err(`${at}: no name`);
-  if (!legIds.has(p.city)) err(`${at}: city "${p.city}" is not one of ${[...legIds].join(", ")}`);
-  if (!CATS[p.cat]) err(`${at}: cat "${p.cat}" is not in CATS`);
-  // the list is built by walking CLUSTERS, so an unlisted cluster is invisible there
-  if (!(CLUSTERS[p.city] || []).includes(p.cluster))
-    err(`${at}: cluster "${p.cluster}" is missing from CLUSTERS.${p.city} — the pin shows, the list row does not`);
-  const box = CITY_BOX[p.city];
-  if (box && !(p.lat >= box[0] && p.lat <= box[2] && p.lng >= box[1] && p.lng <= box[3]))
-    err(`${at}: ${p.lat},${p.lng} is outside ${p.city}`);
+function checkPlaces(){
+  for (const p of PLACES){
+    const at = `${p.id || "(no id)"}`;
+    if (!p.id) err(`a place has no id: ${p.name}`);
+    else if (ids.has(p.id)) err(`duplicate id: ${p.id}`);
+    ids.add(p.id);
+    if (!p.name) err(`${at}: no name`);
+    if (!legIds.has(p.city)) err(`${at}: city "${p.city}" is not one of ${[...legIds].join(", ")}`);
+    if (!CATS[p.cat]) err(`${at}: cat "${p.cat}" is not in CATS`);
+    // the list is built by walking CLUSTERS, so an unlisted cluster is invisible there
+    if (!(CLUSTERS[p.city] || []).includes(p.cluster))
+      err(`${at}: cluster "${p.cluster}" is missing from CLUSTERS.${p.city} — the pin shows, the list row does not`);
+    const box = CITY_BOX[p.city];
+    if (box && !(p.lat >= box[0] && p.lat <= box[2] && p.lng >= box[1] && p.lng <= box[3]))
+      err(`${at}: ${p.lat},${p.lng} is outside ${p.city}`);
+  }
 }
 
 /* ---------- the category and cluster tables ---------- */
-for (const k of CAT_ORDER) if (!CATS[k]) err(`CAT_ORDER has "${k}", CATS does not`);
-for (const k of Object.keys(CATS)) if (!CAT_ORDER.includes(k)) err(`CATS has "${k}", CAT_ORDER does not — it will never be shown`);
-for (const c of Object.keys(CLUSTERS)) if (!legIds.has(c)) err(`CLUSTERS has "${c}", which is not a leg`);
-for (const [cityId, list] of Object.entries(CLUSTERS))
-  for (const cl of list)
-    if (!PLACES.some(p => p.city === cityId && p.cluster === cl)) warn(`CLUSTERS.${cityId} lists "${cl}", which has no places`);
+function checkCategories(){
+  for (const k of CAT_ORDER) if (!CATS[k]) err(`CAT_ORDER has "${k}", CATS does not`);
+  for (const k of Object.keys(CATS)) if (!CAT_ORDER.includes(k)) err(`CATS has "${k}", CAT_ORDER does not — it will never be shown`);
+  for (const c of Object.keys(CLUSTERS)) if (!legIds.has(c)) err(`CLUSTERS has "${c}", which is not a leg`);
+  for (const [cityId, list] of Object.entries(CLUSTERS))
+    for (const cl of list)
+      if (!PLACES.some(p => p.city === cityId && p.cluster === cl)) warn(`CLUSTERS.${cityId} lists "${cl}", which has no places`);
+}
 
 /* ---------- the rail data ---------- */
-for (const [cityId, lines] of Object.entries(RAIL)){
-  const refs = new Set();
-  for (const l of lines){
-    if (refs.has(l.ref)) err(`${cityId} rail: two lines share ref "${l.ref}"`);
-    refs.add(l.ref);
-    if (!l.label || !l.color) err(`${cityId} line ${l.ref}: missing label or color`);
-    for (const [i, p] of l.paths.entries()){
-      if (!p.pts || p.pts.length < 2) err(`${cityId} line ${l.ref} path ${i}: fewer than 2 points`);
-      if (!p.ends || p.ends.length !== 2) err(`${cityId} line ${l.ref} path ${i}: ends must have exactly 2 entries`);
-      else for (const e of p.ends)
-        if (!["clip", "terminus", "junction"].includes(e))
-          err(`${cityId} line ${l.ref} path ${i}: unknown end "${e}"`);
+function checkRail(){
+  for (const [cityId, lines] of Object.entries(RAIL)){
+    const refs = new Set();
+    for (const l of lines){
+      if (refs.has(l.ref)) err(`${cityId} rail: two lines share ref "${l.ref}"`);
+      refs.add(l.ref);
+      if (!l.label || !l.color) err(`${cityId} line ${l.ref}: missing label or color`);
+      for (const [i, p] of l.paths.entries()){
+        if (!p.pts || p.pts.length < 2) err(`${cityId} line ${l.ref} path ${i}: fewer than 2 points`);
+        if (!p.ends || p.ends.length !== 2) err(`${cityId} line ${l.ref} path ${i}: ends must have exactly 2 entries`);
+        else for (const e of p.ends)
+          if (!["clip", "terminus", "junction"].includes(e))
+            err(`${cityId} line ${l.ref} path ${i}: unknown end "${e}"`);
+      }
     }
   }
 }
 
 /* ---------- the routing tables ---------- */
-const lineRef = (ref) => SUBWAY.find(l => l.ref === ref);
-const distToLine = (coord, ref) => {
-  const l = lineRef(ref);
-  if (!l) return Infinity;
-  return Math.min(...l.paths.map(p => distToPath(coord, p.pts)));
-};
+function checkRouting(){
+  const lineRef = (ref) => SUBWAY.find(l => l.ref === ref);
+  const distToLine = (coord, ref) => {
+    const l = lineRef(ref);
+    if (!l) return Infinity;
+    return Math.min(...l.paths.map(p => distToPath(coord, p.pts)));
+  };
 
-if (!STATION_COORDS[HOTEL_STATION]) err(`HOTEL_STATION "${HOTEL_STATION}" has no coordinates`);
+  if (!STATION_COORDS[HOTEL_STATION]) err(`HOTEL_STATION "${HOTEL_STATION}" has no coordinates`);
 
-for (const [id, station] of Object.entries(PLACE_OFF)){
-  if (!ids.has(id)) err(`PLACE_OFF has "${id}", which is not a place`);
-  if (!STATION_COORDS[station]) err(`PLACE_OFF ${id} → "${station}" has no coordinates`);
-  if (!ROUTES[station]) err(`PLACE_OFF ${id} → "${station}" has no ROUTES entry, so it draws nothing`);
-}
-
-for (const [station, legs] of Object.entries(ROUTES)){
-  if (!legs.length){ err(`ROUTES "${station}" is empty`); continue; }
-  if (legs[legs.length - 1].to !== station)
-    err(`ROUTES "${station}" ends at "${legs[legs.length - 1].to}" — the last leg must end at the key`);
-  for (const leg of legs){
-    if (!lineRef(leg.line)) err(`ROUTES "${station}": line "${leg.line}" is not in SUBWAY`);
-    if (!STATION_COORDS[leg.to]) err(`ROUTES "${station}": "${leg.to}" has no coordinates`);
-    else {
-      const d = distToLine(STATION_COORDS[leg.to], leg.line);
-      if (d > STATION_ON_LINE_M)
-        err(`ROUTES "${station}": ${leg.to} is ${Math.round(d)}m from line ${leg.line} — wrong line, or bad coordinates`);
-    }
+  for (const [id, station] of Object.entries(PLACE_OFF)){
+    if (!ids.has(id)) err(`PLACE_OFF has "${id}", which is not a place`);
+    if (!STATION_COORDS[station]) err(`PLACE_OFF ${id} → "${station}" has no coordinates`);
+    if (!ROUTES[station]) err(`PLACE_OFF ${id} → "${station}" has no ROUTES entry, so it draws nothing`);
   }
-  // you board at the hotel, so the first leg has to run past it
-  const d = distToLine(STATION_COORDS[HOTEL_STATION], legs[0].line);
-  if (d > STATION_ON_LINE_M)
-    err(`ROUTES "${station}": you cannot board line ${legs[0].line} at ${HOTEL_STATION} (${Math.round(d)}m away)`);
-}
 
-/* A route that goes out and doubles back reads as nonsense on the map, and
-   nothing else here catches it: every leg is on a real line, the transfer is a
-   real transfer, the drawn track is the real track. Compare the hotel → transfers
-   → destination dogleg against the straight line and let a human judge. Both
-   guards matter — the ratio alone flags a one-stop hop that is barely a detour,
-   the extra metres alone flag a long ride that goes nowhere odd. A ring line
-   never trips this: Line 2 the long way round has no transfer to bend at. */
-const DOGLEG_RATIO = 1.8, DOGLEG_EXTRA_M = 1500;
-for (const [station, legs] of Object.entries(ROUTES)){
-  if (!STATION_COORDS[station] || !STATION_COORDS[HOTEL_STATION]) continue;
-  if (legs.some(l => !STATION_COORDS[l.to])) continue;
-  let from = HOTEL_STATION, via = 0;
-  for (const leg of legs){ via += metres(STATION_COORDS[from], STATION_COORDS[leg.to]); from = leg.to; }
-  const direct = metres(STATION_COORDS[HOTEL_STATION], STATION_COORDS[station]);
-  if (via > direct * DOGLEG_RATIO && via - direct > DOGLEG_EXTRA_M)
-    warn(`ROUTES "${station}" doubles back: ${legs.map(l => l.line + "\u2192" + l.to).join(", ")} `
-       + `covers ${Math.round(via)}m of ground to reach a station ${Math.round(direct)}m away`);
-}
+  for (const [station, legs] of Object.entries(ROUTES)){
+    if (!legs.length){ err(`ROUTES "${station}" is empty`); continue; }
+    if (legs[legs.length - 1].to !== station)
+      err(`ROUTES "${station}" ends at "${legs[legs.length - 1].to}" — the last leg must end at the key`);
+    for (const leg of legs){
+      if (!lineRef(leg.line)) err(`ROUTES "${station}": line "${leg.line}" is not in SUBWAY`);
+      if (!STATION_COORDS[leg.to]) err(`ROUTES "${station}": "${leg.to}" has no coordinates`);
+      else {
+        const d = distToLine(STATION_COORDS[leg.to], leg.line);
+        if (d > STATION_ON_LINE_M)
+          err(`ROUTES "${station}": ${leg.to} is ${Math.round(d)}m from line ${leg.line} — wrong line, or bad coordinates`);
+      }
+    }
+    // you board at the hotel, so the first leg has to run past it
+    const d = distToLine(STATION_COORDS[HOTEL_STATION], legs[0].line);
+    if (d > STATION_ON_LINE_M)
+      err(`ROUTES "${station}": you cannot board line ${legs[0].line} at ${HOTEL_STATION} (${Math.round(d)}m away)`);
+  }
 
-for (const s of Object.keys(STATION_COORDS))
-  if (s !== HOTEL_STATION && !ROUTES[s] && !Object.values(ROUTES).some(legs => legs.some(l => l.to === s)))
-    warn(`STATION_COORDS has "${s}", which no route uses — the nearest-station fallback ignores it`);
+  /* A route that goes out and doubles back reads as nonsense on the map, and
+     nothing else here catches it: every leg is on a real line, the transfer is a
+     real transfer, the drawn track is the real track. Compare the hotel → transfers
+     → destination dogleg against the straight line and let a human judge. Both
+     guards matter — the ratio alone flags a one-stop hop that is barely a detour,
+     the extra metres alone flag a long ride that goes nowhere odd. A ring line
+     never trips this: Line 2 the long way round has no transfer to bend at. */
+  const DOGLEG_RATIO = 1.8, DOGLEG_EXTRA_M = 1500;
+  for (const [station, legs] of Object.entries(ROUTES)){
+    if (!STATION_COORDS[station] || !STATION_COORDS[HOTEL_STATION]) continue;
+    if (legs.some(l => !STATION_COORDS[l.to])) continue;
+    let from = HOTEL_STATION, via = 0;
+    for (const leg of legs){ via += metres(STATION_COORDS[from], STATION_COORDS[leg.to]); from = leg.to; }
+    const direct = metres(STATION_COORDS[HOTEL_STATION], STATION_COORDS[station]);
+    if (via > direct * DOGLEG_RATIO && via - direct > DOGLEG_EXTRA_M)
+      warn(`ROUTES "${station}" doubles back: ${legs.map(l => l.line + "\u2192" + l.to).join(", ")} `
+         + `covers ${Math.round(via)}m of ground to reach a station ${Math.round(direct)}m away`);
+  }
+
+  for (const s of Object.keys(STATION_COORDS))
+    if (s !== HOTEL_STATION && !ROUTES[s] && !Object.values(ROUTES).some(legs => legs.some(l => l.to === s)))
+      warn(`STATION_COORDS has "${s}", which no route uses — the nearest-station fallback ignores it`);
+}
 
 /* ---------- what actually gets a ride ---------- */
-const offFor = (p) => {                 // mirrors offStationFor() in src/lib/journey.js
-  if (PLACE_OFF[p.id]) return PLACE_OFF[p.id];
-  if (p.cat === "hotel") return null;
-  let best = null;
-  for (const s in STATION_COORDS){
-    if (!ROUTES[s]) continue;
-    const d = metres([p.lat, p.lng], STATION_COORDS[s]);
-    if (!best || d < best.d) best = { s, d };
+function reportCoverage(){
+  console.log("coverage");
+  for (const leg of LEGS){
+    const here = PLACES.filter(p => p.city === leg.id);
+    const routed = here.filter(p => offStationFor(p) && ROUTES[offStationFor(p)]);
+    const hotels = here.filter(p => p.cat === "hotel").length;
+    console.log(`  ${leg.label.padEnd(6)} ${String(routed.length).padStart(3)}/${String(here.length).padEnd(3)} spots draw a ride`
+      + (hotels ? `  (${hotels} hotel${hotels > 1 ? "s" : ""}, where the ride starts)` : "")
+      + (RAIL[leg.id].length ? "" : "  — no rail data for this leg"));
   }
-  return best && best.d <= AUTO_WALK_MAX ? best.s : null;
-};
-
-console.log("coverage");
-for (const leg of LEGS){
-  const here = PLACES.filter(p => p.city === leg.id);
-  const routed = here.filter(p => offFor(p) && ROUTES[offFor(p)]);
-  const hotels = here.filter(p => p.cat === "hotel").length;
-  console.log(`  ${leg.label.padEnd(6)} ${String(routed.length).padStart(3)}/${String(here.length).padEnd(3)} spots draw a ride`
-    + (hotels ? `  (${hotels} hotel${hotels > 1 ? "s" : ""}, where the ride starts)` : "")
-    + (RAIL[leg.id].length ? "" : "  — no rail data for this leg"));
+  const walks = PLACES.filter(p => !PLACE_OFF[p.id] && offStationFor(p))
+    .map(p => metres([p.lat, p.lng], STATION_COORDS[offStationFor(p)]));
+  if (walks.length)
+    console.log(`  ${walks.length} of those picked a station automatically; longest walk ${Math.round(Math.max(...walks))}m of ${AUTO_WALK_MAX}m allowed`);
 }
-const walks = PLACES.filter(p => !PLACE_OFF[p.id] && offFor(p))
-  .map(p => metres([p.lat, p.lng], STATION_COORDS[offFor(p)]));
-if (walks.length)
-  console.log(`  ${walks.length} of those picked a station automatically; longest walk ${Math.round(Math.max(...walks))}m of ${AUTO_WALK_MAX}m allowed`);
 
 /* ---------- what the day planner leans on ---------- */
-/* A plan is a list of place ids in the query string, so an id has to survive being
-   written there verbatim — that is what keeps the link readable to a person and to
-   an agent that cannot run the page. */
-for (const p of PLACES){
-  if (p.id && !/^[a-z0-9-]+$/.test(p.id))
-    err(`${p.id}: plan ids go into the URL as-is, so they must be lowercase letters, digits and dashes`);
-}
-
-/* The fields synced from the trip database. `hours` is the one piece of structured
-   schedule on this map — if a string here stops parsing, the card quietly falls back to
-   printing it and the planner stops warning, so fail the build instead. */
-const HANGUL = /[가-힣]/;
-for (const p of PLACES){
-  const at = p.id || p.name;
-  if (p.hours && !parseHours(p.hours))
-    err(`${at}: hours "${p.hours}" does not parse — see the grammar in src/lib/hours.js`);
-  if (p.closed !== undefined){
-    if (!Array.isArray(p.closed)) err(`${at}: closed must be an array of weekday keys`);
-    else for (const d of p.closed)
-      if (!DOW.includes(d)) err(`${at}: closed has "${d}", which is not one of ${DOW.join(", ")}`);
+function checkPlanner(){
+  /* A plan is a list of place ids in the query string, so an id has to survive being
+     written there verbatim — that is what keeps the link readable to a person and to
+     an agent that cannot run the page. */
+  for (const p of PLACES){
+    if (p.id && !/^[a-z0-9-]+$/.test(p.id))
+      err(`${p.id}: plan ids go into the URL as-is, so they must be lowercase letters, digits and dashes`);
   }
-  if (p.hours && Array.isArray(p.closed)){
-    const fromHours = closedFromHours(p.hours);
-    if (fromHours && String([...fromHours].sort()) !== String([...p.closed].sort()))
-      err(`${at}: closed ${JSON.stringify(p.closed)} disagrees with hours "${p.hours}"`);
+
+  /* The fields synced from the trip database. `hours` is the one piece of structured
+     schedule on this map — if a string here stops parsing, the card quietly falls back to
+     printing it and the planner stops warning, so fail the build instead. */
+  for (const p of PLACES){
+    const at = p.id || p.name;
+    if (p.hours && !parseHours(p.hours))
+      err(`${at}: hours "${p.hours}" does not parse — see the grammar in src/lib/hours.js`);
+    if (p.closed !== undefined){
+      if (!Array.isArray(p.closed)) err(`${at}: closed must be an array of weekday keys`);
+      else for (const d of p.closed)
+        if (!DOW.includes(d)) err(`${at}: closed has "${d}", which is not one of ${DOW.join(", ")}`);
+    }
+    if (p.hours && Array.isArray(p.closed)){
+      const fromHours = closedFromHours(p.hours);
+      if (fromHours && String([...fromHours].sort()) !== String([...p.closed].sort()))
+        err(`${at}: closed ${JSON.stringify(p.closed)} disagrees with hours "${p.hours}"`);
+    }
+    if (p.ko !== undefined && !HANGUL.test(p.ko))
+      err(`${at}: ko "${p.ko}" has no hangul in it`);
+    /* The whole point of the ko field: the bold line of a list row is for the name you can
+       read. A parenthetical creeping back into `name` would undo that silently. */
+    if (HANGUL.test(p.name || ""))
+      err(`${at}: name "${p.name}" contains hangul — that belongs in ko`);
+    if (p.signature !== undefined && typeof p.signature !== "string")
+      err(`${at}: signature must be a string`);
   }
-  if (p.ko !== undefined && !HANGUL.test(p.ko))
-    err(`${at}: ko "${p.ko}" has no hangul in it`);
-  /* The whole point of the ko field: the bold line of a list row is for the name you can
-     read. A parenthetical creeping back into `name` would undo that silently. */
-  if (HANGUL.test(p.name || ""))
-    err(`${at}: name "${p.name}" contains hangul — that belongs in ko`);
-  if (p.signature !== undefined && typeof p.signature !== "string")
-    err(`${at}: signature must be a string`);
-}
 
-/* Every leg needs exactly one hotel: it is what the planner offers as a day's start. */
-for (const leg of LEGS){
-  const hotels = PLACES.filter(p => p.city === leg.id && p.cat === "hotel");
-  if (hotels.length !== 1)
-    err(`${leg.id} has ${hotels.length} hotels; a day starts at the one hotel for its leg`);
-}
+  /* Every leg needs exactly one hotel: it is what the planner offers as a day's start. */
+  for (const leg of LEGS){
+    const hotels = PLACES.filter(p => p.city === leg.id && p.cat === "hotel");
+    if (hotels.length !== 1)
+      err(`${leg.id} has ${hotels.length} hotels; a day starts at the one hotel for its leg`);
+  }
 
-/* The longest plan anyone can build still has to be a link you can paste. */
-const widest = PLACES.map(p => p.id.length).sort((a, b) => b - a)
-  .slice(0, PLAN_MAX_STOPS).reduce((a, b) => a + b + 1, 0);
-if (widest > 1500) err(`${PLAN_MAX_STOPS} of the longest ids is ${widest} characters of query string`);
+  /* The longest plan anyone can build still has to be a link you can paste. */
+  const widest = PLACES.map(p => p.id.length).sort((a, b) => b - a)
+    .slice(0, PLAN_MAX_STOPS).reduce((a, b) => a + b + 1, 0);
+  if (widest > 1500) err(`${PLAN_MAX_STOPS} of the longest ids is ${widest} characters of query string`);
+}
 
 /* ---------- the calendar ---------- */
-/* The day picker offers these dates and legForDate() routes a date to a leg, so a span
-   that has drifted from the dates on the tab is a day plan quietly filed under the
-   wrong city. Nothing else would notice. */
-if (!planDow(TRIP.start) || !planDow(TRIP.end)) err(`TRIP is ${TRIP.start}..${TRIP.end}, which is not two dates`);
-else if (TRIP.start >= TRIP.end) err(`TRIP starts on ${TRIP.start} and ends on ${TRIP.end}`);
-for (const leg of LEGS){
-  if (!leg.spans || !leg.spans.length){ err(`${leg.id} has no date spans, so no date can land in it`); continue; }
-  for (const [a, b] of leg.spans){
-    if (!planDow(a) || !planDow(b)) err(`${leg.id}: span ${a}..${b} is not two dates`);
-    else if (a > b) err(`${leg.id}: span ${a}..${b} runs backwards`);
-    else if (a < TRIP.start || b > TRIP.end) err(`${leg.id}: span ${a}..${b} falls outside the trip (${TRIP.start}..${TRIP.end})`);
+function checkCalendar(){
+  /* The day picker offers these dates and legForDate() routes a date to a leg, so a span
+     that has drifted from the dates on the tab is a day plan quietly filed under the
+     wrong city. Nothing else would notice. */
+  if (!planDow(TRIP.start) || !planDow(TRIP.end)) err(`TRIP is ${TRIP.start}..${TRIP.end}, which is not two dates`);
+  else if (TRIP.start >= TRIP.end) err(`TRIP starts on ${TRIP.start} and ends on ${TRIP.end}`);
+  for (const leg of LEGS){
+    if (!leg.spans || !leg.spans.length){ err(`${leg.id} has no date spans, so no date can land in it`); continue; }
+    for (const [a, b] of leg.spans){
+      if (!planDow(a) || !planDow(b)) err(`${leg.id}: span ${a}..${b} is not two dates`);
+      else if (a > b) err(`${leg.id}: span ${a}..${b} runs backwards`);
+      else if (a < TRIP.start || b > TRIP.end) err(`${leg.id}: span ${a}..${b} falls outside the trip (${TRIP.start}..${TRIP.end})`);
+    }
   }
-}
-{
-  const days = tripDays();
-  const placed = days.filter(d => d.leg).length;
-  const orphans = days.filter(d => !d.leg).map(d => d.day);
-  if (!days.length) err("the trip window covers no days at all");
-  if (orphans.length > 2) warn(`${orphans.length} trip days belong to no leg: ${orphans.join(", ")}`);
-  for (const leg of LEGS)
-    if (!days.some(d => d.leg === leg.id))
-      err(`no date in the trip resolves to ${leg.id} — legForDate() would never pick it`);
-  console.log(`\n  ${days.length} trip days, ${placed} of them in a leg`
-    + (orphans.length ? ` (${orphans.join(", ")} travelling)` : ""));
+  {
+    const days = tripDays();
+    const placed = days.filter(d => d.leg).length;
+    const orphans = days.filter(d => !d.leg).map(d => d.day);
+    if (!days.length) err("the trip window covers no days at all");
+    if (orphans.length > 2) warn(`${orphans.length} trip days belong to no leg: ${orphans.join(", ")}`);
+    for (const leg of LEGS)
+      if (!days.some(d => d.leg === leg.id))
+        err(`no date in the trip resolves to ${leg.id} — legForDate() would never pick it`);
+    console.log(`\n  ${days.length} trip days, ${placed} of them in a leg`
+      + (orphans.length ? ` (${orphans.join(", ")} travelling)` : ""));
+  }
 }
 
 /* ---------- the cheat sheet ---------- */
-/* src/data/phrases.js is hand-edited like places.js, and the same class of mistake is
-   silent: a row naming a group that does not exist renders nowhere at all, and a `say`
-   string that lost its stress marks in an edit still renders — just flat, which is the
-   one thing the column was redesigned to stop being. */
-{
-  const seen = new Set();
-  for (const p of PHRASES){
-    const at = `phrase ${p.id || "(no id)"}`;
-    if (!p.id) err("a phrase has no id");
-    else if (seen.has(p.id)) err(`${at}: duplicate id — the later one shadows the earlier`);
-    seen.add(p.id);
-    for (const k of ["en", "rom", "say"]) if (!p[k]) err(`${at}: no ${k}`);
-    if (!PH_GROUPS.some(g => g.id === p.group))
-      err(`${at}: group "${p.group}" is not in GROUPS — the row would render nowhere`);
-    if (!hasStress(p.say))
-      err(`${at}: say "${p.say}" has no *stress* marks, so it would render flat`);
-    if ((p.say.match(/\*/g) || []).length % 2)
-      err(`${at}: say "${p.say}" has an odd number of asterisks`);
-    /* This sheet is romanization only, on purpose — see the header of phrases.js. `ko`
-       is here so hangul can be added later without re-entering every row, which only
-       works if nothing has quietly started smuggling it into the other columns. */
-    if (p.ko) err(`${at}: ko is "${p.ko}" — this sheet ships romanization only, see src/data/phrases.js`);
-    for (const k of ["en", "rom", "say"])
-      if (HANGUL.test(p[k] || "")) err(`${at}: ${k} contains hangul, which belongs in ko`);
-    if (saySpoken(p.say) === p.rom)
-      err(`${at}: say and rom are the same string — say is how it sounds, rom is how it is spelled`);
+function checkCheatSheet(){
+  /* src/data/phrases.js is hand-edited like places.js, and the same class of mistake is
+     silent: a row naming a group that does not exist renders nowhere at all, and a `say`
+     string that lost its stress marks in an edit still renders — just flat, which is the
+     one thing the column was redesigned to stop being. */
+  {
+    const seen = new Set();
+    for (const p of PHRASES){
+      const at = `phrase ${p.id || "(no id)"}`;
+      if (!p.id) err("a phrase has no id");
+      else if (seen.has(p.id)) err(`${at}: duplicate id — the later one shadows the earlier`);
+      seen.add(p.id);
+      for (const k of ["en", "rom", "say"]) if (!p[k]) err(`${at}: no ${k}`);
+      if (!PH_GROUPS.some(g => g.id === p.group))
+        err(`${at}: group "${p.group}" is not in GROUPS — the row would render nowhere`);
+      if (!hasStress(p.say))
+        err(`${at}: say "${p.say}" has no *stress* marks, so it would render flat`);
+      if ((p.say.match(/\*/g) || []).length % 2)
+        err(`${at}: say "${p.say}" has an odd number of asterisks`);
+      /* This sheet is romanization only, on purpose — see the header of phrases.js. `ko`
+         is here so hangul can be added later without re-entering every row, which only
+         works if nothing has quietly started smuggling it into the other columns. */
+      if (p.ko) err(`${at}: ko is "${p.ko}" — this sheet ships romanization only, see src/data/phrases.js`);
+      for (const k of ["en", "rom", "say"])
+        if (HANGUL.test(p[k] || "")) err(`${at}: ${k} contains hangul, which belongs in ko`);
+      if (saySpoken(p.say) === p.rom)
+        err(`${at}: say and rom are the same string — say is how it sounds, rom is how it is spelled`);
+    }
+    for (const g of PH_GROUPS)
+      if (!PH_TIERS.some(t => t.id === g.tier)) err(`group ${g.id}: tier "${g.tier}" is not in TIERS`);
+    for (const g of PH_GROUPS)
+      if (!PHRASES.some(p => p.group === g.id)) err(`group ${g.id} has no phrases in it`);
+    /* The numbers table is what lib/won.js assembles a price out of, so a syllable fixed
+       in one and not the other would leave the reader saying the old thing. */
+    for (const x of NUMBERS){
+      const said = wonReading(x.n);
+      if (!said) err(`the numbers table has ${x.n}, which the price reader will not read`);
+      else if (x.n !== 1 && !said.rom.startsWith(x.sino))
+        err(`NUMBERS says ${x.n} is "${x.sino}" but the price reader says "${said.rom}"`);
+    }
+    for (const n of PRICE_PRESETS)
+      if (!wonReading(n)) err(`the price reader's preset ${n} does not read`);
+    const daily = PH_GROUPS.filter(g => g.tier === PH_TIERS[0].id).map(g => g.id);
+    const nDaily = PHRASES.filter(p => daily.includes(p.group) && !p.hear && !isWord(p)).length;
+    /* The whole point of the tiers is that the first one is learnable. Past a dozen it is
+       just the sheet again, with a heading on it. The word grid does not count against
+       that and must not be made to: a word you point at is a lookup, not a sentence you
+       are learning, and it is why "hot", "cold" and "iced" were missing from a sheet that
+       could tell you how to ask whether something was spicy. It has its own ceiling — past
+       about thirty, a grid stops being scannable at a glance and is just a list again. */
+    if (nDaily > 12) err(`the "${PH_TIERS[0].label}" tier has ${nDaily} phrases in it — it is meant to be learnable`);
+    const nWords = PHRASES.filter(p => isWord(p)).length;
+    if (nWords > 30) err(`the word grid has ${nWords} words in it — past thirty it is a list, not a glance`);
+    /* Every tier belongs to a tool with a page behind it, or it renders nowhere at all:
+       the money tier moved off the cheat sheet the day money became its own page. */
+    for (const t of PH_TIERS)
+      if (!TOOLS.some(x => x.id === tierPage(t)))
+        err(`tier ${t.id} names page "${tierPage(t)}", which is not a tool in src/data/tools.js`);
+    for (const t of TOOLS)
+      if (!tiersFor(t.id).length && t.id !== "map")
+        warn(`tool ${t.id} has no tier of phrases behind it`);
+    console.log(`\n  ${PHRASES.length} phrases in ${PH_GROUPS.length} groups`
+      + ` (${nDaily} every day, ${nWords} words, ${PHRASES.filter(p => p.hear).length} you only have to recognise)`);
   }
-  for (const g of PH_GROUPS)
-    if (!PH_TIERS.some(t => t.id === g.tier)) err(`group ${g.id}: tier "${g.tier}" is not in TIERS`);
-  for (const g of PH_GROUPS)
-    if (!PHRASES.some(p => p.group === g.id)) err(`group ${g.id} has no phrases in it`);
-  /* The numbers table is what lib/won.js assembles a price out of, so a syllable fixed
-     in one and not the other would leave the reader saying the old thing. */
-  for (const x of NUMBERS){
-    const said = wonReading(x.n);
-    if (!said) err(`the numbers table has ${x.n}, which the price reader will not read`);
-    else if (x.n !== 1 && !said.rom.startsWith(x.sino))
-      err(`NUMBERS says ${x.n} is "${x.sino}" but the price reader says "${said.rom}"`);
-  }
-  for (const n of PRICE_PRESETS)
-    if (!wonReading(n)) err(`the price reader's preset ${n} does not read`);
-  const daily = PH_GROUPS.filter(g => g.tier === PH_TIERS[0].id).map(g => g.id);
-  const nDaily = PHRASES.filter(p => daily.includes(p.group) && !p.hear && !isWord(p)).length;
-  /* The whole point of the tiers is that the first one is learnable. Past a dozen it is
-     just the sheet again, with a heading on it. The word grid does not count against
-     that and must not be made to: a word you point at is a lookup, not a sentence you
-     are learning, and it is why "hot", "cold" and "iced" were missing from a sheet that
-     could tell you how to ask whether something was spicy. It has its own ceiling — past
-     about thirty, a grid stops being scannable at a glance and is just a list again. */
-  if (nDaily > 12) err(`the "${PH_TIERS[0].label}" tier has ${nDaily} phrases in it — it is meant to be learnable`);
-  const nWords = PHRASES.filter(p => isWord(p)).length;
-  if (nWords > 30) err(`the word grid has ${nWords} words in it — past thirty it is a list, not a glance`);
-  /* Every tier belongs to a tool with a page behind it, or it renders nowhere at all:
-     the money tier moved off the cheat sheet the day money became its own page. */
-  for (const t of PH_TIERS)
-    if (!TOOLS.some(x => x.id === tierPage(t)))
-      err(`tier ${t.id} names page "${tierPage(t)}", which is not a tool in src/data/tools.js`);
-  for (const t of TOOLS)
-    if (!tiersFor(t.id).length && t.id !== "map")
-      warn(`tool ${t.id} has no tier of phrases behind it`);
-  console.log(`\n  ${PHRASES.length} phrases in ${PH_GROUPS.length} groups`
-    + ` (${nDaily} every day, ${nWords} words, ${PHRASES.filter(p => p.hear).length} you only have to recognise)`);
 }
 
 /* ---------- what ships offline ---------- */
-/* public/sw.js is copied to the site verbatim and precaches a list of files by hand,
-   because it is not bundled and nothing rewrites those paths. Rename a vendored font
-   and the page still builds, still works online, and quietly stops working offline. */
-{
-  const sw = readFileSync(join(ROOT, "public/sw.js"), "utf8");
-  const listed = [...sw.matchAll(/^\s*"\.\/([^"]*)",\s*$/gm)].map(m => m[1]).filter(Boolean);
-  if (listed.length < 10) err("public/sw.js lists almost nothing to precache — has SHELL_FILES moved?");
-  for (const f of listed){
-    if (f.endsWith(".html")) continue;                 // built, not committed
-    try { readFileSync(join(ROOT, "public", f)); }
-    catch (e){ err(`public/sw.js precaches "${f}", which is not in public/`); }
-  }
-  /* And the other direction, which is the one nothing else would notice: a page that
-     builds, deploys and works online while quietly having no offline copy at all.
-     build.format is "file", so src/pages/x.astro is x.html at the root of the site. */
-  for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
-    const page = f.replace(/\.astro$/, ".html");
-    if (!listed.includes(page))
-      err(`src/pages/${f} builds ${page}, which public/sw.js does not precache — it would not work offline`);
-  }
-  /* And what the nav menu points at. A tool naming a page that is not there is a dead
-     row in the one menu on the site, and a tool whose page is not precached is a row
-     that works right up until you are in Jeju with no signal. */
-  const pages = readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))
-    .map(f => f.replace(/\.astro$/, ".html"));
-  for (const t of TOOLS){
-    if (!pages.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which is not a page in src/pages/`);
-    if (!listed.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which public/sw.js does not precache`);
-    if (!ICONS[t.icon]) err(`TOOLS "${t.id}" names icon "${t.icon}", which tools/fetch-icons.mjs never wrote`);
-  }
-  const mf = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
-  if (mf.start_url !== "./index.html") err(`the manifest starts at ${mf.start_url}; build.format is "file", so it has to be ./index.html`);
-  for (const icon of mf.icons || [])
-    try { readFileSync(join(ROOT, "public", icon.src.replace(/^\.\//, ""))); }
-    catch (e){ err(`the manifest names an icon that is not there: ${icon.src}`); }
-  for (const leg of LEGS){
-    const n = offlinePack(PLACES.filter(p => p.city === leg.id)).length;
-    if (n > 2500) err(`${leg.id}'s offline tile pack is ${n} tiles — too much to ask anyone to download`);
-    const mb = (style) => Math.round(n * TILE_KB[style] / 1024);
-    console.log(`  ${leg.label.padEnd(6)} offline pack: ${String(n).padStart(4)} tiles, roughly `
-      + Object.keys(TILE_KB).map(st => `${mb(st)} MB ${st.replace("rastertiles/", "")}`).join(" · "));
-  }
-
-  /* The one that would have caught the bug this file was extended for. The worker caches
-     tiles by URL and matches by URL, so the live layer and the offline pack have to ask
-     for the same string — and they did not: Leaflet substitutes {r} from Browser.retina
-     alone, so every retina phone requested @2x while the pack cached the 1x URL. Online
-     that falls through to the network and looks fine; offline it was a dead map. Both
-     now come out of tileUrl() in src/lib/tiles.js, and this is what holds them there. */
+function checkOffline(){
+  /* public/sw.js is copied to the site verbatim and precaches a list of files by hand,
+     because it is not bundled and nothing rewrites those paths. Rename a vendored font
+     and the page still builds, still works online, and quietly stops working offline. */
   {
-    const t = { z: 12, x: 3492, y: 1586 };
-    for (const style of Object.keys(TILE_KB)){
-      const live = leafletTemplate(style)
-        .replace("{s}", "a").replace("{z}", t.z).replace("{x}", t.x).replace("{y}", t.y);
-      const cached = tileUrl(style, t);
-      if (live !== cached)
-        err(`the tile the layer asks for and the tile the pack caches differ:\n`
-          + `           layer  ${live}\n           pack   ${cached}`);
+    const sw = readFileSync(join(ROOT, "public/sw.js"), "utf8");
+    const listed = [...sw.matchAll(/^\s*"\.\/([^"]*)",\s*$/gm)].map(m => m[1]).filter(Boolean);
+    if (listed.length < 10) err("public/sw.js lists almost nothing to precache — has SHELL_FILES moved?");
+    for (const f of listed){
+      if (f.endsWith(".html")) continue;                 // built, not committed
+      try { readFileSync(join(ROOT, "public", f)); }
+      catch (e){ err(`public/sw.js precaches "${f}", which is not in public/`); }
     }
-    if (/\{r\}/.test(TILE_URL))
-      err("TILE_URL still has {r} in it — Leaflet fills that from the device, which the pack builder cannot see");
-    if (!TILE_URL.includes("@2x"))
-      warn("TILE_URL is not asking for @2x tiles; on a retina phone the map will be an upscaled 1x image");
-  }
-}
+    /* And the other direction, which is the one nothing else would notice: a page that
+       builds, deploys and works online while quietly having no offline copy at all.
+       build.format is "file", so src/pages/x.astro is x.html at the root of the site. */
+    for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
+      const page = f.replace(/\.astro$/, ".html");
+      if (!listed.includes(page))
+        err(`src/pages/${f} builds ${page}, which public/sw.js does not precache — it would not work offline`);
+    }
+    /* And what the nav menu points at. A tool naming a page that is not there is a dead
+       row in the one menu on the site, and a tool whose page is not precached is a row
+       that works right up until you are in Jeju with no signal. */
+    const pages = readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))
+      .map(f => f.replace(/\.astro$/, ".html"));
+    for (const t of TOOLS){
+      if (!pages.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which is not a page in src/pages/`);
+      if (!listed.includes(t.page)) err(`TOOLS "${t.id}" points at ${t.page}, which public/sw.js does not precache`);
+      if (!ICONS[t.icon]) err(`TOOLS "${t.id}" names icon "${t.icon}", which tools/fetch-icons.mjs never wrote`);
+    }
+    const mf = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
+    if (mf.start_url !== "./index.html") err(`the manifest starts at ${mf.start_url}; build.format is "file", so it has to be ./index.html`);
+    for (const icon of mf.icons || [])
+      try { readFileSync(join(ROOT, "public", icon.src.replace(/^\.\//, ""))); }
+      catch (e){ err(`the manifest names an icon that is not there: ${icon.src}`); }
+    for (const leg of LEGS){
+      const n = offlinePack(PLACES.filter(p => p.city === leg.id)).length;
+      if (n > 2500) err(`${leg.id}'s offline tile pack is ${n} tiles — too much to ask anyone to download`);
+      const mb = (style) => Math.round(n * TILE_KB[style] / 1024);
+      console.log(`  ${leg.label.padEnd(6)} offline pack: ${String(n).padStart(4)} tiles, roughly `
+        + Object.keys(TILE_KB).map(st => `${mb(st)} MB ${st.replace("rastertiles/", "")}`).join(" · "));
+    }
 
-/* src/lib/ is the half of the code the node tests can run, and it can only stay that
-   way while nothing in it reaches for the page. The single-file page fenced this off
-   with a pair of sentinel comments; a directory does it better, but only if someone
-   checks — nothing else would notice a document. creeping in here. */
-const IMPURE = /(?<![.\w])(document|window|location|history|localStorage|navigator)\b/g;
-for (const f of readdirSync(join(ROOT, "src/lib"))){
-  const text = readFileSync(join(ROOT, "src/lib", f), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-  const hits = [...new Set(text.match(IMPURE) || [])];
-  if (hits.length) err(`src/lib/${f} touches the page (${hits.join(", ")}) — that belongs in src/client/`);
+    /* The one that would have caught the bug this file was extended for. The worker caches
+       tiles by URL and matches by URL, so the live layer and the offline pack have to ask
+       for the same string — and they did not: Leaflet substitutes {r} from Browser.retina
+       alone, so every retina phone requested @2x while the pack cached the 1x URL. Online
+       that falls through to the network and looks fine; offline it was a dead map. Both
+       now come out of tileUrl() in src/lib/tiles.js, and this is what holds them there. */
+    {
+      const t = { z: 12, x: 3492, y: 1586 };
+      for (const style of Object.keys(TILE_KB)){
+        const live = leafletTemplate(style)
+          .replace("{s}", "a").replace("{z}", t.z).replace("{x}", t.x).replace("{y}", t.y);
+        const cached = tileUrl(style, t);
+        if (live !== cached)
+          err(`the tile the layer asks for and the tile the pack caches differ:\n`
+            + `           layer  ${live}\n           pack   ${cached}`);
+      }
+      if (/\{r\}/.test(TILE_URL))
+        err("TILE_URL still has {r} in it — Leaflet fills that from the device, which the pack builder cannot see");
+      if (!TILE_URL.includes("@2x"))
+        warn("TILE_URL is not asking for @2x tiles; on a retina phone the map will be an upscaled 1x image");
+    }
+  }
+
+  /* src/lib/ is the half of the code the node tests can run, and it can only stay that
+     way while nothing in it reaches for the page. The single-file page fenced this off
+     with a pair of sentinel comments; a directory does it better, but only if someone
+     checks — nothing else would notice a document. creeping in here. */
+  const IMPURE = /(?<![.\w])(document|window|location|history|localStorage|navigator)\b/g;
+  for (const f of readdirSync(join(ROOT, "src/lib"))){
+    const text = readFileSync(join(ROOT, "src/lib", f), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    const hits = [...new Set(text.match(IMPURE) || [])];
+    if (hits.length) err(`src/lib/${f} touches the page (${hits.join(", ")}) — that belongs in src/client/`);
+  }
 }
 
 /* ---------- the design tokens ----------
@@ -404,173 +422,190 @@ for (const f of readdirSync(join(ROOT, "src/lib"))){
    purpose — night is the page, day is the theme you switch to when the sun is on the
    screen and night has stopped being readable, so being merely adequate is a failure of
    its whole job. See "Night first" in CLAUDE.md. */
-{
-  const tokensPath = "src/styles/tokens.css";
-  const css = readFileSync(join(ROOT, tokensPath), "utf8");
-  const PALETTES = [...css.matchAll(/\[data-palette="([\w-]+)"\]/g)].map(m => m[1])
-    .filter((v, i, a) => a.indexOf(v) === i);
-  if (!PALETTES.length) err(`no [data-palette=...] blocks in ${tokensPath}`);
-
-  const themeVars = (palette, night) => {
-    const want = [":root", `[data-palette="${palette}"]`];
-    const base = cssVars(css, want);
-    return night ? { ...base, ...cssVars(css, ["body.night"]) } : base;
-  };
-  const rgb = (vars, name) => resolveColor(vars[name], vars);
-  const ratio = (vars, a, b) => {
-    const x = rgb(vars, a), y = rgb(vars, b);
-    return x && y ? contrast(x, y) : null;
-  };
-
-  /* what has to read against what, and how well. A pair this cannot resolve is
-     reported rather than skipped: a token nobody could read is a token nobody checked. */
-  const PAIRS = [
-    ["--ink", "--paper", 7, 10],            // body text
-    ["--muted", "--paper", 4.5, 5.5],       // notes, neighbourhoods, distances
-    ["--accent", "--paper", 4.5, 5.5],      // .pop-meta and .it-meta are small text
-    ["--on-accent", "--accent", 4.5, 4.5],  // text on a filled button
-    ["--ok", "--paper", 4.5, 5.5],
-    ["--on-ok", "--ok", 4.5, 4.5],
-    ["--warn", "--paper", 4.5, 5.5],
-    ["--ink", "--surface", 7, 10],          // the card and the sidebar
-    ["--muted", "--surface", 4.5, 5.5],
-    ["--scrim-ink", "--scrim", 4.5, 4.5],   // the banners over the map
-  ];
-
-  console.log("\ncontrast, by palette (night · day)");
-  for (const p of PALETTES){
-    const night = themeVars(p, true), day = themeVars(p, false);
-    const bits = [];
-    for (const [a, b, floorN, floorD] of PAIRS){
-      const rn = ratio(night, a, b), rd = ratio(day, a, b);
-      if (rn == null) { err(`${p}: night ${a} on ${b} is not a colour this can read`); continue; }
-      if (rd == null) { err(`${p}: day ${a} on ${b} is not a colour this can read`); continue; }
-      if (rn < floorN) err(`${p}, night: ${a} on ${b} is ${rn.toFixed(2)}:1, floor is ${floorN}:1`);
-      if (rd < floorD) err(`${p}, day: ${a} on ${b} is ${rd.toFixed(2)}:1, floor is ${floorD}:1 (day is the sunlight theme — its floor is the higher one)`);
-      bits.push(`${a.replace("--", "")}/${b.replace("--", "")} ${rn.toFixed(1)}·${rd.toFixed(1)}`);
-    }
-    console.log(`  ${p.padEnd(9)} ${bits.join("  ")}`);
-  }
-
-  /* The one colour the page draws on the map. Thirteen line colours are already there,
-     so an accent chosen to look right on a button can land on top of one — the day
-     accent of the palette this replaced was 74 from Line 7, which is a walk you cannot
-     pick out from a train. Nothing else would ever catch that. */
+function checkTokens(){
   {
-    const vars = themeVars(PALETTES[0], true);
-    const lines = Object.values(RAIL).flat().map(l => [l.label, resolveColor(l.color, {})]);
-    const track = rgb(vars, "--track");
-    if (!track) err("--track is not a colour");
-    else {
-      const near = lines.map(([lb, lc]) => [lb, colourDistance(track, lc)]).sort((a, b) => a[1] - b[1])[0];
-      if (near && near[1] < TRACK_CLEARANCE)
-        err(`--track is ${Math.round(near[1])} from ${near[0]} — the walk drawn on the map would read as that line. Needs ${TRACK_CLEARANCE}.`);
-      console.log(`  --track clears every line by ${Math.round(near[1])} (nearest ${near[0]})`);
-    }
-  }
+    const tokensPath = "src/styles/tokens.css";
+    const css = readFileSync(join(ROOT, tokensPath), "utf8");
+    const PALETTES = [...css.matchAll(/\[data-palette="([\w-]+)"\]/g)].map(m => m[1])
+      .filter((v, i, a) => a.indexOf(v) === i);
+    if (!PALETTES.length) err(`no [data-palette=...] blocks in ${tokensPath}`);
 
-  /* Nine pins that have to be tellable apart at 390px. A warning rather than an error:
-     each pin also carries its own icon, which does half of this job. */
-  {
-    const vars = themeVars(PALETTES[0], true);
-    const cats = CAT_ORDER.map(k => [k, rgb(vars, `--cat-${k}`)]).filter(c => c[1]);
-    for (let i = 0; i < cats.length; i++)
-      for (let j = i + 1; j < cats.length; j++){
-        const d = colourDistance(cats[i][1], cats[j][1]);
-        if (d < CAT_CLEARANCE)
-          warn(`--cat-${cats[i][0]} and --cat-${cats[j][0]} are ${Math.round(d)} apart; two pins that close lean on their icons alone`);
+    const themeVars = (palette, night) => {
+      const want = [":root", `[data-palette="${palette}"]`];
+      const base = cssVars(css, want);
+      return night ? { ...base, ...cssVars(css, ["body.night"]) } : base;
+    };
+    const rgb = (vars, name) => resolveColor(vars[name], vars);
+    const ratio = (vars, a, b) => {
+      const x = rgb(vars, a), y = rgb(vars, b);
+      return x && y ? contrast(x, y) : null;
+    };
+
+    /* what has to read against what, and how well. A pair this cannot resolve is
+       reported rather than skipped: a token nobody could read is a token nobody checked. */
+    const PAIRS = [
+      ["--ink", "--paper", 7, 10],            // body text
+      ["--muted", "--paper", 4.5, 5.5],       // notes, neighbourhoods, distances
+      ["--accent", "--paper", 4.5, 5.5],      // .pop-meta and .it-meta are small text
+      ["--on-accent", "--accent", 4.5, 4.5],  // text on a filled button
+      ["--ok", "--paper", 4.5, 5.5],
+      ["--on-ok", "--ok", 4.5, 4.5],
+      ["--warn", "--paper", 4.5, 5.5],
+      ["--ink", "--surface", 7, 10],          // the card and the sidebar
+      ["--muted", "--surface", 4.5, 5.5],
+      ["--scrim-ink", "--scrim", 4.5, 4.5],   // the banners over the map
+    ];
+
+    console.log("\ncontrast, by palette (night · day)");
+    for (const p of PALETTES){
+      const night = themeVars(p, true), day = themeVars(p, false);
+      const bits = [];
+      for (const [a, b, floorN, floorD] of PAIRS){
+        const rn = ratio(night, a, b), rd = ratio(day, a, b);
+        if (rn == null) { err(`${p}: night ${a} on ${b} is not a colour this can read`); continue; }
+        if (rd == null) { err(`${p}: day ${a} on ${b} is not a colour this can read`); continue; }
+        if (rn < floorN) err(`${p}, night: ${a} on ${b} is ${rn.toFixed(2)}:1, floor is ${floorN}:1`);
+        if (rd < floorD) err(`${p}, day: ${a} on ${b} is ${rd.toFixed(2)}:1, floor is ${floorD}:1 (day is the sunlight theme — its floor is the higher one)`);
+        bits.push(`${a.replace("--", "")}/${b.replace("--", "")} ${rn.toFixed(1)}·${rd.toFixed(1)}`);
       }
-    const onCat = rgb(vars, "--on-cat");
-    for (const [k, c] of cats){
-      const r = contrast(onCat, c);
-      if (r < 4.5) err(`--on-cat on --cat-${k} is ${r.toFixed(2)}:1 — the icon inside that pin needs 4.5:1`);
+      console.log(`  ${p.padEnd(9)} ${bits.join("  ")}`);
+    }
+
+    /* The one colour the page draws on the map. Thirteen line colours are already there,
+       so an accent chosen to look right on a button can land on top of one — the day
+       accent of the palette this replaced was 74 from Line 7, which is a walk you cannot
+       pick out from a train. Nothing else would ever catch that. */
+    {
+      const vars = themeVars(PALETTES[0], true);
+      const lines = Object.values(RAIL).flat().map(l => [l.label, resolveColor(l.color, {})]);
+      const track = rgb(vars, "--track");
+      if (!track) err("--track is not a colour");
+      else {
+        const near = lines.map(([lb, lc]) => [lb, colourDistance(track, lc)]).sort((a, b) => a[1] - b[1])[0];
+        if (near && near[1] < TRACK_CLEARANCE)
+          err(`--track is ${Math.round(near[1])} from ${near[0]} — the walk drawn on the map would read as that line. Needs ${TRACK_CLEARANCE}.`);
+        console.log(`  --track clears every line by ${Math.round(near[1])} (nearest ${near[0]})`);
+      }
+    }
+
+    /* Nine pins that have to be tellable apart at 390px. A warning rather than an error:
+       each pin also carries its own icon, which does half of this job. */
+    {
+      const vars = themeVars(PALETTES[0], true);
+      const cats = CAT_ORDER.map(k => [k, rgb(vars, `--cat-${k}`)]).filter(c => c[1]);
+      for (let i = 0; i < cats.length; i++)
+        for (let j = i + 1; j < cats.length; j++){
+          const d = colourDistance(cats[i][1], cats[j][1]);
+          if (d < CAT_CLEARANCE)
+            warn(`--cat-${cats[i][0]} and --cat-${cats[j][0]} are ${Math.round(d)} apart; two pins that close lean on their icons alone`);
+        }
+      const onCat = rgb(vars, "--on-cat");
+      for (const [k, c] of cats){
+        const r = contrast(onCat, c);
+        if (r < 4.5) err(`--on-cat on --cat-${k} is ${r.toFixed(2)}:1 — the icon inside that pin needs 4.5:1`);
+      }
+    }
+
+    for (const k of CAT_ORDER)
+      if (!cssVars(css, [":root"])[`--cat-${k}`])
+        err(`no --cat-${k} in ${tokensPath} — a category names its own colour token, see catVar() in src/lib/design.js`);
+
+    /* Four things cannot read a stylesheet: the two <meta name="theme-color"> tags, the
+       manifest and the launcher icon. They are the only colours outside tokens.css, and
+       this is what stops them going stale the next time the palette changes — which is
+       exactly what had happened to all four of them. They follow the palette the page
+       ships with, which is the one in :root. */
+    {
+      const night = themeVars(PALETTES[0], true), day = themeVars(PALETTES[0], false);
+      const nightPaper = toHex(rgb(night, "--paper")), dayPaper = toHex(rgb(day, "--paper"));
+      const nightAccent = toHex(rgb(night, "--accent")), nightLine = toHex(rgb(night, "--line"));
+      const layout = readFileSync(join(ROOT, "src/layouts/Shell.astro"), "utf8");
+      const meta = (scheme) => (layout.match(
+        new RegExp(`<meta name="theme-color" content="(#[0-9A-Fa-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`)) || [])[1];
+      if ((meta("dark") || "").toUpperCase() !== nightPaper)
+        err(`Shell.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
+      if ((meta("light") || "").toUpperCase() !== dayPaper)
+        err(`Shell.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
+      /* and the palette it ships with has to be one that exists */
+      const shipped = (layout.match(/<html[^>]*data-palette="([\w-]+)"/) || [])[1];
+      if (!PALETTES.includes(shipped))
+        err(`Shell.astro ships data-palette="${shipped}", which is not a palette in ${tokensPath}`);
+      /* Those two metas, the shipped palette and the first-paint theme now live in one
+         layout that every page is supposed to go through. Nothing else notices a page that
+         does not: it would build, deploy and work, wearing the browser's colours instead of
+         the trip's. So the chain is checked rather than assumed. */
+      for (const f of readdirSync(join(ROOT, "src/layouts")).filter(f => f !== "Shell.astro")){
+        const raw = readFileSync(join(ROOT, "src/layouts", f), "utf8");
+        /* comments out first, or the one explaining that Shell owns <html> trips this */
+        const text = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "");
+        if (!/from\s+"\.\/Shell\.astro"/.test(text))
+          err(`src/layouts/${f} does not go through Shell.astro — it would ship no theme-color and no palette`);
+        if (/<html[\s>]/.test(text))
+          err(`src/layouts/${f} writes its own <html> — Shell.astro is the only one`);
+      }
+      for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
+        const text = readFileSync(join(ROOT, "src/pages", f), "utf8");
+        if (!/from\s+"\.\.\/layouts\//.test(text))
+          err(`src/pages/${f} uses no layout — every page goes through one, see src/layouts/Shell.astro`);
+      }
+      const mf2 = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
+      for (const k of ["background_color", "theme_color"])
+        if ((mf2[k] || "").toUpperCase() !== nightPaper)
+          err(`the manifest's ${k} is ${mf2[k]}; night --paper is ${nightPaper}`);
+      const svg = readFileSync(join(ROOT, "public/icon.svg"), "utf8");
+      for (const m of svg.matchAll(/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/g))
+        if (![nightPaper, nightAccent, nightLine].includes(m[1].toUpperCase()))
+          err(`public/icon.svg paints ${m[1]}, which is not the night paper, accent or line — the launcher icon is the trip's palette, not its own`);
+    }
+
+    /* And the other half of the same rule: nothing else may hold a colour. */
+    const LITERAL = /#[0-9A-Fa-f]{3,8}\b|\brgba?\(/;
+    const sheets = readdirSync(join(ROOT, "src/styles")).filter(f => f !== "tokens.css");
+    for (const f of sheets){
+      const text = readFileSync(join(ROOT, "src/styles", f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      const hit = text.split("\n").findIndex(l => LITERAL.test(l));
+      if (hit >= 0) err(`src/styles/${f}:${hit + 1} writes a colour — every colour is a token in ${tokensPath}`);
+    }
+    for (const f of readdirSync(join(ROOT, "src/client"))){
+      const text = readFileSync(join(ROOT, "src/client", f), "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      const hit = text.split("\n").findIndex(l => LITERAL.test(l));
+      if (hit >= 0) err(`src/client/${f}:${hit + 1} writes a colour — read it from a token through cssVar() in client/theme.js`);
     }
   }
 
-  for (const k of CAT_ORDER)
-    if (!cssVars(css, [":root"])[`--cat-${k}`])
-      err(`no --cat-${k} in ${tokensPath} — a category names its own colour token, see catVar() in src/lib/design.js`);
-
-  /* Four things cannot read a stylesheet: the two <meta name="theme-color"> tags, the
-     manifest and the launcher icon. They are the only colours outside tokens.css, and
-     this is what stops them going stale the next time the palette changes — which is
-     exactly what had happened to all four of them. They follow the palette the page
-     ships with, which is the one in :root. */
-  {
-    const night = themeVars(PALETTES[0], true), day = themeVars(PALETTES[0], false);
-    const nightPaper = toHex(rgb(night, "--paper")), dayPaper = toHex(rgb(day, "--paper"));
-    const nightAccent = toHex(rgb(night, "--accent")), nightLine = toHex(rgb(night, "--line"));
-    const layout = readFileSync(join(ROOT, "src/layouts/Shell.astro"), "utf8");
-    const meta = (scheme) => (layout.match(
-      new RegExp(`<meta name="theme-color" content="(#[0-9A-Fa-f]{6})" media="\\(prefers-color-scheme: ${scheme}\\)"`)) || [])[1];
-    if ((meta("dark") || "").toUpperCase() !== nightPaper)
-      err(`Shell.astro's dark theme-color is ${meta("dark")}; night --paper is ${nightPaper}`);
-    if ((meta("light") || "").toUpperCase() !== dayPaper)
-      err(`Shell.astro's light theme-color is ${meta("light")}; day --paper is ${dayPaper}`);
-    /* and the palette it ships with has to be one that exists */
-    const shipped = (layout.match(/<html[^>]*data-palette="([\w-]+)"/) || [])[1];
-    if (!PALETTES.includes(shipped))
-      err(`Shell.astro ships data-palette="${shipped}", which is not a palette in ${tokensPath}`);
-    /* Those two metas, the shipped palette and the first-paint theme now live in one
-       layout that every page is supposed to go through. Nothing else notices a page that
-       does not: it would build, deploy and work, wearing the browser's colours instead of
-       the trip's. So the chain is checked rather than assumed. */
-    for (const f of readdirSync(join(ROOT, "src/layouts")).filter(f => f !== "Shell.astro")){
-      const raw = readFileSync(join(ROOT, "src/layouts", f), "utf8");
-      /* comments out first, or the one explaining that Shell owns <html> trips this */
-      const text = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "");
-      if (!/from\s+"\.\/Shell\.astro"/.test(text))
-        err(`src/layouts/${f} does not go through Shell.astro — it would ship no theme-color and no palette`);
-      if (/<html[\s>]/.test(text))
-        err(`src/layouts/${f} writes its own <html> — Shell.astro is the only one`);
-    }
-    for (const f of readdirSync(join(ROOT, "src/pages")).filter(f => f.endsWith(".astro"))){
-      const text = readFileSync(join(ROOT, "src/pages", f), "utf8");
-      if (!/from\s+"\.\.\/layouts\//.test(text))
-        err(`src/pages/${f} uses no layout — every page goes through one, see src/layouts/Shell.astro`);
-    }
-    const mf2 = JSON.parse(readFileSync(join(ROOT, "public/manifest.webmanifest"), "utf8"));
-    for (const k of ["background_color", "theme_color"])
-      if ((mf2[k] || "").toUpperCase() !== nightPaper)
-        err(`the manifest's ${k} is ${mf2[k]}; night --paper is ${nightPaper}`);
-    const svg = readFileSync(join(ROOT, "public/icon.svg"), "utf8");
-    for (const m of svg.matchAll(/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/g))
-      if (![nightPaper, nightAccent, nightLine].includes(m[1].toUpperCase()))
-        err(`public/icon.svg paints ${m[1]}, which is not the night paper, accent or line — the launcher icon is the trip's palette, not its own`);
+  /* Every category draws an icon, and an icon name that is not in the generated table
+     renders nothing at all — a pin with an empty middle, a legend chip with a gap, and
+     no error anywhere. src/data/icons.js is generated by tools/fetch-icons.mjs; this is
+     what notices when CATS names something that run never wrote. */
+  for (const [k, c] of Object.entries(CATS)){
+    if (!c.icon) err(`CATS.${k} has no icon`);
+    else if (!ICONS[c.icon]) err(`CATS.${k} draws icon "${c.icon}", which is not in src/data/icons.js — add it to STREAMLINE in tools/fetch-icons.mjs and re-run it`);
+    if (!c.emoji) err(`CATS.${k} has no emoji — planShareText() falls back to it when a day is copied out as a message`);
   }
 
-  /* And the other half of the same rule: nothing else may hold a colour. */
-  const LITERAL = /#[0-9A-Fa-f]{3,8}\b|\brgba?\(/;
-  const sheets = readdirSync(join(ROOT, "src/styles")).filter(f => f !== "tokens.css");
-  for (const f of sheets){
-    const text = readFileSync(join(ROOT, "src/styles", f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    const hit = text.split("\n").findIndex(l => LITERAL.test(l));
-    if (hit >= 0) err(`src/styles/${f}:${hit + 1} writes a colour — every colour is a token in ${tokensPath}`);
-  }
-  for (const f of readdirSync(join(ROOT, "src/client"))){
-    const text = readFileSync(join(ROOT, "src/client", f), "utf8")
-      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-    const hit = text.split("\n").findIndex(l => LITERAL.test(l));
-    if (hit >= 0) err(`src/client/${f}:${hit + 1} writes a colour — read it from a token through cssVar() in client/theme.js`);
-  }
+  /* The spec is what an agent reads when it cannot run the page. One that has drifted
+     from the code is worse than no spec at all. */
+  const documented = Object.keys(SPEC.params || {}).sort().join();
+  const real = Object.values(PLAN_PARAMS).sort().join();
+  if (documented !== real)
+    err(`plan-url-spec.json documents ${documented} but PLAN_PARAMS is ${real}`);
 }
 
-/* Every category draws an icon, and an icon name that is not in the generated table
-   renders nothing at all — a pin with an empty middle, a legend chip with a gap, and
-   no error anywhere. src/data/icons.js is generated by tools/fetch-icons.mjs; this is
-   what notices when CATS names something that run never wrote. */
-for (const [k, c] of Object.entries(CATS)){
-  if (!c.icon) err(`CATS.${k} has no icon`);
-  else if (!ICONS[c.icon]) err(`CATS.${k} draws icon "${c.icon}", which is not in src/data/icons.js — add it to STREAMLINE in tools/fetch-icons.mjs and re-run it`);
-  if (!c.emoji) err(`CATS.${k} has no emoji — planShareText() falls back to it when a day is copied out as a message`);
-}
-
-/* The spec is what an agent reads when it cannot run the page. One that has drifted
-   from the code is worse than no spec at all. */
-const documented = Object.keys(SPEC.params || {}).sort().join();
-const real = Object.values(PLAN_PARAMS).sort().join();
-if (documented !== real)
-  err(`plan-url-spec.json documents ${documented} but PLAN_PARAMS is ${real}`);
+/* ---------- the run ---------- */
+/* Named blocks rather than one long top-level script. They only ever talked to each
+   other through err() and warn(), so this is what the file already was — but a section
+   you can name is a section you can find, and the order below is the order it reads in. */
+checkPlaces();
+checkCategories();
+checkRail();
+checkRouting();
+reportCoverage();
+checkPlanner();
+checkCalendar();
+checkCheatSheet();
+checkOffline();
+checkTokens();
 
 /* ---------- verdict ---------- */
 console.log();

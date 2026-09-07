@@ -12,11 +12,7 @@ import { readSource, sourceFor, buildLine, stitch, simplify, clipToRadius,
          metres, pointToSeg, distToPath, serializeRail, writeConst } from "./lib.mjs";
 import { SUBWAY } from "../src/data/subway.js";
 
-let failed = 0;
-const ok = (name, pass, detail = "") => {
-  console.log(`  ${pass ? "pass" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
-  if (!pass) failed++;
-};
+import { okMeasured as ok, verdict } from "./harness.mjs";
 
 const SEOUL = { centre: [37.5665, 126.9780], clipKm: 40 };
 const SUBWAY_FILE = sourceFor("SUBWAY");
@@ -148,5 +144,4 @@ console.log("\nwriting back");
      bumped !== src && bumped.split("\n").length === src.split("\n").length);
 }
 
-console.log(`\n${failed} failure(s)`);
-process.exit(failed ? 1 : 0);
+verdict();

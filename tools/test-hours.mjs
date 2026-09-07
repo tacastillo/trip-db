@@ -11,13 +11,7 @@ import { parseHours, openState, closedFromHours, fmtMin, DOW } from "../src/lib/
 import { closedDaysFor } from "../src/lib/plan-core.js";
 import { PLACES } from "../src/data/places.js";
 
-let failures = 0;
-const ok = (name, pass, detail) => {
-  if (!pass) failures++;
-  console.log(`  ${pass ? "pass" : "FAIL"}  ${name}${detail && !pass ? `\n        ${detail}` : ""}`);
-};
-const group = (n) => console.log(`\n${n}`);
-const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+import { eq, group, ok, verdict } from "./harness.mjs";
 
 const at = (hours, dow, minutes) => openState({ hours }, { dow, minutes });
 const hm = (h, m) => h * 60 + (m || 0);
@@ -125,5 +119,4 @@ ok("prose the anchored regex used to miss is now caught by the field",
   eq(closedDaysFor({ closed: ["mon"], meta: "BOOKED · Closed Mon" }), ["mon"]));
 ok("nothing at all is no claim", eq(closedDaysFor({}), []) && eq(closedDaysFor(null), []));
 
-console.log(failures ? `\n${failures} failed\n` : "\nall good\n");
-process.exit(failures ? 1 : 0);
+verdict();

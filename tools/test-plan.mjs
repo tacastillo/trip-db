@@ -16,13 +16,7 @@ import * as tiles from "../src/lib/tiles.js";
 import { STATION_COORDS, WALK_BEND } from "../src/data/routing.js";
 import * as journey from "../src/lib/journey.js";
 
-let failures = 0;
-const ok = (name, pass, detail) => {
-  if (!pass) failures++;
-  console.log(`  ${pass ? "pass" : "FAIL"}  ${name}${detail && !pass ? `\n        ${detail}` : ""}`);
-};
-const group = (n) => console.log(`\n${n}`);
-const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+import { eq, group, ok, verdict } from "./harness.mjs";
 
 const seoul = PLACES.filter(p => p.city === "seoul");
 const pick = (id) => PLACES.find(p => p.id === id);
@@ -528,5 +522,4 @@ for (let i = 0; i < seoul.length - 1; i++){
 ok("the page's equirectangular metres and lib's haversine agree within a metre",
   worst < 1, `worst ${worst.toFixed(3)} m`);
 
-console.log(`\n${failures} failure(s)\n`);
-process.exit(failures ? 1 : 0);
+verdict();
