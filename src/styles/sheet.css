@@ -1,0 +1,50 @@
+/* ---- the one sheet ---- */
+/* The nav's two menus and the look panel. They were the same overlay written twice, down
+   to a duplicated tick column and a duplicated reduced-motion rule, and the two copies
+   had already drifted five ways — the width, the section padding, the label size, whether
+   the note was tabular and whether a row could be a link. One prefix now, because after
+   client/sheet.js they are literally the same element built by the same function, and two
+   names for one element is how mobile.css came to override both in two blocks thirty
+   lines apart.
+
+   Placement is the caller's, and stays at single-class specificity: mobile.css collapses
+   both into one bottom sheet and wins on source order, which a .sh-sheet.side modifier
+   would quietly break. */
+.sh-sheet{position:fixed; z-index:900; width:290px; max-width:calc(100vw - 28px);
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--sh-4); overflow:hidden;
+  opacity:0; transform:translateY(-8px); transition:opacity .16s ease-out, transform .16s ease-out;}
+.sh-sheet.on{opacity:1; transform:none;}
+@media (prefers-reduced-motion:reduce){ .sh-sheet{transition:none; opacity:1; transform:none;} }
+
+.sh-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  padding:12px 12px 10px 14px; border-bottom:1px solid var(--line-2);}
+.sh-head b{display:block; font-family:'Bricolage Grotesque',sans-serif; font-size:13.5px; font-weight:700; line-height:1.2;}
+.sh-head span{display:block; font-size:10.5px; color:var(--muted); margin-top:2px;}
+.sh-x{flex:none; width:32px; height:32px; border:none; background:none; color:var(--muted); cursor:pointer;
+  border-radius:8px; padding:0; display:flex; align-items:center; justify-content:center;}
+.sh-x:hover{background:var(--line-2); color:var(--ink);}
+.sh-x .ic{width:var(--ic-s); height:var(--ic-s);}
+
+/* a sheet can hold more than one question — the look panel asks two */
+.sh-sec{padding:11px 14px 3px; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  font-weight:700; color:var(--muted);}
+.sh-list{padding:2px 6px 6px; display:flex; flex-direction:column; gap:2px;}
+/* text-decoration always, not only on the nav's rows: any section can be a row of links */
+.sh-row{display:flex; align-items:center; gap:11px; width:100%; text-align:left; cursor:pointer;
+  font-family:inherit; color:var(--ink); background:none; border:1px solid transparent;
+  border-radius:10px; padding:8px 10px; min-height:var(--tap); text-decoration:none;}
+.sh-row:hover{background:var(--hover);}
+.sh-row.on{background:var(--sel); border-color:var(--accent);}
+.sh-row:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.sh-ic{flex:none; display:flex; color:var(--muted);}
+.sh-ic .ic{width:var(--ic-m); height:var(--ic-m);}
+.sh-row.on .sh-ic{color:var(--accent);}
+.sh-txt{min-width:0; flex:1;}
+.sh-txt b{display:block; font-size:13.5px; font-weight:600; line-height:1.2;}
+/* tabular because the city rows carry dates; inert on the prose notes beside them */
+.sh-txt em{display:block; font-style:normal; font-size:10.5px; color:var(--muted); margin-top:2px;
+  font-variant-numeric:tabular-nums;}
+.sh-tick{flex:none; color:var(--accent); opacity:0; display:flex;}
+.sh-tick .ic{width:var(--ic-s); height:var(--ic-s);}
+.sh-row.on .sh-tick{opacity:1;}

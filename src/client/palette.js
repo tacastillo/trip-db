@@ -1,6 +1,6 @@
 import { BASEMAPS, applyBasemap, basemap } from "./basemap.js";
+import { closeSheet, openSheet, syncSheet } from "./sheet.js";
 import { optionSetting } from "./setting.js";
-import { icon } from "../lib/icons.js";
 
 /* Which palette the page is wearing, and the way in to changing it.
 
@@ -42,12 +42,13 @@ export const bootPalette = setting.boot;
 const TAPS_TO_OPEN = 5;
 const TAP_WINDOW_MS = 1200;   // long enough for a thumb, short enough to be deliberate
 
-let taps = 0, lastTap = 0, panel = null;
+let taps = 0, lastTap = 0, eggEl = null;
 
 /** Five taps on the title, each within a second or so of the last. A slow fifth tap
     starts the count over rather than opening something nobody asked for. */
 export function armPaletteEgg(el){
   if (!el) return;
+  eggEl = el;
   el.addEventListener("click", () => {
     const now = Date.now();
     taps = now - lastTap > TAP_WINDOW_MS ? 1 : taps + 1;
@@ -60,86 +61,51 @@ export function armPaletteEgg(el){
    `[data-palette="ember"]` sets --pal-* on any element, not just <html>, so a swatch
    painted in var(--pal-accent) inside that row is that palette's actual accent. No
    colour is named in here, which is the rule everywhere else too. */
-function panelHtml(){
-  const rows = PALETTES.map(p => `
-    <button class="pal-row" data-pal="${p.id}" data-palette="${p.id}" role="option" aria-selected="false">
-      <span class="pal-sw" aria-hidden="true">
-        <i style="background:var(--pal-ground)"></i><i style="background:var(--pal-accent)"></i><i style="background:var(--pal-ok)"></i><i style="background:var(--pal-warn)"></i>
-      </span>
-      <span class="pal-txt"><b>${p.label}</b><em>${p.note}</em></span>
-      <span class="pal-tick">${icon("check")}</span>
-    </button>`).join("");
-  /* The second half of the same question. CARTO's flat bases are data-viz backdrops and
-     read as too dim to navigate by; whether colour fixes that is a question about a
-     street at night, so it is asked here rather than settled in a stylesheet. */
-  const maps = BASEMAPS.map(m => `
-    <button class="pal-row" data-map-pick="${m.id}" role="option" aria-selected="false">
-      <span class="pal-txt"><b>${m.label}</b><em>${m.note}</em></span>
-      <span class="pal-tick">${icon("check")}</span>
-    </button>`).join("");
-  return `<div class="pal-head">
-      <div><b>The look</b><span>tap the title five times to get back here</span></div>
-      <button class="pal-x" id="palClose" title="Close" aria-label="Close">${icon("close")}</button>
-    </div>
-    <div class="pal-sec">Palette</div>
-    <div class="pal-list" role="listbox" aria-label="Palette">${rows}</div>
-    <div class="pal-sec">Street map</div>
-    <div class="pal-list" role="listbox" aria-label="Street map">${maps}</div>`;
-}
+const SWATCH = `<span class="pal-sw" aria-hidden="true">`
+  + `<i style="background:var(--pal-ground)"></i><i style="background:var(--pal-accent)"></i>`
+  + `<i style="background:var(--pal-ok)"></i><i style="background:var(--pal-warn)"></i></span>`;
 
+/** The look panel: a side sheet rather than a modal over the middle, because the whole
+    point is judging a palette against the map, the pins and an open card. */
 export function openPalettePanel(){
-  if (panel) { closePalettePanel(); return; }
-  panel = document.createElement("div");
-  panel.className = "pal-panel";
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Palette");
-  panel.innerHTML = panelHtml();
-  document.body.appendChild(panel);
-  /* applied on tap rather than on an OK button: the whole point is seeing it on the
-     page you are actually looking at */
-  panel.querySelectorAll("[data-pal]").forEach(b => b.addEventListener("click", () => {
-    setPaletteFromPanel(b.dataset.pal);
-  }));
-  panel.querySelectorAll("[data-map-pick]").forEach(b => b.addEventListener("click", () => {
-    setBasemapFromPanel(b.dataset.mapPick);
-  }));
-  panel.querySelector("#palClose").onclick = closePalettePanel;
-  document.addEventListener("keydown", onEggKey);
-  requestAnimationFrame(() => panel && panel.classList.add("on"));
-  syncPaletteEgg();
-}
-
-export function closePalettePanel(){
-  if (!panel) return;
-  document.removeEventListener("keydown", onEggKey);
-  panel.remove();
-  panel = null;
-}
-
-function onEggKey(e){ if (e.key === "Escape"){ e.stopPropagation(); closePalettePanel(); } }
-
-/* Which row is on. Called after every apply, and on open, so the panel cannot disagree
-   with the page it is sitting on. */
-export function syncPaletteEgg(){
-  if (!panel) return;
-  const mark = (nodes, is) => nodes.forEach(b => {
-    const on = is(b);
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-selected", on ? "true" : "false");
+  openSheet({
+    key: "look", label: "Palette", className: "pal-panel",
+    /* not for placement — so that the sixth tap on the title closes the panel once
+       rather than closing and reopening it */
+    anchor: eggEl, place: "side",
+    head: { title:"The look", hint:"tap the title five times to get back here", close:true },
+    sections: [
+      { title:"Palette", label:"Palette", key:"pal", closeOnPick:false,
+        rows: PALETTES.map(p => ({ value:p.id, label:p.label, note:p.note,
+                                   lead:SWATCH, attrs:{ "data-palette":p.id } })),
+        selected: () => palette,
+        /* applied on tap rather than on an OK button: the whole point is seeing it on
+           the page you are actually looking at */
+        onPick: (id) => onPick(id) },
+      /* The second half of the same question. CARTO's flat bases are data-viz backdrops
+         and read as too dim to navigate by; whether colour fixes that is a question
+         about a street at night, so it is asked here rather than settled in CSS. */
+      { title:"Street map", label:"Street map", key:"map-pick", closeOnPick:false,
+        rows: BASEMAPS.map(m => ({ value:m.id, label:m.label, note:m.note })),
+        selected: () => basemap,
+        onPick: (id) => onPickMap(id) },
+    ],
   });
-  mark(panel.querySelectorAll("[data-pal]"), b => b.dataset.pal === palette);
-  mark(panel.querySelectorAll("[data-map-pick]"), b => b.dataset.mapPick === basemap);
 }
+
+export const closePalettePanel = () => closeSheet("look");
+
+/** Which row is on. Called after every apply, so the panel cannot disagree with the page
+    it is sitting on — and a no-op when there is no panel, which is every load. */
+export const syncPaletteEgg = () => syncSheet();
 
 /* Set by main.js, which owns the redraw: the map paints from tokens through cssVar(),
    so what is already drawn has to be drawn again. This module cannot reach for map.js
    without a cycle, and boot order is not something to gamble on — see CLAUDE.md. */
 let onPick = applyPalette;
 export const setPaletteHandler = (fn) => { onPick = fn; };
-function setPaletteFromPanel(id){ onPick(id); }
 
 /* Same again for the base. Changing it rebuilds the tile layer, and the offline button
    has to be asked again — a pack downloaded in another style cannot be served. */
 let onPickMap = applyBasemap;
 export const setBasemapHandler = (fn) => { onPickMap = fn; };
-function setBasemapFromPanel(id){ onPickMap(id); }
