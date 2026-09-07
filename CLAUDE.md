@@ -92,13 +92,14 @@ page* below).
 | --- | --- |
 | `state.js` | `active`, `currentTab`, `inTab`, `night`, `railOn`, and Leaflet's `map` |
 | `theme.js` | `cssVar`, the one door from `styles/tokens.css` to what Leaflet paints |
-| `palette.js` | which of the four palettes is on; `?palette=` and the stored choice |
+| `palette.js` | which of the five palettes is on; `?palette=` and the stored choice |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
 | `geo-me.js` | the blue dot, live distances, "nearest first", the offer to follow your leg |
 | `offline.js` | registering the worker, downloading a leg's tile pack |
 | `view.js` | the mobile map/list switch, `isMobile` |
 | `basemap.js` | which CARTO base the tiles come from, and `?map=` |
+| `setting.js` | a remembered choice off a short list — the cascade both of those two share |
 | `legend.js` `list.js` `card.js` | the sidebar's three renderers |
 | `map.js` | `initMap`, `drawRail`, `syncMarkers`, `fitCity`, the Leaflet layers |
 | `route.js` | drawing and animating the ride, the station labels |
@@ -107,10 +108,13 @@ page* below).
 | `tabs.js` `rail-legend.js` | switching leg, and the subway key |
 | `mapapp.js` | which map app the hand-off opens, and the split button that opens it |
 | `nav.js` | the two triggers — where the map is pointed, which tool you are in — and their sheets |
+| `sheet.js` | the one overlay: the nav's two menus and the look panel are the same thing |
+| `searchbox.js` | the search box's three handlers, shared by the map and the phrase page |
 | `main.js` | the map page's boot sequence, the four toggle buttons, `window.trip` |
 | `phrases-boot.js` | the whole phrases page — its own entry, never imported by `main.js` |
 | `money-boot.js` | the whole money page — the converter, the reader, the numbers |
 | `tool-boot.js` | what both tool pages share: palette, night, nav, worker. No map, ever |
+| `chrome.js` | what all three pages share: night mode and its toggle. Touches no map |
 
 Shared mutable state is an `export let` read elsewhere as a live binding, which is
 why almost every read is still a bare name. A value only gets a setter when a module
@@ -200,6 +204,17 @@ dim to use in either theme. So the base is a choice (`client/basemap.js`, in the
 panel), and `--tile-filter` in block 4b lifts whichever one is on. A filter changes no URL,
 so it works on tiles already in the cache, offline included — and it is scoped to
 `.leaflet-tile-pane`, because the pins and the rail have panes of their own.
+
+**Both menus and the look panel are one overlay — `client/sheet.js`.** They were the same
+thing written twice, and the copies had drifted: the nav menu closed on an outside tap and
+handed focus back to its trigger, the look panel did neither. A caller hands `openSheet()`
+its sections and gets that behaviour, the Escape key, the tick sync and the anchoring for
+free. Two rules in there are load-bearing. **The anchor is never "outside"** — without that
+the fifth tap on the title would open the panel and the same tap would close it. And a row
+carries its `attrs` verbatim, which is what keeps the swatches honest (below). At most one
+sheet is open at a time: two sheets over a map is two things covering the thing they are
+about. `styles/sheet.css` dresses all three; `nav.css` and `palette.css` say only where
+each one hangs, and `mobile.css` turns any of them into one bottom sheet in one block.
 
 **Five palettes ship, and the way in is hidden.** Picking between them off a swatch site
 kept failing — colours on colorhunt.co are not colours on a map at 390px at night — so
@@ -888,6 +903,12 @@ node tools/test-pipeline.mjs   # the geometry pipeline, no network needed
 node tools/test-hours.mjs      # the opening-hours grammar, no clock needed
 node tools/test-phrases.mjs    # the stress marks, the price reader and the converter
 ```
+
+The four test files share `tools/harness.mjs` — `ok`, `group`, `eq` and the verdict line.
+`okMeasured` is the variant that prints its detail on a pass as well, which the geometry
+pipeline wants: "within a metre" is a claim where "0.03 m" is the evidence. And
+`check-data.mjs` is ten named `check*()` functions called in order at the bottom, rather
+than the one long top-level script it used to be.
 
 CI runs all six on every push and pull request, and nothing deploys unless they pass.
 That is a backstop, not the plan: none of them see the page, so a green run says only

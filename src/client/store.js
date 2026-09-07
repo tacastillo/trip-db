@@ -38,8 +38,3 @@ export function save(patch){
     catch (e){ storeOk = false; }
   }, 250);
 }
-
-export function forget(){
-  saved = {};
-  try { localStorage.removeItem(STORE_KEY); } catch (e){ storeOk = false; }
-}

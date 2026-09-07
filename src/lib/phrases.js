@@ -61,7 +61,6 @@ export function matchesPhrase(p, q, groupLabel){
 /* ---------------- the order of the page ---------------- */
 
 export const groupById = (id) => GROUPS.find(g => g.id === id);
-export const tierById = (id) => TIERS.find(t => t.id === id);
 
 /* The default page a tier belongs to, so a tier written before there were two tools
    still lands somewhere rather than nowhere. */

@@ -16,13 +16,7 @@ import { GROUPS, NUMBERS, PHRASES, PRICE_PRESETS, TIERS } from "../src/data/phra
 import { CURRENCY, WON_PER_USD } from "../src/data/rates.js";
 import { TOOLS } from "../src/data/tools.js";
 
-let failures = 0;
-const ok = (name, pass, detail) => {
-  if (!pass) failures++;
-  console.log(`  ${pass ? "pass" : "FAIL"}  ${name}${detail && !pass ? `\n        ${detail}` : ""}`);
-};
-const group = (n) => console.log(`\n${n}`);
-const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+import { eq, group, ok, verdict } from "./harness.mjs";
 
 /* ---------- the stress marks ---------- */
 group("reading a say string");
@@ -187,5 +181,4 @@ ok("the numbers table and the reader use the same syllables",
     .every(x => (rom(x.n) || "").startsWith(x.n === 1 ? "il" : x.sino)),
   NUMBERS.map(x => `${x.n}=${x.sino}/${rom(x.n)}`).join(" "));
 
-console.log(failures ? `\n${failures} failed\n` : "\nall good\n");
-process.exit(failures ? 1 : 0);
+verdict();

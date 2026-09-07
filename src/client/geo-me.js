@@ -99,11 +99,6 @@ function retractOffer(){
 export function distanceFrom(p){
   return here ? metres([here.lat, here.lng], [p.lat, p.lng]) : null;
 }
-/** Metres to a place, as the rest of the page words distance. */
-export function distanceLabel(p){
-  const d = distanceFrom(p);
-  return d == null ? "" : fmtM(d);
-}
 
 /* The banner, with an optional way out of what it is telling you. A line that names a
    problem and hands you the fix is one tap; the same line on its own is a line you have
@@ -161,8 +156,14 @@ export function clearMe(){
 /** Fill in every "N m away" the list has put on the page. Written in place rather than
     by re-rendering: a re-render every time the GPS twitches would throw away the
     list's scroll position and the search box's focus. */
-export function refreshDistances(){
-  document.querySelectorAll("[data-dist]").forEach(el => {
+/* Filled in place rather than by re-rendering: a re-render throws away the list's scroll
+   position and the search box's focus. The root is the list when the list has just drawn
+   itself and the whole page when a new fix has arrived — the same loop either way, which
+   is why it is one function and not one per caller. It lives here rather than in list.js
+   because distanceFrom does, and list.js already imports this module: the other direction
+   is the cycle that keeps tabs.js out of here too. */
+export function fillDistances(root){
+  (root || document).querySelectorAll("[data-dist]").forEach(el => {
     const p = PLACES.find(x => x.id === el.dataset.dist);
     const d = p && distanceFrom(p);
     el.textContent = d == null ? "" : `${fmtM(d)} away`;
@@ -179,7 +180,7 @@ export function onPosition(pos){
   drawMe(first);
   // and, if the map is showing a city you are not in, one line saying so and one tap out
   syncLegOffer(false);
-  refreshDistances();
+  fillDistances();
   if (first) renderLegend();          // the "nearest first" chip only exists with a fix
   // a sorted list is the one thing a small drift really does reorder
   if (nearFirst && (lastSort == null || moved > MOVE_REDRAW_M)){ lastSort = Date.now(); renderList(); }
@@ -219,7 +220,7 @@ export function stopLocating(){
   watchId = null; locating = false; here = null; lastSort = null;
   offeredLeg = null; retractOffer();
   clearMe();
-  refreshDistances();
+  fillDistances();
   renderLegend();
   if (nearFirst) renderList();
   if (onFix) onFix();       // and back to the hotel, which the card also has to say

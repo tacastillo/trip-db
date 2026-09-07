@@ -1,4 +1,4 @@
-import { distanceFrom, here, nearFirst } from "./geo-me.js";
+import { distanceFrom, fillDistances, here, nearFirst } from "./geo-me.js";
 import { placeQuery, planHas, planToggle } from "./plan-state.js";
 import { focus, selectedId } from "./selection.js";
 import { active, allTab, currentTab, inTab } from "./state.js";
@@ -7,10 +7,9 @@ import { syncMarkers } from "./map.js";
 import { renderLegend } from "./legend.js";
 import { CATS, CLUSTERS, LEGS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
-import { fmtM, matchesQuery } from "../lib/plan-core.js";
-import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
+import { CLOSED_RE, closedDaysFor, koreaClock, matchesQuery } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
-import { catVar } from "../lib/design.js";
+import { catVar, esc } from "../lib/design.js";
 
 /* ---------------- sidebar list ---------------- */
 export const listEl = document.getElementById("list");
@@ -34,9 +33,13 @@ function shutToday(p){
    next to "Closed Mon". The flag wins there: it is the one that answers today. Only when the
    meta is *nothing but* that clause, though — "Closed Tue · Catchtable" still has to say
    Catchtable, which is the half you would act on. */
-const META_ONLY_CLOSED = /^closed\s+(?:mon|tue|wed|thu|fri|sat|sun)(?:\s*[–—\-\/,&]\s*(?:mon|tue|wed|thu|fri|sat|sun))*$/i;
+/* Asked of CLOSED_RE rather than of a second copy of it: the shape of a closing clause
+   is one fact, and two regexes for it drift. "Nothing but the clause" is that match
+   having eaten the whole line. */
 function metaSaysClosed(p){
-  return META_ONLY_CLOSED.test(String(p.meta || "").trim());
+  const meta = String(p.meta || "").trim();
+  const m = CLOSED_RE.exec(meta);
+  return !!m && m[0].length === meta.length;
 }
 
 export function itemRow(p){
@@ -48,10 +51,10 @@ export function itemRow(p){
   b.dataset.id = p.id;
   b.innerHTML = `<span class="pindot" style="background:${catVar(p.cat)}">${icon(c.icon)}</span>
     <span class="it-body">
-      <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
-      <span class="it-note">${p.note}</span>
+      <span class="it-name">${esc(p.name)}${p.added ? '<span class="tag">new</span>' : ""}</span>
+      <span class="it-note">${esc(p.note)}</span>
       ${shut ? '<span class="it-shut">Closed today</span>' : ""}
-      ${p.meta && !(shut && metaSaysClosed(p)) ? `<span class="it-meta">${p.meta}</span>` : ""}
+      ${p.meta && !(shut && metaSaysClosed(p)) ? `<span class="it-meta">${esc(p.meta)}</span>` : ""}
       <span class="it-dist" data-dist="${p.id}"></span>
     </span>`;
   b.onclick = () => focus(p.id);
@@ -64,9 +67,7 @@ export function itemRow(p){
   been_b.setAttribute("aria-pressed", been ? "true" : "false");
   been_b.onclick = () => {
     toggleVisited(p.id);
-    renderList();
-    renderLegend();
-    syncMarkers();
+    redrawPlaces();
   };
   const add = document.createElement("button");
   add.className = "planbtn" + (planHas(p.id) ? " on" : "");
@@ -86,6 +87,17 @@ export function head(text){
   h.className = "cluster";
   h.innerHTML = `<div class="cluster-h">${text}</div>`;
   return h;
+}
+
+/* The three that always move together: a category chip, a been-there tick or the filter
+   that hides them changes what is on the map, what the legend counts and what the list
+   shows, and leaving one out is a pin with no row or a count that disagrees with itself.
+   It lives here because list.js already imports the other two — anywhere else would be a
+   new cycle for a three-line function. */
+export function redrawPlaces(){
+  syncMarkers();
+  renderLegend();
+  renderList();
 }
 
 export function renderList(){
@@ -134,20 +146,11 @@ export function renderList(){
   if (sub) sub.textContent = PLACES.some(p => { const j = journeyFor(p); return inTab(p) && j && j.rail.length; })
     ? "tap a spot for the ride there from the hotel"
     : "tap a spot to see it on the map";
-  fillDistances();
+  fillDistances(listEl);
 }
 
 /** The distances the rows have room for, filled straight after a render. geo-me does
     the same thing on every position update without going near the DOM it built. */
-export function fillDistances(){
-  listEl.querySelectorAll("[data-dist]").forEach(el => {
-    const p = PLACES.find(x => x.id === el.dataset.dist);
-    const d = p && distanceFrom(p);
-    el.textContent = d == null ? "" : `${fmtM(d)} away`;
-    // the stylesheet hides these by default, so "" would hide them again
-    el.style.display = d == null ? "none" : "block";
-  });
-}
 
 /** Re-sorting under a thumb is disorienting enough without leaving the scroll where it
     was: the row that was under your finger is not the row that is there now. */

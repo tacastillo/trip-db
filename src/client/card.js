@@ -1,7 +1,5 @@
 import { distanceFrom, here } from "./geo-me.js";
-import { renderLegend } from "./legend.js";
-import { renderList } from "./list.js";
-import { syncMarkers } from "./map.js";
+import { redrawPlaces } from "./list.js";
 import { planBody, planHas, planOffFor, planToggle, planningMode } from "./plan-state.js";
 import { deselect } from "./selection.js";
 import { isVisited, toggleVisited } from "./visited.js";
@@ -9,11 +7,10 @@ import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { goBtnHtml } from "./mapapp.js";
 import { hopHow } from "./plan-pane.js";
-import { fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
-import { DOW_SHORT } from "../lib/plan-core.js";
+import { DOW_SHORT, fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
 import { icon } from "../lib/icons.js";
-import { catVar } from "../lib/design.js";
+import { catVar, esc } from "../lib/design.js";
 
 /* Open or shut, right now, in Korea. Computed at render time rather than on a timer:
    the card is rebuilt on every select, which is the only moment anyone reads this.
@@ -22,7 +19,7 @@ import { catVar } from "../lib/design.js";
 export function hoursChipHtml(p){
   if (!p.hours) return "";
   const st = openState(p, koreaClock());
-  if (st.state === "unknown") return `<span class="pop-hours">${p.hours}</span>`;
+  if (st.state === "unknown") return `<span class="pop-hours">${esc(p.hours)}</span>`;
   if (st.state === "open")
     return `<span class="pop-hours on">Open · til ${fmtMin(st.until)}</span>`;
   if (st.opensAt == null) return `<span class="pop-hours">Closed</span>`;
@@ -46,12 +43,12 @@ export function cardHtml(p){
       <div class="pop-cat" style="--c:${catVar(p.cat)}">${icon(c.icon)} ${c.label}</div>
       ${hoursChipHtml(p)}
     </div>
-    <div class="pop-name">${p.name}${p.ko ? ` <span class="pop-ko" lang="ko">${p.ko}</span>` : ""}</div>
-    <div class="pop-sub">${[p.cluster, here ? `${icon("pin")} ${fmtM(distanceFrom(p))}` : ""].filter(Boolean).join(" · ")}</div>
-    <div class="pop-note">${p.note}</div>
+    <div class="pop-name">${esc(p.name)}${p.ko ? ` <span class="pop-ko" lang="ko">${esc(p.ko)}</span>` : ""}</div>
+    <div class="pop-sub">${[esc(p.cluster), here ? `${icon("pin")} ${fmtM(distanceFrom(p))}` : ""].filter(Boolean).join(" · ")}</div>
+    <div class="pop-note">${esc(p.note)}</div>
     ${p.signature || p.meta ? `<div class="pop-extra">${
-      [p.signature ? `<span class="pop-sig">${p.signature}</span>` : "",
-       p.meta ? `<span class="pop-meta">${p.meta}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
+      [p.signature ? `<span class="pop-sig">${esc(p.signature)}</span>` : "",
+       p.meta ? `<span class="pop-meta">${esc(p.meta)}</span>` : ""].filter(Boolean).join(" ")}</div>` : ""}
     ${strip}
     <div class="card-acts three">
       <button class="pact card-plan" id="cardPlan">${icon(planHas(p.id) ? "check" : "add")}<span>${
@@ -73,9 +70,7 @@ export function showCard(p){
   if (cb) cb.onclick = () => {
     toggleVisited(p.id);
     showCard(p);            // the card is the thing that just changed, so redraw it
-    renderList();
-    renderLegend();
-    syncMarkers();
+    redrawPlaces();
   };
 }
 export function hideCard(){
@@ -144,7 +139,7 @@ export function routeStripHtml(p){
       <span class="${last ? "pr-off" : "pr-to"}">${leg.to}</span>
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
-  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
+  const walk = `${fmtM(j.walk)} walk`;
   // the traced ride names the platforms; the map app is what you actually follow on the day
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
     <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;

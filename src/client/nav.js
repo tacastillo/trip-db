@@ -1,6 +1,6 @@
 import { ALL_LEG, LEGS } from "../data/places.js";
 import { TOOLS } from "../data/tools.js";
-import { icon } from "../lib/icons.js";
+import { closeSheet, openSheet, syncSheet } from "./sheet.js";
 import { currentTab } from "./state.js";
 
 /* The one way around this site — and it is two controls, not one.
@@ -47,7 +47,7 @@ const isPage = (page) => {
 };
 export const currentTool = TOOLS.find(t => isPage(t.page)) || MAP_TOOL;
 
-let menu = null, openKind = "", onCity = null;
+let onCity = null;
 const trigger = { city:null, tool:null };
 
 /** The map page hands in setTab; without one, a city is a link. */
@@ -69,111 +69,52 @@ export function syncNav(){
     trigger.city.querySelector(".nv-d").textContent = l ? l.dates : "";
   }
   if (trigger.tool) trigger.tool.querySelector(".nv-l").textContent = currentTool.short || currentTool.label;
-  if (menu) syncMenu();
+  syncSheet();
 }
 
 /* ---------------- the menus ---------------- */
 
-function citiesHtml(){
-  return `<div class="nv-sec">${onCity ? "Show me" : "Open the map at"}</div>
-    <div class="nv-list" role="listbox" aria-label="Cities">${CITY_ROWS.map(l => `
-      <button class="nv-row" data-city="${l.id}" role="option" aria-selected="false">
-        <span class="nv-txt"><b>${l.label}</b><em>${l.dates}</em></span>
-        <span class="nv-tick">${icon("check")}</span>
-      </button>`).join("")}</div>`;
-}
+/* Both are sheets, and client/sheet.js is the one that knows how a sheet behaves. What
+   is left here is the two questions and their answers. */
 
-function toolsHtml(){
-  return `<div class="nv-sec">Tools</div>
-    <div class="nv-list" role="listbox" aria-label="Tools">${ALL_TOOLS.map(t => `
-      <a class="nv-row" href="${base}${t.id === "map" ? "" : t.page}" data-tool="${t.id}" role="option" aria-selected="false">
-        <span class="nv-ic">${icon(t.icon)}</span>
-        <span class="nv-txt"><b>${t.label}</b><em>${t.note}</em></span>
-        <span class="nv-tick">${icon("check")}</span>
-      </a>`).join("")}</div>`;
-}
+/* A city is only ticked on the map: on a tool page no city is where you are — the map is
+   simply pointed at one. */
+const citySection = () => ({
+  title: onCity ? "Show me" : "Open the map at",
+  label: "Cities", key: "city", closeOnPick: true,
+  rows: CITY_ROWS.map(l => ({ value:l.id, label:l.label, note:l.dates })),
+  selected: () => currentTool.id === "map" ? currentTab : null,
+  /* In place where there is a map to move; a link where there is not. `city` is the
+     plan grammar's own parameter, and plan-boot honours it over the store. */
+  onPick: (id) => { if (onCity) onCity(id); else location.href = `${base}index.html?city=${id}`; },
+});
 
-/** Open one of the two sheets. Opening either closes the other — two panels over a map
-    is two things covering the thing they are about. */
+const toolSection = () => ({
+  title: "Tools", label: "Tools", key: "tool", closeOnPick: true,
+  rows: ALL_TOOLS.map(t => ({ value:t.id, label:t.label, note:t.note, icon:t.icon,
+                              href:`${base}${t.id === "map" ? "" : t.page}` })),
+  selected: () => currentTool.id,
+});
+
+/** Open one of the two sheets. Opening either closes the other. */
 export function openMenu(kind){
-  const was = openKind;
-  if (menu) closeNav();
-  if (was === kind) return;
-  openKind = kind;
-  menu = document.createElement("div");
-  menu.className = `nv-menu nv-${kind}`;
-  menu.setAttribute("role", "dialog");
-  menu.setAttribute("aria-label", kind === "city" ? "Cities" : "Tools");
-  menu.innerHTML = kind === "city" ? citiesHtml() : toolsHtml();
-  document.body.appendChild(menu);
-  menu.querySelectorAll("[data-city]").forEach(b => b.addEventListener("click", () => {
-    const id = b.dataset.city;
-    closeNav();
-    /* In place where there is a map to move; a link where there is not. `city` is the
-       plan grammar's own parameter, and plan-boot honours it over the store. */
-    if (onCity) onCity(id);
-    else location.href = `${base}index.html?city=${id}`;
-  }));
-  place();
-  document.addEventListener("keydown", onNavKey);
-  document.addEventListener("pointerdown", onNavOutside, true);
-  addEventListener("resize", place);
-  const t = trigger[kind];
-  if (t) t.setAttribute("aria-expanded", "true");
-  requestAnimationFrame(() => menu && menu.classList.add("on"));
-  syncMenu();
-  const first = menu.querySelector(".nv-row.on") || menu.querySelector(".nv-row");
-  if (first) first.focus();
+  const city = kind === "city";
+  openSheet({
+    key: kind,
+    label: city ? "Cities" : "Tools",
+    className: "nv-menu",
+    anchor: trigger[kind],
+    place: "anchor",
+    sections: [city ? citySection() : toolSection()],
+  });
 }
 
-/** Kept as its own name because window.trip publishes it and both pages drive it. */
+/** Kept as their own names because window.trip publishes them and both pages drive them. */
 export const openNav = () => openMenu("city");
 export const openTools = () => openMenu("tool");
-
-export function closeNav(){
-  if (!menu) return;
-  document.removeEventListener("keydown", onNavKey);
-  document.removeEventListener("pointerdown", onNavOutside, true);
-  removeEventListener("resize", place);
-  menu.remove();
-  menu = null;
-  const t = trigger[openKind];
-  openKind = "";
-  if (t){ t.setAttribute("aria-expanded", "false"); t.focus(); }
-}
-
-/* Where the sheet hangs. Handed to CSS as two custom properties rather than written as
-   top/left, because the phone wants it at the bottom of the screen instead and an inline
-   style would beat the media query that puts it there. On a desktop it belongs under the
-   control that opened it — which is now one of two, so it is measured rather than
-   assumed: a tools sheet under the city trigger is a panel that has lost its anchor. */
-function place(){
-  const t = trigger[openKind];
-  if (!menu || !t) return;
-  const r = t.getBoundingClientRect();
-  const w = menu.offsetWidth || 290;
-  menu.style.setProperty("--nv-top", `${Math.round(r.bottom + 6)}px`);
-  menu.style.setProperty("--nv-left", `${Math.round(Math.max(8, Math.min(r.left, innerWidth - w - 14)))}px`);
-}
-
-function onNavKey(e){ if (e.key === "Escape"){ e.stopPropagation(); closeNav(); } }
-function onNavOutside(e){
-  const t = trigger[openKind];
-  if (menu && !menu.contains(e.target) && t && !t.contains(e.target)) closeNav();
-}
-
-/* Which row is on. A city is only ticked on the map, because on a tool page no city is
-   where you are — the map is simply pointed at one. */
-function syncMenu(){
-  if (!menu) return;
-  const mark = (nodes, is) => nodes.forEach(b => {
-    const on = is(b);
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-selected", on ? "true" : "false");
-  });
-  mark(menu.querySelectorAll("[data-city]"), b => currentTool.id === "map" && b.dataset.city === currentTab);
-  mark(menu.querySelectorAll("[data-tool]"), b => b.dataset.tool === currentTool.id);
-}
+/* Closes a nav sheet and not the look panel: this is published, and a closeNav() that
+   shut the palette would be lying about what it does. */
+export const closeNav = () => { closeSheet("city"); closeSheet("tool"); };
 
 /* ---------------- go ---------------- */
 /* Called from each page's boot block, never at import time. */

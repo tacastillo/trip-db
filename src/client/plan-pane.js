@@ -3,12 +3,11 @@ import { planDragStart } from "./plan-drag.js";
 import { fitPlan } from "./plan-map.js";
 import { plan, planAdd, planBody, planClear, planDragging, planFull, planHotelLine, planLead, planMoveBody, planOffFor, planOver, planRemove, planReorderBody, savePlan, setPlanDay, setPlanRenderQueued, syncPlanUrl, urlWritable } from "./plan-state.js";
 import { focus } from "./selection.js";
-import { active, allTab, currentTab, map } from "./state.js";
+import { active, allTab, currentTab } from "./state.js";
 import { storeOk } from "./store.js";
 import { setTab } from "./tabs.js";
 import { CATS, LEGS, PLACES } from "../data/places.js";
 import { PLAN_MAX_STOPS, PLAN_TITLE_MAX, SWAP_GAIN_M, encodePlanQuery, fmtDay, fmtM, homeLeg, hotelFor, isoDay, nearbySuggestions, orderCautions, planBriefMarkdown, planIcs, planShareText, planStats, reorderByProximity, startLeg, tripDays } from "../lib/plan-core.js";
-import { ride } from "../lib/rail.js";
 import { icon } from "../lib/icons.js";
 import { catVar, esc } from "../lib/design.js";
 
@@ -18,10 +17,10 @@ export function planStopHtml(s, i){
   const p = s.place;
   const c = p ? (CATS[p.cat] || {}) : {};
   const body = p
-    ? `<span class="pname">${p.name}</span>
-       <span class="phood">${p.cluster}</span>
-       ${p.note ? `<span class="pnote">${p.note}</span>` : ""}
-       ${p.meta ? `<span class="pmetaline">${p.meta}</span>` : ""}`
+    ? `<span class="pname">${esc(p.name)}</span>
+       <span class="phood">${esc(p.cluster)}</span>
+       ${p.note ? `<span class="pnote">${esc(p.note)}</span>` : ""}
+       ${p.meta ? `<span class="pmetaline">${esc(p.meta)}</span>` : ""}`
     : `<span class="pname">unknown spot “${esc(s.id)}”</span>
        <span class="phood">this link names an id the map no longer has</span>`;
   // Four columns, the same four on every row, so the eye reads straight down: the grab
@@ -107,6 +106,45 @@ export function planDaysHtml(){
       <span class="pday-d">No date</span><span class="pday-l">no closures</span></button></div>`;
 }
 
+/* One banner. Every caution on this pane is the same shape — say what is true, and hand
+   over the one tap that fixes it where there is one. */
+const cautionHtml = (text, kind, fix) =>
+  `<div class="pcaution${kind ? " " + kind : ""}">${text}${fix || ""}</div>`;
+
+const actionsHtml = () => `<div class="pacts">
+  <button class="pact" id="planFit">Frame the day</button>
+  <button class="pact" id="planLink">Copy link</button>
+  <button class="pact" id="planText">Copy as a message</button>
+  <button class="pact" id="planBrief">Copy briefing</button>
+  <button class="pact${plan.day ? "" : " off"}" id="planIcs">${plan.day ? "Add to a calendar" : "Calendar: pick a day"}</button>
+  <button class="pact" id="planWipe">Clear</button>
+</div>`;
+
+/* Six things that can be worth saying about a day, in the order they are worth saying
+   them: what the link lost, what this browser will not do, where you are looking, what
+   is shut, and what a different order would save. They were twenty-eight lines in the
+   middle of the renderer. */
+function cautionsHtml(stops, cityLabel){
+  const out = [];
+  if (planOver) out.push(cautionHtml(`That link named ${planOver} more stop${planOver > 1 ? "s" : ""} than a day holds, so the last ${planOver === 1 ? "one was" : "ones were"} left off. A day tops out at ${PLAN_MAX_STOPS}.`));
+  if (planFull) out.push(cautionHtml(`This day is full at ${PLAN_MAX_STOPS} stops. Drop one to add another.`));
+  if (!urlWritable) out.push(cautionHtml("This browser will not let the page rewrite its address, so the link above is the one to copy by hand. Everything else works."));
+  /* Not on the Everywhere tab: the day's own pins are on screen there, so there is
+     nothing to caution about. */
+  if (currentTab !== plan.city && !allTab())
+    out.push(cautionHtml(`This day is in ${esc(cityLabel)}, and you are looking at ${esc((LEGS.find(l => l.id === currentTab) || {}).label || "")}. `,
+      null, `<button class="pcaution-fix" id="planGoCity">Show ${esc(cityLabel)}</button>`));
+  orderCautions(stops, plan.city, plan.day).forEach(c => {
+    out.push(cautionHtml(esc(c.text), c.kind,
+      c.kind === "order" ? `<button class="pcaution-fix" data-swap="${c.i}">Swap them</button>` : ""));
+  });
+  const ro = reorderByProximity(stops);
+  if (ro.gain_m > SWAP_GAIN_M)
+    out.push(cautionHtml(`Walked in a different order this day is about ${fmtM(ro.gain_m)} shorter. `,
+      null, `<button class="pcaution-fix" id="planReorder">Reorder by proximity</button>`));
+  return out;
+}
+
 export function renderPlan(){
   // a re-render mid-drag would yank the row out from under the pointer
   if (planDragging){ setPlanRenderQueued(true); return; }
@@ -116,51 +154,27 @@ export function renderPlan(){
      written before that was true still names it first; planLead() absorbs that id into
      the start row rather than rewriting somebody's link. */
   const stops = planBody();
-  const st = planStats(stops, planOffFor);
-  const cautions = orderCautions(stops, plan.city, plan.day);
+  /* Bracketed: the walk out of the hotel and the way back are walking you actually do,
+     so they are in the day's numbers. planStats does that arithmetic now — it used to sit
+     inline here, where test-plan.mjs could not see it. */
+  const st = planStats(stops, planOffFor, plan.city, PLACES);
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
   const out = [];
 
-  // both computed ends are walking you actually do, so they are in the day's numbers
-  const ends = [startLeg(stops, plan.city, planOffFor, PLACES),
-                homeLeg(stops, plan.city, planOffFor, PLACES)].filter(Boolean);
-  const walkM = st.walkM + ends.filter(l => l.walkable).reduce((a, l) => a + l.walkM, 0);
-  const rides = st.rides + ends.filter(l => !l.walkable).length;
-
   const bits = [`<b>${st.resolved}</b> stop${st.resolved === 1 ? "" : "s"}`];
-  if (walkM) bits.push(`${fmtM(walkM)} on foot`);
-  if (rides) bits.push(`${rides} hop${rides === 1 ? "" : "s"} to ride`);
+  if (st.walkM) bits.push(`${fmtM(st.walkM)} on foot`);
+  if (st.rides) bits.push(`${st.rides} hop${st.rides === 1 ? "" : "s"} to ride`);
   if (plan.day) bits.push(fmtDay(plan.day));
   out.push(`<div class="phead">
     <input class="ptitle" id="planTitle" placeholder="Name this day" maxlength="${PLAN_TITLE_MAX}" value="${esc(plan.title)}" />
     ${planDaysHtml()}
     <div class="pmeta">${cityLabel} · ${bits.join(" · ")}</div>
   </div>`);
-  if (!storeOk) out.push(`<div class="pcaution">This browser will not let the page remember anything between visits, so this day lives in the link above and nowhere else. Copy it before you close the tab.</div>`);
+  if (!storeOk) out.push(cautionHtml("This browser will not let the page remember anything between visits, so this day lives in the link above and nowhere else. Copy it before you close the tab."));
 
   if (stops.length){
-    out.push(`<div class="pacts">
-      <button class="pact" id="planFit">Frame the day</button>
-      <button class="pact" id="planLink">Copy link</button>
-      <button class="pact" id="planText">Copy as a message</button>
-      <button class="pact" id="planBrief">Copy briefing</button>
-      <button class="pact${plan.day ? "" : " off"}" id="planIcs">${plan.day ? "Add to a calendar" : "Calendar: pick a day"}</button>
-      <button class="pact" id="planWipe">Clear</button>
-    </div>`);
-    if (planOver) out.push(`<div class="pcaution">That link named ${planOver} more stop${planOver > 1 ? "s" : ""} than a day holds, so the last ${planOver === 1 ? "one was" : "ones were"} left off. A day tops out at ${PLAN_MAX_STOPS}.</div>`);
-    if (planFull) out.push(`<div class="pcaution">This day is full at ${PLAN_MAX_STOPS} stops. Drop one to add another.</div>`);
-    if (!urlWritable) out.push(`<div class="pcaution">This browser will not let the page rewrite its address, so the link above is the one to copy by hand. Everything else works.</div>`);
-    if (currentTab !== plan.city && !allTab()) out.push(`<div class="pcaution">This day is in ${cityLabel}, and you are looking at ${(LEGS.find(l => l.id === currentTab) || {}).label}. <button class="pcaution-fix" id="planGoCity">Show ${cityLabel}</button></div>`);
-
-    cautions.forEach((c, k) => {
-      const fix = c.kind === "order"
-        ? `<button class="pcaution-fix" data-swap="${c.i}">Swap them</button>` : "";
-      out.push(`<div class="pcaution ${c.kind}">${esc(c.text)}${fix}</div>`);
-    });
-    const ro = reorderByProximity(stops);
-    if (ro.gain_m > SWAP_GAIN_M) out.push(`<div class="pcaution">
-      Walked in a different order this day is about ${fmtM(ro.gain_m)} shorter.
-      <button class="pcaution-fix" id="planReorder">Reorder by proximity</button></div>`);
+    out.push(actionsHtml());
+    out.push(...cautionsHtml(stops, cityLabel));
   }
 
   out.push(planStartHtml(stops));
@@ -184,9 +198,9 @@ export function renderPlan(){
       out.push(`<button class="psug" data-suggest="${s.place.id}" data-at="${s.insertAt}">
         <span class="pindot" style="background:${catVar(s.place.cat)}">${icon(c.icon)}</span>
         <span class="it-body">
-          <span class="it-name">${s.place.name}</span>
-          <span class="it-note">${s.place.note}</span>
-          <span class="psug-d">${fmtM(s.d)} from ${anchor ? anchor.name : "your plan"}</span>
+          <span class="it-name">${esc(s.place.name)}</span>
+          <span class="it-note">${esc(s.place.note)}</span>
+          <span class="psug-d">${fmtM(s.d)} from ${anchor ? esc(anchor.name) : "your plan"}</span>
         </span></button>`);
     });
   }

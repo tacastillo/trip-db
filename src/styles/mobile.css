@@ -1,9 +1,7 @@
 /* mobile map/list switcher — hidden on desktop */
 .viewswitch{display:none;}
-.vs-btn{flex:1; border:none; background:none; cursor:pointer; font-family:'Bricolage Grotesque',sans-serif;
-  font-weight:600; font-size:13.5px; color:var(--muted); padding:9px 6px; border-radius:7px; min-height:40px;
-  display:flex; align-items:center; justify-content:center; gap:6px; line-height:1;}
-.vs-btn.on{background:var(--surface); color:var(--ink); box-shadow:var(--sh-1);}
+.vs-btn{font-size:13.5px; padding:9px 6px; border-radius:7px; min-height:40px;
+  display:flex; align-items:center; justify-content:center; gap:6px;}
 .vs-ct{font-size:11px; font-weight:600; color:var(--muted); font-variant-numeric:tabular-nums;}
 .vs-btn.on .vs-ct{color:var(--accent);}
 
@@ -148,18 +146,15 @@
   .pop-extra{font-size:12px;}
   .leaflet-control-zoom{display:none;}
 
-  /* the palette panel becomes a sheet: a 300px card floating top-right is a desktop
-     shape, and the bottom half of the screen is what a thumb actually reaches */
-  .pal-panel{right:8px; left:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
+  /* Every sheet becomes one at the bottom of the screen: a card floating at the top is a
+     desktop shape, and the bottom half is what a thumb actually reaches. This is what the
+     anchor arrives as a custom property for — an inline top/left would beat these lines. */
+  .sh-sheet{left:8px; right:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
     width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
-  .pal-panel.on{transform:none;}
-  /* and the nav menu with it, for the same reason: the bottom half is the thumb's half */
-  .nv-menu{left:8px; right:8px; top:auto; bottom:max(8px, env(safe-area-inset-bottom));
-    width:auto; max-width:none; border-radius:16px; transform:translateY(10px);}
-  .nv-menu.on{transform:none;}
-  .nv-row{padding:10px 12px; min-height:52px;}
-  .nv-txt b{font-size:14px;}
-  .nv-txt em{font-size:11.5px;}
+  .sh-sheet.on{transform:none;}
+  .sh-row{padding:10px 12px; min-height:52px;}
+  .sh-txt b{font-size:14px;}
+  .sh-txt em{font-size:11.5px;}
 
   /* ---- the two tool pages ---- */
   /* The tier segments are the top control on the phrase page and the thing that stops it
@@ -185,9 +180,6 @@
   .mnset{gap:6px;}
   .mnreset{font-size:11px; padding:0 8px;}
 
-  .pal-row{padding:10px 12px; min-height:52px;}
-  .pal-txt b{font-size:14px;}
-  .pal-txt em{font-size:11.5px;}
   .pal-sw i{width:13px; height:30px;}
 }
 

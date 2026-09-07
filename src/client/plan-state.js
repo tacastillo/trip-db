@@ -6,7 +6,7 @@ import { setTab } from "./tabs.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, hotelFor, legForDate, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, fmtM, leadFor, legForDate, moveBodyOrder, reorderBodyOrder, resolvePlan } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
@@ -49,7 +49,7 @@ export function planHotelLine(p){
   const j = journeyFor(p);
   if (!j) return null;
   const hops = j.rail.map(l => `${l.label} to ${l.to}`).join(", then ");
-  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m` : `${(j.walk / 1000).toFixed(1)} km`;
+  const walk = fmtM(j.walk);
   // nothing to ride: the whole journey is the walk, so it is not "door to door" after a ride
   if (!hops) return `${walk} on foot, about ${j.minutes} min`;
   return `${hops}, then ${walk} on foot, about ${j.minutes} min door to door`;
@@ -120,10 +120,7 @@ export function afterPlanChange(){
    quietly edited — so an id at the front that is the leg's home base is absorbed into
    the start row rather than numbered. planLead() is how many ids that accounts for, and
    everything that indexes the day goes through it. */
-export function planLead(){
-  const h = hotelFor(plan.city, PLACES);
-  return h && plan.ids[0] === h.id ? 1 : 0;
-}
+export function planLead(){ return leadFor(plan.ids, plan.city, PLACES); }
 /** The stops the day is actually made of: what is drawn, numbered, dragged and counted. */
 export function planBody(){ return planStops().slice(planLead()); }
 
@@ -165,14 +162,14 @@ export function planReorder(order){
    without its absorbed first id. These two are the only translation between the two
    numberings; nothing else should be doing the arithmetic. */
 export function planMoveBody(from, to){
-  const off = planLead();
-  planMove(from + off, to + off);
+  const next = moveBodyOrder(plan.ids, planLead(), from, to);
+  if (!next) return;
+  plan.ids = next;
+  afterPlanChange();
 }
 export function planReorderBody(order){
-  const off = planLead();
-  const head = [];
-  for (let i = 0; i < off; i++) head.push(i);
-  planReorder(head.concat(order.map(i => i + off)));
+  plan.ids = reorderBodyOrder(plan.ids, planLead(), order);
+  afterPlanChange();
 }
 export function planClear(){
   plan.ids = [];

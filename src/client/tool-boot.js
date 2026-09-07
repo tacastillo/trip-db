@@ -1,10 +1,8 @@
 import { bootBasemap } from "./basemap.js";
+import { applyNight, wireNightToggle } from "./chrome.js";
 import { bootNav } from "./nav.js";
 import { registerSW } from "./offline.js";
 import { armPaletteEgg, bootPalette } from "./palette.js";
-import { night, setNight } from "./state.js";
-import { save } from "./store.js";
-import { setToolBtn } from "./toolbtn.js";
 
 /* Everything a tool page does that is about the site rather than about the tool.
 
@@ -20,16 +18,6 @@ import { setToolBtn } from "./toolbtn.js";
 
    Nothing here runs at import time; a page calls bootTool() from its own boot block. */
 
-/* A four-line copy of main.js's applyNight() rather than an import, for the same reason:
-   importing it would drag Leaflet and the whole map onto a page with neither. The body
-   ships class="night" so the first paint is never a white flash; if this browser
-   remembered otherwise, that is undone here rather than in the markup. */
-export function applyNight(){
-  const btn = document.getElementById("nightToggle");
-  document.body.classList.toggle("night", night);
-  if (btn) setToolBtn(btn, night ? "day" : "night", night ? "Day" : "Night");
-}
-
 /** The page chrome, in the order the map page boots it: palette before anything paints,
     so nothing paints in the wrong one. */
 export function bootTool(){
@@ -39,8 +27,7 @@ export function bootTool(){
   /* No city handler is set: a tool page has no map to switch, so nav.js turns a city
      into a link to index.html?city=<id> — which is also the way back to the map. */
   bootNav();
-  const btn = document.getElementById("nightToggle");
-  if (btn) btn.onclick = () => { setNight(!night); save({ night }); applyNight(); };
+  wireNightToggle();
 }
 
 /** And the two things that are deliberately last, after the page is up. */
