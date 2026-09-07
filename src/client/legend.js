@@ -2,7 +2,7 @@ import { renderList } from "./list.js";
 import { syncMarkers } from "./map.js";
 import { locating, nearFirst, setNearFirst } from "./geo-me.js";
 import { save } from "./store.js";
-import { active, currentTab } from "./state.js";
+import { active, inTab } from "./state.js";
 import { hideVisited, setHideVisited, visited } from "./visited.js";
 import { CATS, CAT_ORDER, PLACES } from "../data/places.js";
 import { icon } from "../lib/icons.js";
@@ -10,7 +10,7 @@ import { catVar } from "../lib/design.js";
 
 /* ---------------- legend ---------------- */
 export let counts = {};
-export function computeCounts(){ counts = {}; CAT_ORDER.forEach(k => counts[k] = 0); PLACES.forEach(p => { if (p.city === currentTab) counts[p.cat]++; }); }
+export function computeCounts(){ counts = {}; CAT_ORDER.forEach(k => counts[k] = 0); PLACES.forEach(p => { if (inTab(p)) counts[p.cat]++; }); }
 computeCounts();
 export const legendEl = document.getElementById("legend");
 export function renderLegend(){
@@ -42,7 +42,7 @@ export function renderLegend(){
   }
   /* Only once there is something to hide. A chip that says "0 been" on the first
      morning of the trip is a control asking to be explained rather than used. */
-  const been = PLACES.filter(p => p.city === currentTab && visited.has(p.id)).length;
+  const been = PLACES.filter(p => inTab(p) && visited.has(p.id)).length;
   if (been){
     const b = document.createElement("button");
     b.className = "chip been" + (hideVisited ? " on" : "");

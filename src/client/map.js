@@ -2,7 +2,7 @@ import { fitPlan } from "./plan-map.js";
 import { plan, planBody, planHas } from "./plan-state.js";
 import { routeDraw, spaceLabels } from "./route.js";
 import { deselect, select, selectedId } from "./selection.js";
-import { active, currentTab, map, night, railOn, setMap, statedCity } from "./state.js";
+import { active, allTab, currentTab, inTab, map, night, railOn, setMap, statedCity } from "./state.js";
 import { isVisited, visitedHidden } from "./visited.js";
 import { isMobile } from "./view.js";
 import { CATS, PLACES } from "../data/places.js";
@@ -97,7 +97,7 @@ export function setBaseLayer(){
 
 
 export function fitCity(){
-  const pts = PLACES.filter(p => p.city === currentTab).map(p => [p.lat, p.lng]);
+  const pts = PLACES.filter(inTab).map(p => [p.lat, p.lng]);
   if (!pts.length || !map) return;
   // Tighter padding than a plain fitBounds — the rail now runs off every edge
   // by itself, so this is purely about not stranding the pins in dead space.
@@ -129,7 +129,7 @@ export function initMap(){
     const m = L.marker([p.lat, p.lng], { icon: pinIcon(p, null) });
     m.on("click", () => select(p.id));
     markers[p.id] = m;
-    if (p.city === currentTab) m.addTo(map);
+    if (inTab(p)) m.addTo(map);
     if (selectedId === p.id) markPin(p.id, true);
   });
 
@@ -177,8 +177,11 @@ export function syncMarkers(){
   const order = {};
   // the same numbering the pane shows: the hotel bookends the day rather than opening it
   planBody().forEach((s, i) => { if (s.place) order[s.id] = i + 1; });
+  /* A day is planned in one leg, so the numbers used to be hidden the moment you looked
+     at another. "Everywhere" is not another leg — the day's own pins are on the screen —
+     so the numbers stay on it. */
   document.body.classList.toggle("planning",
-    currentTab === plan.city && Object.keys(order).length > 0);
+    (currentTab === plan.city || allTab()) && Object.keys(order).length > 0);
   PLACES.forEach(p => {
     const m = markers[p.id]; if (!m) return;
     const n = order[p.id] || null;
@@ -197,14 +200,14 @@ export function syncMarkers(){
     }
     // a planned stop stays on the map whatever the chips say — otherwise its number
     // in the plan points at a pin that isn't there
-    const on = p.city === currentTab && (active[p.cat] || planHas(p.id))
+    const on = inTab(p) && (active[p.cat] || planHas(p.id))
                && !(visitedHidden(p.id) && !planHas(p.id));
     if (on) { if (!map.hasLayer(m)) m.addTo(map); }
     else { if (map.hasLayer(m)) map.removeLayer(m); }
   });
   // filtering the selected pin away shouldn't leave its card and ride stranded
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
-  if (sel && !(sel.city === currentTab && (active[sel.cat] || planHas(sel.id))
+  if (sel && !(inTab(sel) && (active[sel.cat] || planHas(sel.id))
                && !(visitedHidden(sel.id) && !planHas(sel.id)))) deselect();
 }
 

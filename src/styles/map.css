@@ -82,6 +82,12 @@ body.night .pop-cat{color:color-mix(in srgb, var(--c) 62%, var(--ink));}
    banner down here too, so this one steps up rather than landing on top of it. */
 .geobanner{top:auto; bottom:14px;}
 body.carded .geobanner{bottom:56px;}
+/* The way out of what the banner just said, when there is one — "You're in Jeju" and the
+   tap that shows Jeju. Same pill as the plan pane's own caution fix, because it is the
+   same bargain: state the mismatch, hand over the switch, change nothing on your own. */
+.gb-fix{display:block; margin:7px auto 0; border:1px solid var(--ok); background:none; color:var(--ok);
+  cursor:pointer; font-family:inherit; font-size:11.5px; font-weight:600; border-radius:20px; padding:5px 14px;}
+.gb-fix:hover{background:var(--ok); color:var(--on-ok);}
 
 /* .pop-here folded into .pop-sub — see cardHtml() */
 /* add-to-day and been-there, side by side: the first is wider because it is the one

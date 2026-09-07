@@ -1,4 +1,4 @@
-import { LEGS } from "../data/places.js";
+import { ALL_LEG, LEGS } from "../data/places.js";
 import { TOOLS } from "../data/tools.js";
 import { icon } from "../lib/icons.js";
 import { currentTab } from "./state.js";
@@ -53,7 +53,11 @@ const trigger = { city:null, tool:null };
 /** The map page hands in setTab; without one, a city is a link. */
 export function setNavHandler(fn){ onCity = fn; }
 
-const legById = (id) => LEGS.find(l => l.id === id);
+/* "Everywhere" sits at the top of the list rather than after Busan, because it is the
+   answer to a different question than the three under it: not "which city", but "stop
+   asking me which city". The trip's own order follows it. */
+const CITY_ROWS = [ALL_LEG, ...LEGS];
+const legById = (id) => CITY_ROWS.find(l => l.id === id);
 
 /* ---------------- the triggers ---------------- */
 
@@ -72,7 +76,7 @@ export function syncNav(){
 
 function citiesHtml(){
   return `<div class="nv-sec">${onCity ? "Show me" : "Open the map at"}</div>
-    <div class="nv-list" role="listbox" aria-label="Cities">${LEGS.map(l => `
+    <div class="nv-list" role="listbox" aria-label="Cities">${CITY_ROWS.map(l => `
       <button class="nv-row" data-city="${l.id}" role="option" aria-selected="false">
         <span class="nv-txt"><b>${l.label}</b><em>${l.dates}</em></span>
         <span class="nv-tick">${icon("check")}</span>

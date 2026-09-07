@@ -1,7 +1,7 @@
 import { renderLegend } from "./legend.js";
 import { renderList, scrollListTop } from "./list.js";
 import { save, saved } from "./store.js";
-import { currentTab, map } from "./state.js";
+import { allTab, currentTab, map } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
 import { LEGS, PLACES } from "../data/places.js";
 import { legForPoint, metres } from "../lib/geo.js";
@@ -45,28 +45,55 @@ export function legHere(){
   return here ? legForPoint([here.lat, here.lng], PLACES) : null;
 }
 
-/* Follow the fix rather than the calendar. Tapping 📍 in Jeju on a day filed under
-   Busan used to draw the dot on a map of Busan — the pins, the list and "nearest
-   first" all describing a city three hundred kilometres away, with nothing near you
-   to tap. Where you are standing is the more recent instruction, exactly as a stated
-   city beats a restored day's framing (see statedCity in state.js), so it wins.
+/* It offers; it does not take over.
 
-   It says so out loud: a map that changes city under your thumb without a word reads
-   as a bug. The line clears itself on the next fix, like everything else in the banner. */
-export function followLeg(){
+   The first cut of this switched the map to whatever leg the fix landed in. That is
+   right often enough to be tempting and wrong in the case that matters: looking up
+   Seoul while standing in Busan is a thing people do all the time — planning tomorrow,
+   answering "what was that place" — and a page that yanks you back every time you ask
+   where you are has taken a decision off you that was never its to make. The map does
+   what you last told it, and a fix is not an instruction.
+
+   So the mismatch is stated and the switch is one tap, which is the same bargain the
+   plan pane already strikes with "This day is in Jeju — Show Jeju". Offered once per
+   arrival in a leg, so it cannot nag: crossing into a new one offers again, and tapping
+   📍 yourself always does, because that is you asking. */
+let offeredLeg = null, offerFor = null, offerTimer = null, offerShown = false;
+
+/* Twenty seconds is long enough to read a line and tap it, and short enough that a line
+   you have decided to ignore is not still sitting over the map you chose to look at. */
+export const OFFER_MS = 20000;
+
+export function syncLegOffer(asked){
   const leg = legHere();
-  if (!leg || !onLeg || leg === currentTab) return false;
-  onLeg(leg);
-  const label = (LEGS.find(l => l.id === leg) || {}).label || leg;
-  geoBanner(`You’re in ${label} — the map has followed you.`);
-  return true;
+  // A new leg under your feet, or you asking outright, is what puts the offer up — and
+  // the clock starts there rather than on every redraw, or a watch handing over a fix
+  // every few seconds would keep pushing the deadline back and the line would never go.
+  if (leg && (leg !== offeredLeg || asked)){
+    offerFor = leg;
+    clearTimeout(offerTimer);
+    offerTimer = setTimeout(() => { if (offerFor === leg) retractOffer(); }, OFFER_MS);
+  }
+  offeredLeg = leg;
+  /* And nothing to offer when the map is already showing it — "Everywhere" is showing
+     it, which is the other half of this change and the better answer to the same
+     question: on that tab the pins around you are on screen whatever the date says. */
+  if (!leg || leg === currentTab || allTab() || !onLeg) offerFor = null;
+  // taking it down is as much this function's job as putting it up: switching to Jeju by
+  // hand answers the offer, and only the line we put there is ours to clear
+  if (!offerFor){ if (offerShown) retractOffer(); return; }
+  const label = (LEGS.find(l => l.id === offerFor) || {}).label || offerFor;
+  const leaving = offerFor;
+  geoBanner(`You’re in ${label}.`,
+    { label: `Show ${label}`, run: () => { offerFor = null; offerShown = false; onLeg(leaving); } });
+  offerShown = true;
 }
 
-/* setTab frames the city and then refits once the box has settled (see tabs.js), which
-   would otherwise drag the map straight back off you. Pan again after that. */
-function panAfterLeg(){
-  drawMe(true);
-  setTimeout(() => drawMe(true), 90);
+function retractOffer(){
+  offerFor = null;
+  offerShown = false;
+  clearTimeout(offerTimer);
+  geoBanner("");
 }
 
 export function distanceFrom(p){
@@ -78,10 +105,21 @@ export function distanceLabel(p){
   return d == null ? "" : fmtM(d);
 }
 
-export function geoBanner(msg){
+/* The banner, with an optional way out of what it is telling you. A line that names a
+   problem and hands you the fix is one tap; the same line on its own is a line you have
+   to work out what to do about, standing in a street. */
+export function geoBanner(msg, action){
   const b = document.getElementById("geobanner");
   if (!b) return;
+  offerShown = !!action;      // anything else written here has taken the offer's place
   b.textContent = msg || "";
+  if (msg && action){
+    const btn = document.createElement("button");
+    btn.className = "gb-fix";
+    btn.textContent = action.label;
+    btn.onclick = () => { geoBanner(""); action.run(); };
+    b.appendChild(btn);
+  }
   b.style.display = msg ? "block" : "none";
 }
 
@@ -138,10 +176,9 @@ export function onPosition(pos){
   const first = !here;
   here = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
   geoBanner("");
-  // on the first fix the map goes where you are, city and all, before the dot lands on it
-  const switched = first && followLeg();
   drawMe(first);
-  if (switched) setTimeout(() => drawMe(true), 90);
+  // and, if the map is showing a city you are not in, one line saying so and one tap out
+  syncLegOffer(false);
   refreshDistances();
   if (first) renderLegend();          // the "nearest first" chip only exists with a fix
   // a sorted list is the one thing a small drift really does reorder
@@ -180,6 +217,7 @@ export function startLocating(){
 export function stopLocating(){
   if (watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
   watchId = null; locating = false; here = null; lastSort = null;
+  offeredLeg = null; retractOffer();
   clearMe();
   refreshDistances();
   renderLegend();
@@ -189,13 +227,13 @@ export function stopLocating(){
 }
 
 /** One button, three things it can sensibly mean. Off, it starts. On and looking
-    somewhere else — another leg included — it brings the map back to you — which is what you want nine times
+    somewhere else, it brings the map back to you — which is what you want nine times
     out of ten and is otherwise a second control taking up thumb room. On and already
     centred on you, it stops, because by then that is the only thing left to ask for. */
 export function toggleLocating(){
   if (!locating) return startLocating();
-  // the map having wandered to another leg is the loudest version of "looking somewhere else"
-  if (here && followLeg()) return panAfterLeg();
+  // you asked, so the offer is made again even if it was ignored the first time
+  syncLegOffer(true);
   if (here && map && metres([here.lat, here.lng], [map.getCenter().lat, map.getCenter().lng]) > 40)
     return drawMe(true);
   stopLocating();

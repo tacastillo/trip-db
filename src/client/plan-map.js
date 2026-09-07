@@ -1,5 +1,5 @@
 import { plan, planBody, planOffFor } from "./plan-state.js";
-import { currentTab, map } from "./state.js";
+import { allTab, currentTab, map } from "./state.js";
 import { setTab } from "./tabs.js";
 import { isMobile } from "./view.js";
 import { PLACES } from "../data/places.js";
@@ -22,7 +22,8 @@ export function fitPlan(){
   const pts = planBody().filter(s => s.place).map(s => [s.place.lat, s.place.lng]);
   if (pts.length && home) pts.push([home.lat, home.lng]);
   if (!pts.length) return;
-  if (currentTab !== plan.city) setTab(plan.city);
+  // on "Everywhere" the day is already on screen, so there is nothing to switch to
+  if (currentTab !== plan.city && !allTab()) setTab(plan.city);
   const pad = isMobile() ? 40 : 70;
   map.fitBounds(L.latLngBounds(pts), { padding: [pad, pad], maxZoom: 15, animate: false });
 }

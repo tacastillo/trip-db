@@ -11,7 +11,7 @@
 import * as core from "../src/lib/plan-core.js";
 import { metres, legForPoint, LEG_NEAR_MAX } from "../src/lib/geo.js";
 import { metres as libMetres } from "./lib.mjs";
-import { PLACES, LEGS, TRIP } from "../src/data/places.js";
+import { PLACES, LEGS, TRIP, ALL_LEG, CLUSTERS } from "../src/data/places.js";
 import * as tiles from "../src/lib/tiles.js";
 import { STATION_COORDS, WALK_BEND } from "../src/data/routing.js";
 import * as journey from "../src/lib/journey.js";
@@ -402,6 +402,19 @@ ok("and so is one in Korea but far from any leg",
    anywhere on Jeju reads as Jeju, not as the mainland leg the date might say. */
 ok("the far end of Jeju island still reads as Jeju",
   legForPoint([33.55, 126.80], PLACES) === "jeju");
+
+/* ---------- "Everywhere" is not a leg ---------- */
+
+/* The map can be pointed at all three cities at once, which is a way of looking rather
+   than a place to be: it has no dates, no hotel and no tile pack. Nothing that files a
+   day may ever land on it, because a day with no home base has no start and no way home. */
+group("Everywhere");
+ok("it is not one of the trip's legs", !LEGS.some(l => l.id === ALL_LEG.id));
+ok("nothing is filed under it", !PLACES.some(p => p.city === ALL_LEG.id));
+ok("it has no neighbourhoods of its own", !CLUSTERS[ALL_LEG.id]);
+ok("no date resolves to it", core.tripDays(TRIP, LEGS).every(d => core.legForDate(d.day) !== ALL_LEG.id));
+ok("and it has no hotel, which is why a day can never be filed there",
+  !core.hotelFor(ALL_LEG.id, PLACES));
 
 /* ---------- the two metres() ---------- */
 

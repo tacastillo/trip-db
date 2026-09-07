@@ -172,6 +172,12 @@ export const PLACES = [
    are in two cities on Sep 4 — which legForDate() resolves in favour of arriving. */
 export const TRIP = { start:"2026-08-29", end:"2026-09-12" };
 
+/* Not a leg of the trip — a way of looking at all of them at once, so the map stops
+   being gated on which day it is. Deliberately outside LEGS: it has no spans, nothing
+   is filed under it, no tile pack is cut for it, and legForDate() must never return it.
+   Only the things that answer "what am I looking at" know about it. */
+export const ALL_LEG = { id:"all", label:"Everywhere", dates:"all three cities" };
+
 export const LEGS = [
   { id:"seoul", label:"Seoul", dates:"Aug 30 – Sep 4 · Sep 10–12",
     spans:[["2026-08-30","2026-09-04"],["2026-09-10","2026-09-12"]] },

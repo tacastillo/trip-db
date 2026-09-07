@@ -90,12 +90,12 @@ page* below).
 
 | Module | What lives there |
 | --- | --- |
-| `state.js` | `active`, `currentTab`, `night`, `railOn`, and Leaflet's `map` |
+| `state.js` | `active`, `currentTab`, `inTab`, `night`, `railOn`, and Leaflet's `map` |
 | `theme.js` | `cssVar`, the one door from `styles/tokens.css` to what Leaflet paints |
 | `palette.js` | which of the four palettes is on; `?palette=` and the stored choice |
 | `store.js` | the one localStorage key, and the only place that touches it |
 | `visited.js` | been-there ticks and the filter that hides them |
-| `geo-me.js` | the blue dot, live distances, "nearest first", following the leg you are in |
+| `geo-me.js` | the blue dot, live distances, "nearest first", the offer to follow your leg |
 | `offline.js` | registering the worker, downloading a leg's tile pack |
 | `view.js` | the mobile map/list switch, `isMobile` |
 | `basemap.js` | which CARTO base the tiles come from, and `?map=` |
@@ -124,7 +124,7 @@ zone and takes the whole page down. Boot code goes in `main.js`, at the bottom, 
 
 | Constant | File | Source | Edit by hand? |
 | --- | --- | --- | --- |
-| `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP` | `data/places.js` | you | yes — this is the trip |
+| `PLACES`, `CLUSTERS`, `CATS`, `CAT_ORDER`, `LEGS`, `TRIP`, `ALL_LEG` | `data/places.js` | you | yes — this is the trip |
 | `ko`, `hours`, `closed`, `signature` on a place | `data/places.js` | the trip's Notion database | yes, but it will drift from the source |
 | `TIERS`, `GROUPS`, `PHRASES`, `NUMBERS` | `data/phrases.js` | you | yes — this is the cheat sheet |
 | `TOOLS` | `data/tools.js` | you | yes — the pages under Tools in the nav menu |
@@ -522,31 +522,83 @@ matching every other map app beats matching ourselves), fills every "N m away" i
 neighbourhood headings for one list in walking order. The button then recentres, and stops
 only once the map is already on you.
 
-**The fix moves the leg, not just the map.** The leg tabs are the trip's calendar, and a
-calendar is a plan: a day slips, a ferry is late, an afternoon in Jeju runs into the
-evening filed under Busan — and the map is then a city you are three hundred kilometres
-from, with the pins, the list and "nearest first" all describing somewhere else and
-nothing near you to tap. So the first fix asks `legForPoint()` in `lib/geo.js` which leg
-it landed in, and switches to it if that is not the one on screen; tapping 📍 again does
-the same, before it recentres. Where you are standing is the more recent instruction —
-the same argument `statedCity` settles the same way.
+**The fix offers to move the leg. It never moves it.** The leg tabs are the trip's
+calendar, and a calendar is a plan: a day slips, a ferry is late, an afternoon in Jeju
+runs into the evening filed under Busan. So the first fix asks `legForPoint()` in
+`lib/geo.js` which leg it landed in, and if that is not the one on screen it says so in
+`#geobanner` with one tap that switches — `You're in Jeju.` and a `Show Jeju` button.
 
-That question is answered off the places themselves rather than a box drawn round each
-city: the pins are what the map has, so the nearest one is the honest reading of "this
-area" and there is no second table to drift. Beyond `LEG_NEAR_MAX` from every one of them
-— at home, months out, on the plane — it returns null and nothing moves, because putting
-somebody's map in the wrong city is worse than leaving it where they put it.
+The first cut of that switched the map itself, and it was wrong in the case that
+decides it: looking up Seoul while standing in Busan is an ordinary thing to be doing —
+tomorrow's day, "what was that place" — and a page that yanks you back every time you
+ask where you are has taken a decision off you. A fix is not an instruction. The
+mismatch is worth saying out loud; acting on it is not this page's call, which is the
+same bargain the plan pane already strikes with *This day is in Jeju — Show Jeju*.
+
+It is offered once per arrival in a leg, and again whenever you tap 📍 yourself, because
+that is you asking. It retires after `OFFER_MS` — long enough to read and tap, short
+enough that a line you decided to ignore is not still sitting over the map you chose —
+and it comes down the moment you switch to the leg it names. `goTab()` in `main.js` is
+what makes that true for the city sheet as well: everything that switches leg on your
+say-so goes through it.
+
+The leg itself is answered off the places rather than a box drawn round each city: the
+pins are what the map has, so the nearest one is the honest reading of "this area" and
+there is no second table to drift. Beyond `LEG_NEAR_MAX` from every one of them — at
+home, months out, on the plane — it returns null and nothing is offered at all.
 `test-plan.mjs` pins that the three legs are further apart than that reach, so no fix in
 one can ever read as another.
 
-The switch says so out loud in `#geobanner`: a map that changes city under your thumb
-without a word reads as a bug. And `geo-me.js` is handed `setTab` by `main.js` rather than
-importing `tabs.js` — tabs renders the list and the list reads the distances from here, so
-reaching for it directly is a cycle. Same shape as the card's redraw beside it.
+`geo-me.js` is handed `goTab` by `main.js` rather than importing `tabs.js` — tabs renders
+the list and the list reads the distances from here, so reaching for it directly is a
+cycle. Same shape as the card's redraw beside it.
 
 Distances go through the same `metres()` as everything else, so a row and a hop agree.
 Refusal, a timeout and a browser with no geolocation at all each say something specific in
 `#geobanner`, which is a separate banner from the tile one because they can both be true.
+
+## Everywhere: the tab that is not a leg
+
+The three legs used to be the only thing the map could be pointed at, which quietly made
+the calendar a filter on what you were allowed to see: on the Busan tab, Jeju did not
+exist. That is right on the day it is true and wrong every other day — you are back in
+Seoul for an afternoon, somebody asks what is near, a ferry moves and the map is a city
+you are not in. **`ALL_LEG` in `data/places.js` is the way out: one more row at the top of
+the city sheet, `Everywhere · all three cities`, and every pin and every row is on screen.**
+
+It is deliberately *not* in `LEGS`. It has no spans, nothing is filed under it, no tile
+pack is cut for it and `legForDate()` must never return it — `test-plan.mjs` pins all
+five of those. Only the things that answer "what am I looking at" know about it:
+
+- **`inTab(p)` in `state.js` is the whole of the difference.** Everything that compared
+  `p.city === currentTab` — the list, the legend counts, the been-there chip, the pins,
+  the framing — asks that instead, and it is true for every place when the tab is
+  `ALL_CITY`. There is no second code path to keep in step.
+- **A day still belongs to a real leg.** `plan.city` is never `ALL_CITY`, because a day
+  is bracketed by a hotel and this has none — so the hotel rows, the closed-day cautions
+  and the ride from the hotel are untouched by any of it. `setTab` will not file a day
+  here, and `planAdd` files an *empty* day in the leg of its first stop, which is the
+  better authority anyway now that you can add a Jeju spot while the map shows all three.
+- **The numbers stay on the map.** `body.planning` used to require `currentTab ===
+  plan.city`; Everywhere is not another leg, the day's own pins are on screen, so it
+  counts. For the same reason the plan pane's "you are looking at Busan" caution does not
+  fire here, and framing the day does not switch the tab out from under you.
+- **Two buttons go away rather than lie.** A tile pack is cut per leg and all three at
+  once is 46 MB, so the ⤓ button is absent here; the subway toggle is absent for the same
+  reason it is absent in Jeju — there are no lines to draw at a zoom that fits the
+  country, and two networks' keys stacked would be half the screen. `syncRailButton()` is
+  its own function because boot has to ask that question too: a page opened straight onto
+  `?city=all` never goes through `setTab`.
+- **"Nearest first" is what this was really for.** With a fix and every leg listed, the
+  list is the whole trip in walking order, and what is near you floats to the top whatever
+  the date says. That is the same answer as the geo banner's, arrived at without anybody
+  having to be asked a question.
+- **The headings carry the city**, `Seoul · Jongno · palaces & Ikseon-dong`, because with
+  three cities in one scroll the cluster alone stops saying where you are.
+
+`?city=all` works as a link, and `decodePlanQuery()` deliberately does not know about it:
+a *day* is always in a real leg, so plan-boot reads it as the map's own state instead.
+That is what keeps a stated city from ever re-homing a day to something with no hotel.
 
 ## The other pages: the phrases and the money
 
