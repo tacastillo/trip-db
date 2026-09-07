@@ -436,10 +436,18 @@ export function pathLen(stops){
   return t;
 }
 
-export function planStats(stops, offFor){
+/* The day's numbers. With a city and the places, the two computed ends are counted in
+   too — the walk out of the hotel and the way back are walking you actually do, and the
+   pane used to add them on by hand after calling this, where no test could see it.
+   Without them it is the hops between the stops alone, which is what `legs` has always
+   been and what everything indexing it still expects. */
+export function planStats(stops, offFor, city, places){
   const legs = planLegs(stops, offFor);
+  const ends = city && places
+    ? [startLeg(stops, city, offFor, places), homeLeg(stops, city, offFor, places)].filter(Boolean)
+    : [];
   let total = 0, walkM = 0, walkMin = 0, rides = 0;
-  legs.forEach(l => {
+  legs.concat(ends).forEach(l => {
     if (!l) return;
     total += l.metres;
     if (l.walkable){ walkM += l.walkM; walkMin += l.walkMin; } else rides++;

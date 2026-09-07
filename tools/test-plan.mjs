@@ -503,6 +503,28 @@ ok("a day with no date cautions nothing about closing",
 ok("an unresolved stop does not crash the cautions",
   Array.isArray(core.orderCautions(R(["gyeongbok","gonemissing"]), "seoul", "2026-09-02")));
 
+/* The day is bracketed by the hotel at both ends, and that walking is walking you do. */
+const stBr = core.planStats(DAY, undefined, "seoul", PLACES);
+ok("bracketing the day adds the two ends to its numbers", stBr.total > st.total);
+ok("...without changing what `legs` is, which everything else indexes",
+  stBr.legs.length === st.legs.length);
+ok("...and a day with no city stated is the unbracketed one",
+  core.planStats(DAY, undefined).total === st.total);
+
+/* startLeg and homeLeg are mirrors of each other; the day's two ends. */
+ok("the day starts at its leg's hotel and walks to the first stop",
+  core.startLeg(DAY, "seoul", undefined, PLACES).home.id === "novotel"
+  && core.startLeg(DAY, "seoul", undefined, PLACES).to.id === DAY[0].id);
+ok("...and comes back to it from the last",
+  core.homeLeg(DAY, "seoul", undefined, PLACES).home.id === "novotel"
+  && core.homeLeg(DAY, "seoul", undefined, PLACES).from.id === DAY[DAY.length - 1].id);
+ok("a day that already ends at the hotel gets no way home",
+  !core.homeLeg(R(["gyeongbok","novotel"]), "seoul", undefined, PLACES));
+ok("an empty day has neither end",
+  !core.startLeg([], "seoul", undefined, PLACES) && !core.homeLeg([], "seoul", undefined, PLACES));
+ok("a leg with no hotel has neither either",
+  !core.startLeg(DAY, ALL_LEG.id, undefined, PLACES) && !core.homeLeg(DAY, ALL_LEG.id, undefined, PLACES));
+
 /* Nine fixed hours rather than a timezone library, so it is checkable. */
 group("the Korean clock");
 ok("nine hours ahead of UTC", core.isoDay(new Date(Date.UTC(2026, 8, 5, 3, 0, 0))) === "2026-09-05");

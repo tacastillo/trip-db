@@ -9,7 +9,7 @@ import { CATS, CLUSTERS, LEGS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { CLOSED_RE, closedDaysFor, koreaClock, matchesQuery } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
-import { catVar } from "../lib/design.js";
+import { catVar, esc } from "../lib/design.js";
 
 /* ---------------- sidebar list ---------------- */
 export const listEl = document.getElementById("list");
@@ -51,10 +51,10 @@ export function itemRow(p){
   b.dataset.id = p.id;
   b.innerHTML = `<span class="pindot" style="background:${catVar(p.cat)}">${icon(c.icon)}</span>
     <span class="it-body">
-      <span class="it-name">${p.name}${p.added ? '<span class="tag">new</span>' : ""}</span>
-      <span class="it-note">${p.note}</span>
+      <span class="it-name">${esc(p.name)}${p.added ? '<span class="tag">new</span>' : ""}</span>
+      <span class="it-note">${esc(p.note)}</span>
       ${shut ? '<span class="it-shut">Closed today</span>' : ""}
-      ${p.meta && !(shut && metaSaysClosed(p)) ? `<span class="it-meta">${p.meta}</span>` : ""}
+      ${p.meta && !(shut && metaSaysClosed(p)) ? `<span class="it-meta">${esc(p.meta)}</span>` : ""}
       <span class="it-dist" data-dist="${p.id}"></span>
     </span>`;
   b.onclick = () => focus(p.id);
