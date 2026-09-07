@@ -1,3 +1,4 @@
+import { applyNight, wireNightToggle } from "./chrome.js";
 import { renderLegend } from "./legend.js";
 import { renderList } from "./list.js";
 import { drawRail, initMap, railLayer, routeLayer, setBaseLayer } from "./map.js";
@@ -7,13 +8,12 @@ import { plan, planAdd, planClear, planOver, planRemove, planReorder, planToggle
 import { applyRailLegendState, railLegendOpen, renderRailLegend, setRailLegendOpen } from "./rail-legend.js";
 import { routeDraw, showRoute } from "./route.js";
 import { deselect, focus, resyncSelection, select, selectedId } from "./selection.js";
-import { currentTab, map, night, railOn, setNight, setRailOn } from "./state.js";
+import { currentTab, map, railOn, setRailOn } from "./state.js";
 import { setTab, syncRailButton } from "./tabs.js";
 import { bootNav, closeNav, openNav, openTools, setNavHandler } from "./nav.js";
 import { initGoBtns, mapApp, setMapApp } from "./mapapp.js";
 import { isMobile, setView } from "./view.js";
 import { save } from "./store.js";
-import { setToolBtn } from "./toolbtn.js";
 import { applyPalette, armPaletteEgg, bootPalette, palette, setBasemapHandler, setPaletteHandler, syncPaletteEgg } from "./palette.js";
 import { applyBasemap, basemap, bootBasemap } from "./basemap.js";
 import { here, legHere, locating, setGeoFixHandler, setGeoLegHandler, startLocating, stopLocating, syncLegOffer, syncMeButton, toggleLocating } from "./geo-me.js";
@@ -49,24 +49,16 @@ initGoBtns();       // one delegated listener for every "open in Naver / Kakao" 
 renderLegend();
 renderList();
 
-export const nightBtn = document.getElementById("nightToggle");
-/* The body ships with class="night" so the first paint is never a white flash; if this
-   browser remembered otherwise, that is undone here rather than in the markup. */
-export function applyNight(){
-  document.body.classList.toggle("night", night);
-  setToolBtn(nightBtn, night ? "day" : "night", night ? "Day" : "Night");
-}
 applyNight();
-if (nightBtn) nightBtn.onclick = () => {
-  setNight(!night);
-  save({ night });
-  applyNight();
+/* What the map page has to do on top of the shared toggle: everything already on the
+   map was painted from tokens through cssVar(), so it has to be painted again. */
+wireNightToggle(() => {
   setBaseLayer();
   drawRail();
   // the casing under a drawn route is painted in the page background colour
   const sel = selectedId && PLACES.find(x => x.id === selectedId);
   if (sel && routeDraw) showRoute(sel);
-};
+});
 
 /* Swapping palette while the page is up, for driving it from a browser: the map paints
    from tokens through cssVar(), so whatever is already drawn has to be drawn again —

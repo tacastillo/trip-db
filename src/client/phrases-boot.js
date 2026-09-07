@@ -4,6 +4,7 @@ import { closeNav, openNav, openTools } from "./nav.js";
 import { hearHtml, rowHtml, sayHtml, wireHear } from "./phrase-row.js";
 import { save, saved } from "./store.js";
 import { bootTool, bootToolLate } from "./tool-boot.js";
+import { wireSearch } from "./searchbox.js";
 
 /* The whole of the cheat sheet page.
 
@@ -151,15 +152,7 @@ function syncJump(){
 bootTool();
 render();
 
-searchEl.oninput = () => {
-  query = searchEl.value;
-  clearEl.classList.toggle("on", !!query.trim());
-  render();
-};
-searchEl.onkeydown = e => {
-  if (e.key === "Escape" && searchEl.value){ e.stopPropagation(); searchEl.value = ""; searchEl.oninput(); }
-};
-clearEl.onclick = () => { searchEl.value = ""; searchEl.oninput(); searchEl.focus(); };
+wireSearch(searchEl, clearEl, (v) => { query = v; render(); });
 
 tiersEl.onclick = e => {
   const b = e.target.closest("[data-tier]");

@@ -1,6 +1,6 @@
 import { BASEMAPS, applyBasemap, basemap } from "./basemap.js";
+import { optionSetting } from "./setting.js";
 import { icon } from "../lib/icons.js";
-import { save, saved } from "./store.js";
 
 /* Which palette the page is wearing, and the way in to changing it.
 
@@ -29,30 +29,13 @@ export const DEFAULT_PALETTE = PALETTE_IDS[0];
 
 export let palette = DEFAULT_PALETTE;
 
-/** What the URL asks for, then what this browser remembers, then the default. */
-export function wantedPalette(search){
-  const asked = new URLSearchParams(String(search || "").replace(/^\?/, "")).get("palette");
-  if (asked && PALETTE_IDS.includes(asked)) return asked;
-  if (PALETTE_IDS.includes(saved.palette)) return saved.palette;
-  return DEFAULT_PALETTE;
-}
-
-/* On <html> rather than <body> so the tokens are in scope for everything, including the
-   rules that hang off body.night. */
-export function applyPalette(name){
-  palette = PALETTE_IDS.includes(name) ? name : DEFAULT_PALETTE;
-  document.documentElement.dataset.palette = palette;
-  syncPaletteEgg();
-  return palette;
-}
-
-export function bootPalette(){
-  const want = wantedPalette(location.search);
-  applyPalette(want);
-  /* only written when it is not already what is stored: this runs on every load */
-  if (saved.palette !== want) save({ palette: want });
-  return want;
-}
+/* applyPalette also re-ticks the panel, if one is open: the whole point of picking off
+   that list is watching the page change underneath it. */
+const setting = optionSetting({ ids: PALETTE_IDS, param:"palette", attr:"palette", key:"palette",
+                                onApply: (v) => { palette = v; syncPaletteEgg(); } });
+export const wantedPalette = setting.wanted;
+export const applyPalette = setting.apply;
+export const bootPalette = setting.boot;
 
 /* ---------------- the easter egg ---------------- */
 

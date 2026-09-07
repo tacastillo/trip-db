@@ -6,7 +6,7 @@ import { setTab } from "./tabs.js";
 import { PLACES } from "../data/places.js";
 import { HOTEL_STATION } from "../data/routing.js";
 import { journeyFor, offStationFor } from "../lib/journey.js";
-import { PLAN_MAX_STOPS, encodePlanQuery, leadFor, legForDate, moveBodyOrder, reorderBodyOrder, resolvePlan } from "../lib/plan-core.js";
+import { PLAN_MAX_STOPS, encodePlanQuery, fmtM, leadFor, legForDate, moveBodyOrder, reorderBodyOrder, resolvePlan } from "../lib/plan-core.js";
 import { icon } from "../lib/icons.js";
 
 /* Written from plan-boot (which decodes the link) and from the drag, so these
@@ -49,7 +49,7 @@ export function planHotelLine(p){
   const j = journeyFor(p);
   if (!j) return null;
   const hops = j.rail.map(l => `${l.label} to ${l.to}`).join(", then ");
-  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m` : `${(j.walk / 1000).toFixed(1)} km`;
+  const walk = fmtM(j.walk);
   // nothing to ride: the whole journey is the walk, so it is not "door to door" after a ride
   if (!hops) return `${walk} on foot, about ${j.minutes} min`;
   return `${hops}, then ${walk} on foot, about ${j.minutes} min door to door`;

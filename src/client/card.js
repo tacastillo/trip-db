@@ -1,7 +1,5 @@
 import { distanceFrom, here } from "./geo-me.js";
-import { renderLegend } from "./legend.js";
-import { renderList } from "./list.js";
-import { syncMarkers } from "./map.js";
+import { redrawPlaces } from "./list.js";
 import { planBody, planHas, planOffFor, planToggle, planningMode } from "./plan-state.js";
 import { deselect } from "./selection.js";
 import { isVisited, toggleVisited } from "./visited.js";
@@ -9,8 +7,7 @@ import { CATS } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { goBtnHtml } from "./mapapp.js";
 import { hopHow } from "./plan-pane.js";
-import { fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
-import { DOW_SHORT } from "../lib/plan-core.js";
+import { DOW_SHORT, fmtM, hotelFor, koreaClock, planLegs } from "../lib/plan-core.js";
 import { fmtMin, openState } from "../lib/hours.js";
 import { icon } from "../lib/icons.js";
 import { catVar } from "../lib/design.js";
@@ -73,9 +70,7 @@ export function showCard(p){
   if (cb) cb.onclick = () => {
     toggleVisited(p.id);
     showCard(p);            // the card is the thing that just changed, so redraw it
-    renderList();
-    renderLegend();
-    syncMarkers();
+    redrawPlaces();
   };
 }
 export function hideCard(){
@@ -144,7 +139,7 @@ export function routeStripHtml(p){
       <span class="${last ? "pr-off" : "pr-to"}">${leg.to}</span>
       <span class="pr-tag${last ? " hop" : ""}">${last ? "get off" : "transfer"}</span></span></div>`;
   });
-  const walk = j.walk < 950 ? `${Math.round(j.walk / 10) * 10} m walk` : `${(j.walk / 1000).toFixed(1)} km walk`;
+  const walk = `${fmtM(j.walk)} walk`;
   // the traced ride names the platforms; the map app is what you actually follow on the day
   return `<div class="pop-route"><span class="pr-k">From the hotel</span>${rows.join("")}
     <div class="pr-walk">${icon("walk")} ${walk} to the door · ≈ ${j.minutes} min door to door</div></div>`;

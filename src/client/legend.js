@@ -1,5 +1,4 @@
-import { renderList } from "./list.js";
-import { syncMarkers } from "./map.js";
+import { redrawPlaces } from "./list.js";
 import { locating, nearFirst, setNearFirst } from "./geo-me.js";
 import { save } from "./store.js";
 import { active, inTab } from "./state.js";
@@ -21,13 +20,13 @@ export function renderLegend(){
     const b = document.createElement("button");
     b.className = "chip" + (active[k] ? "" : " off");
     b.innerHTML = `<span class="dot" style="background:${catVar(k)}"></span>${c.label}<span class="ct">${counts[k]}</span>`;
-    b.onclick = () => { active[k] = !active[k]; saveCats(); syncMarkers(); renderLegend(); renderList(); };
+    b.onclick = () => { active[k] = !active[k]; saveCats(); redrawPlaces(); };
     legendEl.appendChild(b);
   });
   if (CAT_ORDER.some(k => !active[k])) {
     const b = document.createElement("button");
     b.className = "chip"; b.textContent = "Show all";
-    b.onclick = () => { CAT_ORDER.forEach(k => active[k] = true); saveCats(); syncMarkers(); renderLegend(); renderList(); };
+    b.onclick = () => { CAT_ORDER.forEach(k => active[k] = true); saveCats(); redrawPlaces(); };
     legendEl.appendChild(b);
   }
   /* Only while the browser is actually handing over a position: sorting a list by
@@ -48,7 +47,7 @@ export function renderLegend(){
     b.className = "chip been" + (hideVisited ? " on" : "");
     b.innerHTML = `<span class="tickbox on"></span> Been<span class="ct">${been}</span>`;
     b.title = hideVisited ? "Show the spots you have been to again" : "Hide the spots you have been to";
-    b.onclick = () => { setHideVisited(!hideVisited); syncMarkers(); renderLegend(); renderList(); };
+    b.onclick = () => { setHideVisited(!hideVisited); redrawPlaces(); };
     legendEl.appendChild(b);
   }
 }

@@ -1,5 +1,5 @@
+import { optionSetting } from "./setting.js";
 import { night } from "./state.js";
-import { save, saved } from "./store.js";
 
 /* Which CARTO base the street tiles come from.
 
@@ -34,25 +34,11 @@ export function tileStyle(){
   return night ? "dark_all" : "light_all";
 }
 
-export function wantedBasemap(search){
-  const asked = new URLSearchParams(String(search || "").replace(/^\?/, "")).get("map");
-  if (asked && BASEMAP_IDS.includes(asked)) return asked;
-  if (BASEMAP_IDS.includes(saved.basemap)) return saved.basemap;
-  return DEFAULT_BASEMAP;
-}
-
-/* On <html> beside data-palette, so a stylesheet can tune the tile filter per base —
-   voyager arrives with its own contrast and wants almost none of the lift the flat
-   bases need. */
-export function applyBasemap(name){
-  basemap = BASEMAP_IDS.includes(name) ? name : DEFAULT_BASEMAP;
-  document.documentElement.dataset.map = basemap;
-  return basemap;
-}
-
-export function bootBasemap(){
-  const want = wantedBasemap(location.search);
-  applyBasemap(want);
-  if (saved.basemap !== want) save({ basemap: want });
-  return want;
-}
+/* The URL param is `map`, and so is the data attribute — a stylesheet tunes the tile
+   filter per base, because voyager arrives with its own contrast and wants almost none
+   of the lift the flat bases need. */
+const setting = optionSetting({ ids: BASEMAP_IDS, param:"map", attr:"map", key:"basemap",
+                                onApply: (v) => { basemap = v; } });
+export const wantedBasemap = setting.wanted;
+export const applyBasemap = setting.apply;
+export const bootBasemap = setting.boot;
