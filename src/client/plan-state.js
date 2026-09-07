@@ -131,6 +131,14 @@ export function planAdd(id, at){
   if (planHas(id)) return;
   if (plan.ids.length >= PLAN_MAX_STOPS){ planFull = true; renderPlan(); return; }
   planFull = false;
+  /* An empty day belongs wherever its first stop is. That used to be settled by the leg
+     you were looking at, which was the same thing right up until "Everywhere" existed:
+     from that tab you can add a Jeju spot to a day filed under Seoul, and the day would
+     bracket itself with the wrong hotel and caution you about the wrong closing days.
+     The first stop is the better authority, and only the first — a day already under way
+     is not re-homed by what you add to it. */
+  const p = PLACES.find(x => x.id === id);
+  if (!plan.ids.length && p && p.city !== plan.city) plan.city = p.city;
   const i = (at == null || at < 0 || at > plan.ids.length) ? plan.ids.length : at;
   plan.ids.splice(i, 0, id);
   afterPlanChange();

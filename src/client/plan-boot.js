@@ -1,7 +1,7 @@
 import { renderList } from "./list.js";
 import { renderPlan } from "./plan-pane.js";
 import { placeQuery, plan, savePlan, setPlaceQuery, setPlan, setPlanOver, setSideTab, syncPlanUrl } from "./plan-state.js";
-import { setCurrentTab, setStatedCity } from "./state.js";
+import { ALL_CITY, setCurrentTab, setStatedCity } from "./state.js";
 import { saved } from "./store.js";
 import { LEGS, TRIP } from "../data/places.js";
 import { PLAN_MAX_STOPS, PLAN_PARAMS, decodePlanQuery, inTrip, isoDay, legForDate } from "../lib/plan-core.js";
@@ -33,8 +33,13 @@ export function restored(search){
      moves a day you were already building only when that day is empty. Without this,
      tapping "Jeju" on the cheat sheet re-homed a Seoul day to Jeju: Seoul stops under a
      Jeju hotel, and the wrong closed-day cautions. */
-  const stated = q.get(PLAN_PARAMS.city) ? got.city : "";
-  if (stated && !plan.ids.length) plan.city = stated;
+  /* ?city=all points the map at every leg at once. decodePlanQuery deliberately does not
+     know about it — a *day* is always in a real leg, with a hotel at both ends — so it is
+     read here, where the question is which map you are looking at rather than which leg
+     the day is in. That also means a day never gets re-homed to something with no hotel. */
+  const asked = q.get(PLAN_PARAMS.city);
+  const stated = asked === ALL_CITY ? ALL_CITY : (asked ? got.city : "");
+  if (stated && stated !== ALL_CITY && !plan.ids.length) plan.city = stated;
   /* The day you are on is the day you are planning, nine mornings out of fifteen. Only
      ever filled in when nothing else stated one — a restored day keeps its own date,
      and a date outside the trip is nobody's business of ours. */

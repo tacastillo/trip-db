@@ -122,6 +122,8 @@
   .raillegend:not(.collapsed) .rl-h::after{content:' ▾';}
   .tilebanner{top:10px; font-size:11.5px; padding:8px 12px; max-width:92%;}
   .geobanner{top:auto; bottom:10px;}
+  /* it is the only thing in the banner you can act on, so it is a thumb target */
+  .gb-fix{min-height:var(--tap); padding:0 18px; font-size:12.5px; width:100%;}
   /* 44% cut the handoff buttons in half — the card scrolled, but a button sliced by the
      card's own edge reads as broken rather than as more to see. The card is what you act
      on with a thumb, so it gets the room and the map keeps the other 40%. */

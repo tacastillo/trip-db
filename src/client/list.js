@@ -1,11 +1,11 @@
 import { distanceFrom, here, nearFirst } from "./geo-me.js";
 import { placeQuery, planHas, planToggle } from "./plan-state.js";
 import { focus, selectedId } from "./selection.js";
-import { active, currentTab } from "./state.js";
+import { active, allTab, currentTab, inTab } from "./state.js";
 import { isVisited, toggleVisited, visitedHidden } from "./visited.js";
 import { syncMarkers } from "./map.js";
 import { renderLegend } from "./legend.js";
-import { CATS, CLUSTERS, PLACES } from "../data/places.js";
+import { CATS, CLUSTERS, LEGS, PLACES } from "../data/places.js";
 import { journeyFor } from "../lib/journey.js";
 import { fmtM, matchesQuery } from "../lib/plan-core.js";
 import { closedDaysFor, koreaClock } from "../lib/plan-core.js";
@@ -18,7 +18,7 @@ export const listEl = document.getElementById("list");
 /** Everything the chips, the search box and the been-there filter leave standing. A
     planned stop is never filtered away: its number on the map has to point at a pin. */
 export function listed(p){
-  return p.city === currentTab && matchesQuery(p, placeQuery)
+  return inTab(p) && matchesQuery(p, placeQuery)
     && (active[p.cat] || planHas(p.id))
     && !(visitedHidden(p.id) && !planHas(p.id));
 }
@@ -105,12 +105,18 @@ export function renderList(){
       items.forEach(x => listEl.appendChild(itemRow(x.p)));
     }
   } else {
-    (CLUSTERS[currentTab] || []).forEach(cl => {
-      const items = PLACES.filter(p => p.cluster === cl && listed(p));
-      if (!items.length) return;
-      hoods++; shown += items.length;
-      listEl.appendChild(head(cl));
-      items.forEach(p => listEl.appendChild(itemRow(p)));
+    /* One leg's neighbourhoods, in the order the trip lists them — or all three legs'
+       in turn, on "Everywhere", where the city is the half of the heading you are
+       scanning for and the cluster is still the half that tells you where in it. */
+    (allTab() ? LEGS.map(l => l.id) : [currentTab]).forEach(city => {
+      const leg = LEGS.find(l => l.id === city);
+      (CLUSTERS[city] || []).forEach(cl => {
+        const items = PLACES.filter(p => p.city === city && p.cluster === cl && listed(p));
+        if (!items.length) return;
+        hoods++; shown += items.length;
+        listEl.appendChild(head(allTab() ? `${leg.label} · ${cl}` : cl));
+        items.forEach(p => listEl.appendChild(itemRow(p)));
+      });
     });
   }
   if (!shown) {
@@ -125,7 +131,7 @@ export function renderList(){
   document.getElementById("hoodCount").textContent = hoods;
   const sub = document.getElementById("sumSub");
   // rail geometry isn't the test — Busan draws lines but has no station table yet
-  if (sub) sub.textContent = PLACES.some(p => { const j = journeyFor(p); return p.city === currentTab && j && j.rail.length; })
+  if (sub) sub.textContent = PLACES.some(p => { const j = journeyFor(p); return inTab(p) && j && j.rail.length; })
     ? "tap a spot for the ride there from the hotel"
     : "tap a spot to see it on the map";
   fillDistances();

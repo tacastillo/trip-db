@@ -1,5 +1,5 @@
 import { save, saved } from "./store.js";
-import { currentTab } from "./state.js";
+import { allTab, currentTab } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
 import { LEGS, PLACES } from "../data/places.js";
 import { TILE_KB, offlinePack, tileUrl } from "../lib/tiles.js";
@@ -45,6 +45,11 @@ export function syncOfflineButton(){
   const b = offlineBtn();
   if (!b) return;
   if (packing) return;                  // mid-download the label is the progress
+  /* A pack is cut for one leg, and all three at once is 46 MB of somebody else's
+     bandwidth — so on "Everywhere" the button is not disabled, it is absent, the same
+     way the rail toggle is absent for a city with no lines. Pick a city to save it. */
+  b.style.display = allTab() ? "none" : "";
+  if (allTab()) return;
   const st = packState(currentTab);
   const leg = (LEGS.find(l => l.id === currentTab) || {}).label || currentTab;
   /* A pack is only any use for the base it was downloaded in — the worker caches by URL
@@ -62,6 +67,7 @@ export function syncOfflineButton(){
 }
 
 export async function savePack(){
+  if (allTab()) return;                 // there is no pack for "Everywhere" — see above
   const b = offlineBtn();
   const reg = swReady && await swReady;
   if (!reg || !navigator.serviceWorker.controller){

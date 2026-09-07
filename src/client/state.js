@@ -1,5 +1,5 @@
 import { saved } from "./store.js";
-import { CAT_ORDER } from "../data/places.js";
+import { ALL_LEG, CAT_ORDER } from "../data/places.js";
 
 /* index.html kept every mutable in one block; here each one lives with the module
    that writes it and is read elsewhere as a live binding. What is left in this file
@@ -22,6 +22,21 @@ CAT_ORDER.forEach(k => active[k] = !saved.cats || saved.cats[k] !== false);
 /* written by setTab, and by bootPlan when the link names a different leg */
 export let currentTab = "seoul";
 export const setCurrentTab = (v) => { currentTab = v; };
+
+/* The map used to show exactly one leg's places, which made the calendar a filter on
+   what you were allowed to see: on the Busan tab, Jeju did not exist. That is fine on
+   the day it is true and wrong every other day — a ferry is late, you are back in Seoul
+   for an afternoon, somebody asks what is near. So the tab can also be ALL_CITY, which
+   is not a leg (it has no dates, no hotel and no tile pack) but is a legitimate answer
+   to "what is the map showing": everything.
+
+   Everything that used to compare p.city === currentTab asks inTab() instead, which is
+   the whole of the difference. A day still belongs to a real leg — plan.city is never
+   this — so the hotel brackets, the closed-day cautions and the ride from the hotel are
+   untouched by it. */
+export const ALL_CITY = ALL_LEG.id;
+export const allTab = () => currentTab === ALL_CITY;
+export const inTab = (p) => currentTab === ALL_CITY || p.city === currentTab;
 
 /* both written by their toggle button in main.js and read by the map */
 export let night = saved.night !== false;

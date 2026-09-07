@@ -1,10 +1,10 @@
 import { renderLegend } from "./legend.js";
 import { renderList, scrollListTop } from "./list.js";
 import { save, saved } from "./store.js";
-import { map } from "./state.js";
+import { allTab, currentTab, map } from "./state.js";
 import { setToolBtn } from "./toolbtn.js";
-import { PLACES } from "../data/places.js";
-import { metres } from "../lib/geo.js";
+import { LEGS, PLACES } from "../data/places.js";
+import { legForPoint, metres } from "../lib/geo.js";
 import { fmtM } from "../lib/plan-core.js";
 import { cssVar } from "./theme.js";
 
@@ -34,6 +34,68 @@ export let lastSort = null;
 let onFix = null;
 export const setGeoFixHandler = (fn) => { onFix = fn; };
 
+/* Switching leg, handed in the same way and for the same reason: this module may not
+   import tabs.js — tabs renders the list, and the list reads the distances from here.
+   main.js hands it setTab; the two tool pages have no map and hand it nothing. */
+let onLeg = null;
+export const setGeoLegHandler = (fn) => { onLeg = fn; };
+
+/** The leg you are standing in, or null if that is nowhere this trip goes. */
+export function legHere(){
+  return here ? legForPoint([here.lat, here.lng], PLACES) : null;
+}
+
+/* It offers; it does not take over.
+
+   The first cut of this switched the map to whatever leg the fix landed in. That is
+   right often enough to be tempting and wrong in the case that matters: looking up
+   Seoul while standing in Busan is a thing people do all the time — planning tomorrow,
+   answering "what was that place" — and a page that yanks you back every time you ask
+   where you are has taken a decision off you that was never its to make. The map does
+   what you last told it, and a fix is not an instruction.
+
+   So the mismatch is stated and the switch is one tap, which is the same bargain the
+   plan pane already strikes with "This day is in Jeju — Show Jeju". Offered once per
+   arrival in a leg, so it cannot nag: crossing into a new one offers again, and tapping
+   📍 yourself always does, because that is you asking. */
+let offeredLeg = null, offerFor = null, offerTimer = null, offerShown = false;
+
+/* Twenty seconds is long enough to read a line and tap it, and short enough that a line
+   you have decided to ignore is not still sitting over the map you chose to look at. */
+export const OFFER_MS = 20000;
+
+export function syncLegOffer(asked){
+  const leg = legHere();
+  // A new leg under your feet, or you asking outright, is what puts the offer up — and
+  // the clock starts there rather than on every redraw, or a watch handing over a fix
+  // every few seconds would keep pushing the deadline back and the line would never go.
+  if (leg && (leg !== offeredLeg || asked)){
+    offerFor = leg;
+    clearTimeout(offerTimer);
+    offerTimer = setTimeout(() => { if (offerFor === leg) retractOffer(); }, OFFER_MS);
+  }
+  offeredLeg = leg;
+  /* And nothing to offer when the map is already showing it — "Everywhere" is showing
+     it, which is the other half of this change and the better answer to the same
+     question: on that tab the pins around you are on screen whatever the date says. */
+  if (!leg || leg === currentTab || allTab() || !onLeg) offerFor = null;
+  // taking it down is as much this function's job as putting it up: switching to Jeju by
+  // hand answers the offer, and only the line we put there is ours to clear
+  if (!offerFor){ if (offerShown) retractOffer(); return; }
+  const label = (LEGS.find(l => l.id === offerFor) || {}).label || offerFor;
+  const leaving = offerFor;
+  geoBanner(`You’re in ${label}.`,
+    { label: `Show ${label}`, run: () => { offerFor = null; offerShown = false; onLeg(leaving); } });
+  offerShown = true;
+}
+
+function retractOffer(){
+  offerFor = null;
+  offerShown = false;
+  clearTimeout(offerTimer);
+  geoBanner("");
+}
+
 export function distanceFrom(p){
   return here ? metres([here.lat, here.lng], [p.lat, p.lng]) : null;
 }
@@ -43,10 +105,21 @@ export function distanceLabel(p){
   return d == null ? "" : fmtM(d);
 }
 
-export function geoBanner(msg){
+/* The banner, with an optional way out of what it is telling you. A line that names a
+   problem and hands you the fix is one tap; the same line on its own is a line you have
+   to work out what to do about, standing in a street. */
+export function geoBanner(msg, action){
   const b = document.getElementById("geobanner");
   if (!b) return;
+  offerShown = !!action;      // anything else written here has taken the offer's place
   b.textContent = msg || "";
+  if (msg && action){
+    const btn = document.createElement("button");
+    btn.className = "gb-fix";
+    btn.textContent = action.label;
+    btn.onclick = () => { geoBanner(""); action.run(); };
+    b.appendChild(btn);
+  }
   b.style.display = msg ? "block" : "none";
 }
 
@@ -104,6 +177,8 @@ export function onPosition(pos){
   here = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
   geoBanner("");
   drawMe(first);
+  // and, if the map is showing a city you are not in, one line saying so and one tap out
+  syncLegOffer(false);
   refreshDistances();
   if (first) renderLegend();          // the "nearest first" chip only exists with a fix
   // a sorted list is the one thing a small drift really does reorder
@@ -142,6 +217,7 @@ export function startLocating(){
 export function stopLocating(){
   if (watchId != null && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
   watchId = null; locating = false; here = null; lastSort = null;
+  offeredLeg = null; retractOffer();
   clearMe();
   refreshDistances();
   renderLegend();
@@ -156,6 +232,8 @@ export function stopLocating(){
     centred on you, it stops, because by then that is the only thing left to ask for. */
 export function toggleLocating(){
   if (!locating) return startLocating();
+  // you asked, so the offer is made again even if it was ignored the first time
+  syncLegOffer(true);
   if (here && map && metres([here.lat, here.lng], [map.getCenter().lat, map.getCenter().lng]) > 40)
     return drawMe(true);
   stopLocating();
