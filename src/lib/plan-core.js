@@ -568,6 +568,16 @@ export function orderCautions(stops, city, day){
 
 /** The handoff. rideLine is an optional (place) -> string for the ride from the hotel,
     which lives outside this block because it needs the memoised journey engine. */
+/* How a hop reads in prose: the walk if it is one, the line where the geometry proves
+   one, and the manner of it otherwise. Written out three times inside the briefing
+   before this — once for the way out, once per stop, once for the way home. */
+export function legPhrase(leg){
+  if (!leg) return "";
+  if (leg.walkable) return `, about ${leg.walkMin} min on foot`;
+  if (leg.line) return `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}`;
+  return `, ${leg.mode}`;
+}
+
 export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   const st = planStats(stops, offFor), lines = [];
   const cityLabel = (LEGS.find(l => l.id === plan.city) || {}).label || plan.city;
@@ -581,9 +591,7 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
   lines.push("");
   const out = startLeg(stops, plan.city, offFor);
   if (out){
-    lines.push(`Starts at **${out.home.name}** — ${fmtM(out.metres)}${out.walkable
-      ? `, about ${out.walkMin} min on foot` : out.line
-        ? `, ${out.line.label} from ${out.line.from} to ${out.line.to}` : `, ${out.mode}`}`);
+    lines.push(`Starts at **${out.home.name}** — ${fmtM(out.metres)}${legPhrase(out)}`);
     lines.push("");
   }
   stops.forEach((s, i) => {
@@ -599,15 +607,12 @@ export function planBriefMarkdown(plan, stops, href, rideLine, offFor){
     const ride = rideLine && rideLine(p);
     if (ride) lines.push(`   From the hotel: ${ride}`);
     const leg = st.legs[i];
-    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${leg.walkable ? `, about ${leg.walkMin} min on foot`
-      : leg.line ? `, ${leg.line.label} from ${leg.line.from} to ${leg.line.to}` : `, ${leg.mode}`}`);
+    if (leg) lines.push(`   -> next: ${fmtM(leg.metres)}${legPhrase(leg)}`);
     lines.push("");
   });
   const back = homeLeg(stops, plan.city, offFor);
   if (back){
-    lines.push(`Ends back at **${back.home.name}** — ${fmtM(back.metres)}${back.walkable
-      ? `, about ${back.walkMin} min on foot` : back.line
-        ? `, ${back.line.label} from ${back.line.from} to ${back.line.to}` : `, ${back.mode}`} · ${back.naver}`);
+    lines.push(`Ends back at **${back.home.name}** — ${fmtM(back.metres)}${legPhrase(back)} · ${back.naver}`);
     lines.push("");
   }
   const cautions = orderCautions(stops, plan.city, plan.day);
