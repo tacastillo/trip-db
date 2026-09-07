@@ -1,5 +1,5 @@
 import { BASEMAPS, applyBasemap, basemap } from "./basemap.js";
-import { closeSheet, openSheet, syncSheet } from "./sheet.js";
+import { openSheet, syncSheet } from "./sheet.js";
 import { optionSetting } from "./setting.js";
 
 /* Which palette the page is wearing, and the way in to changing it.
@@ -92,8 +92,6 @@ export function openPalettePanel(){
     ],
   });
 }
-
-export const closePalettePanel = () => closeSheet("look");
 
 /** Which row is on. Called after every apply, so the panel cannot disagree with the page
     it is sitting on — and a no-op when there is no panel, which is every load. */
