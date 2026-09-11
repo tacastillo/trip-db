@@ -264,18 +264,26 @@ export function restored(search, stored, now){
   /* The day you are on is the day you are planning, nine mornings out of fifteen. Only
      ever filled in when nothing else stated one — a restored day keeps its own date,
      and a date outside the trip is nobody's business of ours. */
+  const today = isoDay(now);
+  const todayLeg = inTrip(today, TRIP) ? legForDate(today) : null;
   if (!plan.day && !linked){
-    const today = isoDay(now);
-    if (inTrip(today, TRIP)){
+    if (todayLeg){
       plan.day = today;
-      const leg = legForDate(today);
       /* but not over a city the link stated: that is somebody saying where to go. */
-      if (leg && !plan.ids.length && !stated) plan.city = leg;
+      if (!plan.ids.length && !stated) plan.city = todayLeg;
     }
   }
+  /* A day already dated in the past stops being the map's answer to "where are we" —
+     it is still the day you were building, and plan.city is untouched so it keeps its
+     own hotel and cautions, but the store never expires and this page is read every
+     morning of the trip, so a Jeju day finished three days ago should not still open
+     the map on Jeju once the calendar has moved past it. Only for an unstated tab: a
+     link or the nav menu saying a city always wins, same as everywhere else here. */
+  const stale = !stated && todayLeg && plan.day && plan.day < today;
   /* Last, so today's leg above has had its say: the map opens on the stated city if
-     there is one, and otherwise on wherever the day ended up. */
-  return { plan, stated, tab: stated || plan.city, over: got.over, linked,
+     there is one, on today's leg if the day on screen is behind the calendar, and
+     otherwise on wherever the day ended up. */
+  return { plan, stated, tab: stated || (stale ? todayLeg : plan.city), over: got.over, linked,
            restored: !linked && !!mine && mine.ids.length > 0 };
 }
 

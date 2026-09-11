@@ -437,6 +437,16 @@ ok("...in the leg that date lands in", rest("", null).plan.city === "jeju");
 ok("a day outside the trip is nobody's business of ours",
   rest("", null, new Date(Date.UTC(2026, 0, 5, 3, 0, 0))).plan.day === "");
 
+/* The stale-day bug: the store never expires, so a day finished days ago must stop
+   being the map's answer to "where are we" — even though it is still exactly the day
+   you were building, and nothing about it should be rehomed. */
+ok("a stored day already in the past no longer decides the map's tab",
+  rest("", STORED).tab === "jeju");
+ok("...though the day itself keeps its own city and date",
+  rest("", STORED).plan.city === "seoul" && rest("", STORED).plan.day === "2026-09-02");
+ok("a stored day dated today or later still opens the map on its own leg",
+  rest("", { city:"seoul", ids:["gyeongbok"], day:"2026-09-06" }).tab === "seoul");
+
 /* The re-homing bug: tapping a city in the nav menu must move the map, not refile a day
    that already has stops under a hotel in another city. */
 ok("a stated city moves the map", rest("?city=jeju", STORED).tab === "jeju");
